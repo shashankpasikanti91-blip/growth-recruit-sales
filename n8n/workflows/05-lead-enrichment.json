@@ -1,0 +1,103 @@
+{
+  "id": "05-lead-enrichment",
+  "name": "05 - Lead Enrichment & Auto-Outreach",
+  "active": true,
+  "description": "Triggered when a new lead is imported. Runs AI lead scoring against the active ICP profile. If the lead scores >= 70, automatically triggers outreach generation. Optionally enriches company data via Clearbit.",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Webhook - lead.imported",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "parameters": {
+        "path": "on-lead-imported",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "on-lead-imported"
+    },
+    {
+      "id": "n2",
+      "name": "Score Lead via Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.BACKEND_URL }}/api/v1/webhooks/score-lead",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-N8N-Secret", "value": "={{ $vars.N8N_WEBHOOK_SECRET }}" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ { leadId: $json.leadId } }}"
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Check Score Threshold",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300],
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.aiScore ?? 0 }}", "operation": "largerEqual", "value2": 70 }]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Enrich Company (Clearbit)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://company.clearbit.com/v2/companies/find?domain={{ $json.companyDomain }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Authorization", "value": "Bearer {{ $vars.CLEARBIT_KEY }}" }]
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "n5",
+      "name": "Trigger Outreach Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1120, 180],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.BACKEND_URL }}/api/v1/webhooks/trigger-outreach",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-N8N-Secret", "value": "={{ $vars.N8N_WEBHOOK_SECRET }}" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ { targetType: 'LEAD', targetId: $('Webhook - lead.imported').first().json.leadId, channel: 'EMAIL', sequenceSteps: 3 } }}"
+      }
+    },
+    {
+      "id": "n6",
+      "name": "Skip (Low Score)",
+      "type": "n8n-nodes-base.noOp",
+      "position": [900, 420],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Webhook - lead.imported": { "main": [[{ "node": "Score Lead via Backend", "type": "main", "index": 0 }]] },
+    "Score Lead via Backend": { "main": [[{ "node": "Check Score Threshold", "type": "main", "index": 0 }]] },
+    "Check Score Threshold": {
+      "main": [
+        [{ "node": "Enrich Company (Clearbit)", "type": "main", "index": 0 }],
+        [{ "node": "Skip (Low Score)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Enrich Company (Clearbit)": { "main": [[{ "node": "Trigger Outreach Generation", "type": "main", "index": 0 }]] }
+  },
+  "variables": {
+    "BACKEND_URL": "http://backend:4000",
+    "N8N_WEBHOOK_SECRET": "REPLACE_ME",
+    "CLEARBIT_KEY": "REPLACE_ME"
+  }
+}

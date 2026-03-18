@@ -1,0 +1,120 @@
+version: '3.9'
+
+services:
+  # ─── PostgreSQL Database ──────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: srp_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-srp_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-srp_password}
+      POSTGRES_DB: ${DB_NAME:-srp_platform}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-srp_user}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis (Queue + Cache) ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: srp_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-srp_redis_pass}
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--no-auth-warning', '-a', '${REDIS_PASSWORD:-srp_redis_pass}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API (NestJS) ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: srp_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${DB_USER:-srp_user}:${DB_PASSWORD:-srp_password}@postgres:5432/${DB_NAME:-srp_platform}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-srp_redis_pass}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-changeme_very_secure_jwt_secret}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-changeme_very_secure_refresh_secret}
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-changeme_n8n_secret}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      PORT: 3001
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - uploads_data:/app/uploads
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: npm run start:dev
+
+  # ─── Frontend (Next.js) ──────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: srp_frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      NEXT_PUBLIC_WS_URL: ws://localhost:3001
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+
+  # ─── n8n Workflow Engine ──────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: srp_n8n
+    restart: unless-stopped
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n_db
+      DB_POSTGRESDB_USER: ${DB_USER:-srp_user}
+      DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD:-srp_password}
+      N8N_BASIC_AUTH_ACTIVE: 'true'
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:-changeme_n8n}
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://n8n:5678/
+      GENERIC_TIMEZONE: UTC
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows
+    ports:
+      - '5678:5678'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
+  uploads_data:

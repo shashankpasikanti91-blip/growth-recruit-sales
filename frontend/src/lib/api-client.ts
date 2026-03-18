@@ -1,0 +1,112 @@
+import api from '@/lib/api';
+
+// ─── Candidates ──────────────────────────────────────────────────────────────
+
+export const candidatesApi = {
+  list: (params?: Record<string, any>) => api.get('/candidates', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/candidates/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/candidates', data).then(r => r.data),
+  update: (id: string, data: any) => api.put(`/candidates/${id}`, data).then(r => r.data),
+  archive: (id: string) => api.patch(`/candidates/${id}/archive`).then(r => r.data),
+  addNote: (id: string, note: string) => api.post(`/candidates/${id}/notes`, { note }).then(r => r.data),
+};
+
+// ─── Jobs ────────────────────────────────────────────────────────────────────
+
+export const jobsApi = {
+  list: (params?: Record<string, any>) => api.get('/jobs', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/jobs/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/jobs', data).then(r => r.data),
+  update: (id: string, data: any) => api.put(`/jobs/${id}`, data).then(r => r.data),
+  close: (id: string) => api.patch(`/jobs/${id}/close`).then(r => r.data),
+};
+
+// ─── Applications ─────────────────────────────────────────────────────────────
+
+export const applicationsApi = {
+  list: (params?: Record<string, any>) => api.get('/applications', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/applications/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/applications', data).then(r => r.data),
+  screen: (id: string, resumeText?: string) => api.post(`/applications/${id}/screen`, { resumeText }).then(r => r.data),
+  updateStage: (id: string, stage: string, stageNote?: string) =>
+    api.patch(`/applications/${id}/stage`, { stage, stageNote }).then(r => r.data),
+};
+
+// ─── Leads ───────────────────────────────────────────────────────────────────
+
+export const leadsApi = {
+  list: (params?: Record<string, any>) => api.get('/leads', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/leads/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/leads', data).then(r => r.data),
+  update: (id: string, data: any) => api.put(`/leads/${id}`, data).then(r => r.data),
+  updateStage: (id: string, stage: string, note?: string) =>
+    api.patch(`/leads/${id}/stage`, { stage, note }).then(r => r.data),
+  score: (id: string) => api.post(`/leads/${id}/score`).then(r => r.data),
+  addNote: (id: string, note: string) => api.post(`/leads/${id}/notes`, { note }).then(r => r.data),
+};
+
+// ─── Companies ───────────────────────────────────────────────────────────────
+
+export const companiesApi = {
+  list: (params?: Record<string, any>) => api.get('/companies', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/companies/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/companies', data).then(r => r.data),
+};
+
+// ─── Imports ─────────────────────────────────────────────────────────────────
+
+export const importsApi = {
+  list: () => api.get('/imports').then(r => r.data),
+  get: (id: string) => api.get(`/imports/${id}`).then(r => r.data),
+  getRows: (id: string) => api.get(`/imports/${id}/rows`).then(r => r.data),
+  create: (data: any) => api.post('/imports', data).then(r => r.data),
+  upload: (id: string, file: File, mappingId?: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (mappingId) form.append('mappingTemplateId', mappingId);
+    return api.post(`/imports/${id}/upload`, form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
+  },
+  retry: (id: string) => api.post(`/imports/${id}/retry`).then(r => r.data),
+};
+
+// ─── Outreach ─────────────────────────────────────────────────────────────────
+
+export const outreachApi = {
+  generate: (data: any) => api.post('/outreach/generate', data).then(r => r.data),
+  listMessages: (params?: Record<string, any>) => api.get('/outreach/messages', { params }).then(r => r.data),
+  listSequences: () => api.get('/outreach/sequences').then(r => r.data),
+  updateStatus: (id: string, status: string) => api.patch(`/outreach/messages/${id}/status`, { status }).then(r => r.data),
+};
+
+// ─── Analytics ───────────────────────────────────────────────────────────────
+
+export const analyticsApi = {
+  recruitment: (days = 30) => api.get('/analytics/recruitment', { params: { days } }).then(r => r.data),
+  sales: (days = 30) => api.get('/analytics/sales', { params: { days } }).then(r => r.data),
+  aiUsage: (days = 30) => api.get('/analytics/ai-usage', { params: { days } }).then(r => r.data),
+  dashboard: () => api.get('/analytics/dashboard').then(r => r.data),
+};
+
+// ─── Billing ──────────────────────────────────────────────────────────────────
+
+export const billingApi = {
+  plans: () => api.get('/billing/plans').then(r => r.data),
+  subscription: () => api.get('/billing/subscription').then(r => r.data),
+  usage: () => api.get('/billing/usage').then(r => r.data),
+  invoices: (page = 1) => api.get('/billing/invoices', { params: { page } }).then(r => r.data),
+  changePlan: (planId: string, billingCycle: 'MONTHLY' | 'ANNUAL') =>
+    api.post('/billing/change-plan', { planId, billingCycle }).then(r => r.data),
+};
+
+// ─── AI ───────────────────────────────────────────────────────────────────────
+
+export const aiApi = {
+  screenResume: (candidateId: string, jobId: string, resumeText: string) =>
+    api.post('/ai/screen-resume', { candidateId, jobId, resumeText }).then(r => r.data),
+  parseJd: (text: string) => api.post('/ai/parse-jd', { text }).then(r => r.data),
+  parseResume: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post('/ai/parse-resume', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
+  },
+};

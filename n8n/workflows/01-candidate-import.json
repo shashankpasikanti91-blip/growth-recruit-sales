@@ -1,0 +1,79 @@
+{
+  "id": "01-candidate-import",
+  "name": "01 - Candidate Import (LinkedIn / Indeed)",
+  "active": true,
+  "description": "Scrapes candidate profiles from LinkedIn or Indeed via HTTP request or RSS, normalises the payload, and posts it to the backend webhook endpoint. Attach your own HTTP Request nodes authenticated with the relevant source.",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 6 }] }
+      }
+    },
+    {
+      "id": "n2",
+      "name": "Fetch LinkedIn Profiles",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.LINKEDIN_SEARCH_URL }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Authorization", "value": "Bearer {{ $vars.LINKEDIN_TOKEN }}" }]
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "name": "Normalise Candidate",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const p = item.json;\n  return {\n    json: {\n      firstName: p.firstName ?? p.first_name ?? '',\n      lastName: p.lastName ?? p.last_name ?? '',\n      email: p.email ?? null,\n      phone: p.phone ?? null,\n      currentTitle: p.headline ?? p.title ?? null,\n      currentCompany: p.company ?? null,\n      linkedinUrl: p.profileUrl ?? p.linkedin ?? null,\n      source: 'LINKEDIN',\n      rawData: p\n    }\n  };\n});"
+      }
+    },
+    {
+      "id": "n4",
+      "name": "POST to Backend Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.BACKEND_URL }}/api/v1/webhooks/candidate-imported",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-N8N-Secret", "value": "={{ $vars.N8N_WEBHOOK_SECRET }}" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ $json }}"
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Log Result",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1120, 300],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": { "main": [[{ "node": "Fetch LinkedIn Profiles", "type": "main", "index": 0 }]] },
+    "Fetch LinkedIn Profiles": { "main": [[{ "node": "Normalise Candidate", "type": "main", "index": 0 }]] },
+    "Normalise Candidate": { "main": [[{ "node": "POST to Backend Webhook", "type": "main", "index": 0 }]] },
+    "POST to Backend Webhook": { "main": [[{ "node": "Log Result", "type": "main", "index": 0 }]] }
+  },
+  "variables": {
+    "BACKEND_URL": "http://backend:4000",
+    "N8N_WEBHOOK_SECRET": "REPLACE_ME",
+    "LINKEDIN_SEARCH_URL": "REPLACE_ME",
+    "LINKEDIN_TOKEN": "REPLACE_ME"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "id": "03-auto-screening",
+  "name": "03 - Auto AI Resume Screening",
+  "active": true,
+  "description": "Listens for the candidate.imported webhook from the backend. Waits 2 seconds to allow the record to be committed, then triggers the 6-step AI screening pipeline for each open job the candidate matches.",
+  "nodes": [
+    {
+      "id": "n1",
+      "name": "Webhook - candidate.imported",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "parameters": {
+        "path": "on-candidate-imported",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "on-candidate-imported"
+    },
+    {
+      "id": "n2",
+      "name": "Wait 2s",
+      "type": "n8n-nodes-base.wait",
+      "position": [460, 300],
+      "parameters": { "amount": 2, "unit": "seconds" }
+    },
+    {
+      "id": "n3",
+      "name": "Lookup Open Jobs for Tenant",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.BACKEND_URL }}/api/v1/jobs?status=OPEN&limit=50",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Authorization", "value": "Bearer {{ $vars.BACKEND_SERVICE_TOKEN }}" }]
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "name": "Match Candidate to Job",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const candidateId = $('Webhook - candidate.imported').first().json.candidateId;\nconst jobs = $input.first().json.data ?? [];\nreturn jobs.map(job => ({ json: { candidateId, jobId: job.id } }));"
+      }
+    },
+    {
+      "id": "n5",
+      "name": "Trigger Screening Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1120, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.BACKEND_URL }}/api/v1/webhooks/trigger-screening",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-N8N-Secret", "value": "={{ $vars.N8N_WEBHOOK_SECRET }}" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ { candidateId: $json.candidateId, jobId: $json.jobId } }}"
+      }
+    },
+    {
+      "id": "n6",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1120, 480],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Webhook - candidate.imported": { "main": [[{ "node": "Wait 2s", "type": "main", "index": 0 }]] },
+    "Wait 2s": { "main": [[{ "node": "Lookup Open Jobs for Tenant", "type": "main", "index": 0 }]] },
+    "Lookup Open Jobs for Tenant": { "main": [[{ "node": "Match Candidate to Job", "type": "main", "index": 0 }]] },
+    "Match Candidate to Job": { "main": [[{ "node": "Trigger Screening Webhook", "type": "main", "index": 0 }]] }
+  },
+  "variables": {
+    "BACKEND_URL": "http://backend:4000",
+    "N8N_WEBHOOK_SECRET": "REPLACE_ME",
+    "BACKEND_SERVICE_TOKEN": "REPLACE_ME - generate a long-lived admin JWT for internal n8n calls"
+  }
+}

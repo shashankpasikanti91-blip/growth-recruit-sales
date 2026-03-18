@@ -1,0 +1,166 @@
+version: '3.9'
+
+# ─── Production Compose for growth.srpailabs.com ──────────────────────────────
+# Server: 5.223.67.236 (Hetzner, 4GB RAM)
+# Existing projects on server — DO NOT conflict:
+#   srp-marketing  → 8001 (backend), 8080 (frontend)
+#   srp-ats        → 8009
+#   mediflow       → 5433
+#   n8n            → 5678  (we REUSE this, do NOT spawn another)
+#   hr-postgres    → 5544
+# This project uses:
+#   growth-backend  → 127.0.0.1:8020
+#   growth-frontend → 127.0.0.1:8021
+#   growth-postgres → internal only  (no host port)
+#   growth-redis    → internal only  (no host port)
+
+networks:
+  growth_net:
+    driver: bridge
+    name: growth_net
+
+volumes:
+  growth_postgres_data:
+    name: growth_postgres_data
+  growth_redis_data:
+    name: growth_redis_data
+  growth_uploads:
+    name: growth_uploads
+
+services:
+
+  # ─── PostgreSQL — tuned for shared 4GB RAM server ─────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: growth_postgres
+    restart: unless-stopped
+    networks:
+      - growth_net
+    environment:
+      POSTGRES_USER:     ${DB_USER:-growth_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB:       ${DB_NAME:-growth_platform}
+    volumes:
+      - growth_postgres_data:/var/lib/postgresql/data
+    # NO ports exposed to host — internal only
+    command: >
+      postgres
+        -c shared_buffers=128MB
+        -c effective_cache_size=256MB
+        -c work_mem=4MB
+        -c maintenance_work_mem=64MB
+        -c max_connections=50
+        -c wal_buffers=8MB
+        -c checkpoint_completion_target=0.9
+        -c random_page_cost=1.1
+        -c log_min_duration_statement=1000
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-growth_user}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis — internal only ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: growth_redis
+    restart: unless-stopped
+    networks:
+      - growth_net
+    command: >
+      redis-server
+        --appendonly yes
+        --requirepass ${REDIS_PASSWORD}
+        --maxmemory 64mb
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - growth_redis_data:/data
+    # NO ports exposed to host — internal only
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API (NestJS) ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    image: growth_backend:latest
+    container_name: growth_backend
+    restart: unless-stopped
+    networks:
+      - growth_net
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'   # reach host-level n8n:5678
+    environment:
+      NODE_ENV:             production
+      PORT:                 3001
+      DATABASE_URL:         postgresql://${DB_USER:-growth_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-growth_platform}
+      REDIS_HOST:           redis
+      REDIS_PORT:           6379
+      REDIS_PASSWORD:       ${REDIS_PASSWORD}
+      REDIS_URL:            redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET:           ${JWT_SECRET}
+      JWT_REFRESH_SECRET:   ${JWT_REFRESH_SECRET}
+      JWT_EXPIRES_IN:       15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      FRONTEND_URL:         https://growth.srpailabs.com
+      N8N_BASE_URL:         http://host.docker.internal:5678
+      N8N_WEBHOOK_SECRET:   ${N8N_WEBHOOK_SECRET}
+      AI_PROVIDER:          ${AI_PROVIDER:-openrouter}
+      OPENAI_API_KEY:       ${OPENAI_API_KEY:-}
+      OPENAI_MODEL:         ${OPENAI_MODEL:-gpt-4o}
+      OPENROUTER_API_KEY:   ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL:     ${OPENROUTER_MODEL:-openai/gpt-4.1-mini}
+      OPENROUTER_BASE_URL:  https://openrouter.ai/api/v1
+      UPLOAD_DIR:           /app/uploads
+      MAX_UPLOAD_SIZE_MB:   20
+      SMTP_HOST:            ${SMTP_HOST:-}
+      SMTP_PORT:            ${SMTP_PORT:-587}
+      SMTP_USER:            ${SMTP_USER:-}
+      SMTP_PASSWORD:        ${SMTP_PASSWORD:-}
+      SMTP_FROM:            ${SMTP_FROM:-SRP AI Labs <noreply@srp-ai-labs.com>}
+      STRIPE_SECRET_KEY:    ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+    volumes:
+      - growth_uploads:/app/uploads
+    ports:
+      - '127.0.0.1:8020:3001'   # only loopback — nginx proxies externally
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/api/v1/health 2>/dev/null | grep -q ok || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ─── Frontend (Next.js) ───────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_API_URL: https://growth.srpailabs.com/api
+        NEXT_PUBLIC_WS_URL:  wss://growth.srpailabs.com
+    image: growth_frontend:latest
+    container_name: growth_frontend
+    restart: unless-stopped
+    networks:
+      - growth_net
+    environment:
+      NODE_ENV:            production
+      NEXT_PUBLIC_API_URL: https://growth.srpailabs.com/api
+      NEXT_PUBLIC_WS_URL:  wss://growth.srpailabs.com
+      PORT:                3000
+    ports:
+      - '127.0.0.1:8021:3000'   # only loopback — nginx proxies externally
+    depends_on:
+      - backend

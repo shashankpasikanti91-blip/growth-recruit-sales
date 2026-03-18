@@ -1,0 +1,97 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { IsString, IsOptional, IsArray, IsNumber, IsBoolean } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateCandidateDto {
+  @IsString() firstName: string;
+  @IsString() lastName: string;
+  @IsOptional() @IsString() email?: string;
+  @IsOptional() @IsString() phone?: string;
+  @IsOptional() @IsString() currentTitle?: string;
+  @IsOptional() @IsString() currentCompany?: string;
+  @IsOptional() @IsString() location?: string;
+  @IsOptional() @IsString() countryCode?: string;
+  @IsOptional() @IsString() linkedinUrl?: string;
+  @IsOptional() @IsNumber() yearsExperience?: number;
+  @IsOptional() @IsArray() skills?: string[];
+  @IsOptional() @IsArray() languages?: string[];
+  @IsOptional() @IsString() summary?: string;
+}
+
+@Injectable()
+export class CandidatesService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(tenantId: string, dto: CreateCandidateDto) {
+    return this.prisma.candidate.create({ data: { tenantId, ...dto } });
+  }
+
+  async findAll(tenantId: string, filters: { search?: string; skills?: string; stage?: string; page?: number; limit?: number }) {
+    const { search, skills, page = 1, limit = 20 } = filters;
+
+    const where: any = { tenantId, isActive: true, isDuplicate: false };
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { currentTitle: { contains: search, mode: 'insensitive' } },
+        { currentCompany: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (skills) {
+      where.skills = { hasSome: skills.split(',').map(s => s.trim()) };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.candidate.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          _count: { select: { applications: true, resumes: true } },
+          scorecards: { orderBy: { createdAt: 'desc' }, take: 1, select: { score: true, decision: false } },
+        },
+      }),
+      this.prisma.candidate.count({ where }),
+    ]);
+
+    return { data, meta: { total, page, limit } };
+  }
+
+  async findOne(tenantId: string, id: string) {
+    const candidate = await this.prisma.candidate.findFirst({
+      where: { id, tenantId },
+      include: {
+        resumes: true,
+        applications: { include: { job: { select: { id: true, title: true } } } },
+        scorecards: { orderBy: { createdAt: 'desc' }, take: 5 },
+        activities: { orderBy: { createdAt: 'desc' }, take: 20 },
+        outreachMessages: { orderBy: { createdAt: 'desc' }, take: 10 },
+        aiAnalyses: { orderBy: { createdAt: 'desc' }, take: 5 },
+      },
+    });
+
+    if (!candidate) throw new NotFoundException('Candidate not found');
+    return candidate;
+  }
+
+  async update(tenantId: string, id: string, dto: Partial<CreateCandidateDto>) {
+    await this.findOne(tenantId, id);
+    return this.prisma.candidate.update({ where: { id }, data: dto });
+  }
+
+  async archive(tenantId: string, id: string) {
+    await this.findOne(tenantId, id);
+    return this.prisma.candidate.update({ where: { id }, data: { isActive: false } });
+  }
+
+  async addNote(tenantId: string, candidateId: string, userId: string, note: string) {
+    await this.findOne(tenantId, candidateId);
+    return this.prisma.activity.create({
+      data: { tenantId, userId, candidateId, type: 'NOTE', title: 'Recruiter Note', description: note },
+    });
+  }
+}

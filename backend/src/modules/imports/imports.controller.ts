@@ -1,0 +1,86 @@
+import { Controller, Post, Get, Param, Body, Query, UseGuards, UseInterceptors, UploadedFile, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import { IsString, IsEnum, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ImportSource } from '@prisma/client';
+import { ImportsService } from './imports.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+
+class CreateImportDto {
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiProperty({ enum: ImportSource })
+  @IsEnum(ImportSource)
+  source: ImportSource;
+
+  @ApiProperty({ enum: ['candidate', 'lead'] })
+  @IsEnum(['candidate', 'lead'])
+  importType: 'candidate' | 'lead';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  mappingTemplateId?: string;
+}
+
+@ApiTags('imports')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller({ path: 'imports', version: '1' })
+export class ImportsController {
+  constructor(private readonly importsService: ImportsService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Create a new import record' })
+  create(@CurrentUser() user: any, @Body() dto: CreateImportDto) {
+    return this.importsService.createImport(user.tenantId, { ...dto, importedById: user.id });
+  }
+
+  @Post(':id/upload')
+  @ApiOperation({ summary: 'Upload CSV/Excel/PDF/Word file and start processing' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  upload(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') importId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.importsService.uploadAndProcess(tenantId, importId, file);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'List all imports' })
+  findAll(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    return this.importsService.listImports(tenantId, page, limit);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get import details' })
+  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
+    return this.importsService.getImport(tenantId, id);
+  }
+
+  @Get(':id/rows')
+  @ApiOperation({ summary: 'Get import rows (optionally filter by status)' })
+  getRows(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @Query('status') status?: string,
+  ) {
+    return this.importsService.getImportRows(tenantId, id, status);
+  }
+
+  @Post(':id/retry')
+  @ApiOperation({ summary: 'Retry failed rows in an import' })
+  retry(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
+    return this.importsService.retryFailedRows(tenantId, id);
+  }
+}
