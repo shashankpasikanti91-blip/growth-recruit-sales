@@ -4,7 +4,7 @@
 
 **Production-ready multi-tenant automation platform for SRP AI Labs**
 
-[![Status](https://img.shields.io/badge/status-in%20development-yellow?style=for-the-badge)]()
+[![Status](https://img.shields.io/badge/status-live-brightgreen?style=for-the-badge)]()
 [![Multi-Tenant](https://img.shields.io/badge/multi--tenant-yes-blue?style=for-the-badge)]()
 [![AI Powered](https://img.shields.io/badge/AI-powered-purple?style=for-the-badge)]()
 [![n8n](https://img.shields.io/badge/orchestration-n8n-orange?style=for-the-badge)]()
@@ -13,6 +13,44 @@
 > A scalable, modular system that unifies **recruitment automation**, **sales pipeline**, and **AI-driven workflows** across multiple countries, industries, and tenants — built for reliability, not just speed.
 
 </div>
+
+---
+
+## 🌐 Live Deployment
+
+| | |
+|---|---|
+| **URL** | [https://growth.srpailabs.com](https://growth.srpailabs.com) |
+| **Backend API** | `https://growth.srpailabs.com/api/v1/` |
+| **Server** | Hetzner Cloud (Docker Compose) |
+| **SSL** | Let's Encrypt (auto-renew via Certbot) |
+| **Demo Login** | `admin@srp-ai-labs.com` / `Admin@123` |
+
+### Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 14, TypeScript, Tailwind CSS, React Query |
+| Backend | NestJS 10, Prisma 5, BullMQ |
+| Database | PostgreSQL |
+| Cache | Redis |
+| AI | OpenRouter (GPT-4o, Claude) |
+| Orchestration | n8n |
+| Deployment | Docker Compose, Nginx, Certbot |
+
+### Key Features (Live)
+
+- **Dashboard** — KPIs, recruitment funnel, sales pipeline, AI usage charts
+- **Candidates** — Import, search, AI screening, application tracking, outreach
+- **Jobs** — Post jobs, view applications, change stages, AI screen candidates
+- **Leads** — Sales pipeline with AI ICP scoring, stage management
+- **Companies & Contacts** — CRM for client organizations
+- **Outreach** — AI-generated personalized emails with approval workflow
+- **AI Screen** — Resume parser, JD parser (PDF/DOCX upload), AI screening
+- **Visa Guide** — 16 visa types across 7 countries with 2025-2026 data + immigration links
+- **Imports** — CSV / Excel / manual data import with field mapping
+- **Analytics** — Recruitment funnel, sales metrics, AI usage tracking
+- **Billing** — Subscription plans with usage limits
 
 ---
 
@@ -210,7 +248,7 @@ A visual field-mapping interface for data migration and integration:
 | Candidate-Job Match Scoring | AI-powered fit score with explanation |
 | Shortlist Recommendation | Ranked candidate suggestions per job |
 | Interview Recommendation | Trigger interview stage based on score thresholds |
-| Pipeline Stages | Sourced → Screened → Interviewing → Offered → Placed |
+| Pipeline Stages | Sourced → Screened → Interviewing → Offered → Placed / Rejected / Withdrawn |
 | Follow-up Reminders | Auto-reminders at each pipeline stage |
 | Outreach Draft Generation | Personalized AI-written candidate messages |
 | Duplicate Detection | Cross-source deduplication by email, phone, name similarity |
@@ -228,7 +266,7 @@ A visual field-mapping interface for data migration and integration:
 | Decision-Maker Enrichment | Find and enrich key contacts at target companies |
 | Outreach Draft Generation | Personalized AI-written sales messages |
 | Follow-up Sequence Generator | Multi-touch sequences tailored to lead tier |
-| Pipeline Stages | New → Contacted → Qualified → Proposal → Closed |
+| Pipeline Stages | New → Contacted → Qualified → Proposal → Negotiation → Closed Won / Closed Lost |
 | Activity Timeline | Full history: calls, emails, notes, stage changes |
 | Next-Best Action | AI-suggested next step per lead |
 
@@ -481,14 +519,13 @@ Track what matters most across recruitment and sales:
 | Document | Status |
 |----------|--------|
 | `README.md` | ✅ This file |
-| Architecture Overview | 🔲 To do |
-| Integration Setup Guide | 🔲 To do |
-| n8n Workflow Guide | 🔲 To do |
-| `.env.example` | 🔲 To do |
-| Deployment Checklist | 🔲 To do |
-| Troubleshooting Guide | 🔲 To do |
-| Field Mapping Guide | 🔲 To do |
-| Multi-Country Config Guide | 🔲 To do |
+| Architecture Overview | ✅ `ARCHITECTURE.md` |
+| n8n Workflow Guide | ✅ `N8N_GUIDE.md` |
+| Deployment Guide | ✅ `DEPLOYMENT.md` |
+| Pipeline Stages | ✅ Sourced → Screened → Interviewing → Offered → Placed / Rejected / Withdrawn |
+| Lead Stages | ✅ New → Contacted → Qualified → Proposal → Negotiation → Closed Won / Closed Lost |
+| Visa Data | ✅ 16 rules, 7 countries, 2025-2026 data with immigration portal links |
+| Live Server | ✅ https://growth.srpailabs.com |
 
 ---
 

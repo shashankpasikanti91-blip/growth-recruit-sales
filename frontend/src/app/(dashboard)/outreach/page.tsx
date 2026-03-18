@@ -7,8 +7,8 @@ import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 
 const STATUS_BADGE: Record<string, string> = {
-  PENDING: 'badge-gray', SENT: 'badge-blue', DELIVERED: 'badge-blue',
-  OPENED: 'badge-green', REPLIED: 'badge-green', BOUNCED: 'badge-red', OPTED_OUT: 'badge-red',
+  DRAFT: 'badge-gray', PENDING_APPROVAL: 'badge-yellow', APPROVED: 'badge-blue',
+  SENT: 'badge-blue', REPLIED: 'badge-green', BOUNCED: 'badge-red', SUPPRESSED: 'badge-red',
 };
 
 function GenerateForm() {
@@ -84,7 +84,7 @@ export default function OutreachPage() {
           <span className="font-medium text-gray-900">Messages</span>
           <select className="input ml-auto w-36" value={status} onChange={e => setStatus(e.target.value)}>
             <option value="">All statuses</option>
-            {['PENDING','SENT','DELIVERED','OPENED','REPLIED','BOUNCED','OPTED_OUT'].map(s => <option key={s} value={s}>{s}</option>)}
+            {['DRAFT','PENDING_APPROVAL','APPROVED','SENT','REPLIED','BOUNCED','SUPPRESSED'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
           </select>
         </div>
         <table className="w-full text-sm">

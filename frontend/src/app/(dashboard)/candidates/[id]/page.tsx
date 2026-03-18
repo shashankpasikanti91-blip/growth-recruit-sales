@@ -9,11 +9,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
 
 const STAGE_BADGE: Record<string, string> = {
-  SOURCED: 'badge-gray', SCREENED: 'badge-purple', SHORTLISTED: 'badge-yellow',
-  INTERVIEWING: 'badge-blue', OFFERED: 'badge-green', PLACED: 'badge-green', REJECTED: 'badge-red',
+  SOURCED: 'badge-gray', SCREENED: 'badge-purple', INTERVIEWING: 'badge-blue',
+  OFFERED: 'badge-green', PLACED: 'badge-green', REJECTED: 'badge-red', WITHDRAWN: 'badge-yellow',
 };
 
-const APP_STAGES = ['SOURCED', 'SCREENED', 'SHORTLISTED', 'INTERVIEWING', 'OFFERED', 'PLACED', 'REJECTED'];
+const APP_STAGES = ['SOURCED', 'SCREENED', 'INTERVIEWING', 'OFFERED', 'PLACED', 'REJECTED', 'WITHDRAWN'];
 
 export default function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();

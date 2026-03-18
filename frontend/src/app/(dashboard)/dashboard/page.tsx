@@ -6,13 +6,13 @@ import { Users, Briefcase, UserPlus, TrendingUp, Zap, ArrowRight } from 'lucide-
 import Link from 'next/link';
 
 const STAGE_COLORS: Record<string, string> = {
-  APPLIED: '#3b82f6',
-  SCREENING: '#8b5cf6',
-  SHORTLISTED: '#f59e0b',
-  INTERVIEW: '#10b981',
-  OFFER: '#06b6d4',
-  HIRED: '#22c55e',
+  SOURCED: '#3b82f6',
+  SCREENED: '#8b5cf6',
+  INTERVIEWING: '#f59e0b',
+  OFFERED: '#10b981',
+  PLACED: '#06b6d4',
   REJECTED: '#ef4444',
+  WITHDRAWN: '#9ca3af',
 };
 
 const LEAD_COLORS: Record<string, string> = {
@@ -21,8 +21,8 @@ const LEAD_COLORS: Record<string, string> = {
   QUALIFIED: '#8b5cf6',
   PROPOSAL: '#f59e0b',
   NEGOTIATION: '#10b981',
-  WON: '#22c55e',
-  LOST: '#ef4444',
+  CLOSED_WON: '#22c55e',
+  CLOSED_LOST: '#ef4444',
 };
 
 interface StatCardProps { label: string; value: string | number; icon: React.ElementType; color: string; }

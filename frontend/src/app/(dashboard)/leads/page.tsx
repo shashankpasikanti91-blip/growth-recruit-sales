@@ -13,9 +13,8 @@ const STAGE_COLORS: Record<string, string> = {
   QUALIFIED: 'bg-purple-100 text-purple-700',
   PROPOSAL: 'bg-yellow-100 text-yellow-700',
   NEGOTIATION: 'bg-orange-100 text-orange-700',
-  WON: 'bg-green-100 text-green-700',
-  LOST: 'bg-red-100 text-red-600',
-  DORMANT: 'bg-gray-100 text-gray-400',
+  CLOSED_WON: 'bg-green-100 text-green-700',
+  CLOSED_LOST: 'bg-red-100 text-red-600',
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -24,9 +23,8 @@ const STAGE_LABELS: Record<string, string> = {
   QUALIFIED: 'Qualified',
   PROPOSAL: 'Proposal',
   NEGOTIATION: 'Negotiation',
-  WON: 'Won',
-  LOST: 'Lost',
-  DORMANT: 'Dormant',
+  CLOSED_WON: 'Won',
+  CLOSED_LOST: 'Lost',
 };
 
 const STAGE_ACTIONS: Record<string, string> = {
@@ -35,9 +33,8 @@ const STAGE_ACTIONS: Record<string, string> = {
   QUALIFIED: '✅ Qualified — interested & fits ICP',
   PROPOSAL: '📄 Proposal — quote / deck sent',
   NEGOTIATION: '🤝 Negotiation — in discussion',
-  WON: '🏆 Won — deal closed',
-  LOST: '❌ Lost — not interested / competitor',
-  DORMANT: '💤 Dormant — follow up later',
+  CLOSED_WON: '🏆 Won — deal closed',
+  CLOSED_LOST: '❌ Lost — not interested / competitor',
 };
 
 const STAGES = Object.keys(STAGE_ACTIONS);
@@ -165,7 +162,7 @@ export default function LeadsPage() {
                 <tr key={lead.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <Link href={`/leads/${lead.id}`} className="font-medium text-gray-900 hover:text-brand-600">
-                      {lead.fullName}
+                      {lead.firstName} {lead.lastName}
                     </Link>
                     <div className="text-xs text-gray-400">{lead.email}</div>
                   </td>

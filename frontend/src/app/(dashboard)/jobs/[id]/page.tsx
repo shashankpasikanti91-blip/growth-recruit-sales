@@ -13,14 +13,14 @@ import toast from 'react-hot-toast';
 const STAGE_COLORS: Record<string, string> = {
   SOURCED: 'bg-gray-100 text-gray-700',
   SCREENED: 'bg-purple-100 text-purple-700',
-  SHORTLISTED: 'bg-yellow-100 text-yellow-700',
   INTERVIEWING: 'bg-blue-100 text-blue-700',
   OFFERED: 'bg-cyan-100 text-cyan-700',
   PLACED: 'bg-green-100 text-green-700',
   REJECTED: 'bg-red-100 text-red-700',
+  WITHDRAWN: 'bg-yellow-100 text-yellow-700',
 };
 
-const APP_STAGES = ['SOURCED', 'SCREENED', 'SHORTLISTED', 'INTERVIEWING', 'OFFERED', 'PLACED', 'REJECTED'];
+const APP_STAGES = ['SOURCED', 'SCREENED', 'INTERVIEWING', 'OFFERED', 'PLACED', 'REJECTED', 'WITHDRAWN'];
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();

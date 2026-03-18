@@ -2,9 +2,20 @@ import { IsString, IsOptional, IsEmail, IsEnum, IsArray, IsUrl } from 'class-val
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateLeadDto {
-  @ApiProperty({ example: 'Jane Smith' })
+  @ApiPropertyOptional({ example: 'Jane' })
+  @IsOptional()
   @IsString()
-  fullName: string;
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Smith' })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiPropertyOptional({ example: 'Jane Smith' })
+  @IsOptional()
+  @IsString()
+  fullName?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -60,7 +71,7 @@ export class CreateLeadDto {
 export class UpdateLeadDto extends CreateLeadDto {}
 
 export class UpdateLeadStageDto {
-  @ApiProperty({ enum: ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'WON', 'LOST', 'DORMANT'] })
+  @ApiProperty({ enum: ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST'] })
   @IsString()
   stage: string;
 

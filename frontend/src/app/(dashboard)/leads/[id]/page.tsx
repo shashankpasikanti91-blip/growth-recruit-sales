@@ -12,9 +12,8 @@ const STAGE_ACTIONS: Record<string, string> = {
   QUALIFIED: '✅ Qualified',
   PROPOSAL: '📄 Proposal',
   NEGOTIATION: '🤝 Negotiation',
-  WON: '🏆 Won',
-  LOST: '❌ Lost',
-  DORMANT: '💤 Dormant',
+  CLOSED_WON: '🏆 Won',
+  CLOSED_LOST: '❌ Lost',
 };
 
 const STAGES = Object.keys(STAGE_ACTIONS);
@@ -63,10 +62,10 @@ export default function LeadDetailPage() {
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-xl bg-brand-100 flex items-center justify-center text-2xl font-bold text-brand-600">
-              {lead.fullName?.charAt(0)?.toUpperCase() ?? '?'}
+              {(lead.firstName ?? lead.fullName ?? '?').charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{lead.fullName}</h1>
+              <h1 className="text-xl font-bold text-gray-900">{`${lead.firstName ?? ''} ${lead.lastName ?? ''}`.trim() || lead.fullName || 'Unknown'}</h1>
               {lead.title && <p className="text-gray-500 text-sm">{lead.title}</p>}
               {(lead.company?.name || lead.companyName) && (
                 <p className="text-gray-400 text-sm flex items-center gap-1">

@@ -7,9 +7,8 @@ import { UserPlus, Search, Filter, Briefcase } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const STAGE_BADGE: Record<string, string> = {
-  NEW: 'badge-gray', APPLIED: 'badge-blue', SCREENING: 'badge-purple',
-  SHORTLISTED: 'badge-yellow', INTERVIEW: 'badge-blue', OFFER: 'badge-green',
-  HIRED: 'badge-green', REJECTED: 'badge-red',
+  SOURCED: 'badge-gray', SCREENED: 'badge-purple', INTERVIEWING: 'badge-blue',
+  OFFERED: 'badge-green', PLACED: 'badge-green', REJECTED: 'badge-red', WITHDRAWN: 'badge-yellow',
 };
 
 export default function CandidatesPage() {
@@ -55,16 +54,15 @@ export default function CandidatesPage() {
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Title / Company</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Applications</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Added</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {isLoading ? (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
             ) : data?.data?.length === 0 ? (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No candidates found</td></tr>
+              <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">No candidates found</td></tr>
             ) : (
               data?.data?.map((c: any) => (
                 <tr key={c.id} className="hover:bg-gray-50 transition-colors">
@@ -85,12 +83,9 @@ export default function CandidatesPage() {
                     </Link>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={STAGE_BADGE[c.stage] ?? 'badge-gray'}>{c.stage}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {c.overallScore != null ? (
-                      <span className={`font-semibold ${c.overallScore >= 70 ? 'text-green-600' : c.overallScore >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
-                        {c.overallScore}
+                    {c.scorecards?.[0]?.score != null ? (
+                      <span className={`font-semibold ${c.scorecards[0].score >= 70 ? 'text-green-600' : c.scorecards[0].score >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
+                        {c.scorecards[0].score}
                       </span>
                     ) : <span className="text-gray-300">—</span>}
                   </td>

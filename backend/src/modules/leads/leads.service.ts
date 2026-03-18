@@ -20,10 +20,14 @@ export class LeadsService {
       if (existing) throw new ConflictException('Lead with this email already exists');
     }
 
-    // Split fullName into firstName + lastName
-    const nameParts = (dto.fullName ?? '').trim().split(/\s+/);
-    const firstName = nameParts[0] ?? '';
-    const lastName = nameParts.slice(1).join(' ') || firstName;
+    // Use firstName/lastName directly, or split fullName if provided
+    let firstName = dto.firstName ?? '';
+    let lastName = dto.lastName ?? '';
+    if (!firstName && !lastName && dto.fullName) {
+      const nameParts = dto.fullName.trim().split(/\s+/);
+      firstName = nameParts[0] ?? '';
+      lastName = nameParts.slice(1).join(' ') || firstName;
+    }
 
     return this.prisma.lead.create({
       data: {

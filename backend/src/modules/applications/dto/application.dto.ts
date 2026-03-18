@@ -2,12 +2,11 @@ import { IsString, IsOptional, IsUUID, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum ApplicationStage {
-  APPLIED = 'APPLIED',
-  SCREENING = 'SCREENING',
-  SHORTLISTED = 'SHORTLISTED',
-  INTERVIEW = 'INTERVIEW',
-  OFFER = 'OFFER',
-  HIRED = 'HIRED',
+  SOURCED = 'SOURCED',
+  SCREENED = 'SCREENED',
+  INTERVIEWING = 'INTERVIEWING',
+  OFFERED = 'OFFERED',
+  PLACED = 'PLACED',
   REJECTED = 'REJECTED',
   WITHDRAWN = 'WITHDRAWN',
 }
