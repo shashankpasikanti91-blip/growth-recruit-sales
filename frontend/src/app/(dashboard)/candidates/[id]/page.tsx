@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { candidatesApi, applicationsApi, outreachApi } from '@/lib/api-client';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { Zap, Mail, FileText, ChevronRight, AlertTriangle, X, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -159,7 +160,10 @@ export default function CandidateDetailPage() {
                 {candidate.applications?.map((app: any) => (
                   <div key={app.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50">
                     <div>
-                      <div className="font-medium text-sm text-gray-900">{app.job?.title}</div>
+                      <Link href={`/jobs/${app.jobId}`} className="font-medium text-sm text-gray-900 hover:text-brand-600 flex items-center gap-1">
+                        {app.job?.title}
+                        <ChevronRight className="w-3 h-3 text-gray-400" />
+                      </Link>
                       <div className="text-xs text-gray-400">{app.job?.department}</div>
                     </div>
                     <div className="flex items-center gap-2">

@@ -1,9 +1,11 @@
 'use client';
-import { useState, useCallback } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useState, useCallback, useEffect } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useDropzone } from 'react-dropzone';
-import { aiApi } from '@/lib/api-client';
-import { Zap, AlertTriangle, Upload, FileText } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { aiApi, jobsApi, candidatesApi } from '@/lib/api-client';
+import { Zap, AlertTriangle, Upload, FileText, Briefcase, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DECISION_COLOR: Record<string, string> = {
@@ -14,11 +16,33 @@ const DECISION_COLOR: Record<string, string> = {
 };
 
 export default function AiScreenPage() {
+  const searchParams = useSearchParams();
   const [resumeText, setResumeText] = useState('');
   const [jdText, setJdText] = useState('');
   const [candidateId, setCandidateId] = useState('');
   const [jobId, setJobId] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const qJob = searchParams.get('jobId');
+    const qCandidate = searchParams.get('candidateId');
+    if (qJob) setJobId(qJob);
+    if (qCandidate) setCandidateId(qCandidate);
+  }, [searchParams]);
+
+  const { data: jobInfo } = useQuery({
+    queryKey: ['job-lookup', jobId],
+    queryFn: () => jobsApi.get(jobId),
+    enabled: !!jobId && jobId.length > 2,
+    retry: false,
+  });
+
+  const { data: candidateInfo } = useQuery({
+    queryKey: ['candidate-lookup', candidateId],
+    queryFn: () => candidatesApi.get(candidateId),
+    enabled: !!candidateId && candidateId.length > 2,
+    retry: false,
+  });
 
   const parseMutation = useMutation({
     mutationFn: () => aiApi.parseJd(jdText),
@@ -82,11 +106,23 @@ export default function AiScreenPage() {
           </h2>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Candidate ID</label>
-            <input className="input" placeholder="UUID of candidate" value={candidateId} onChange={e => setCandidateId(e.target.value)} />
+            <input className="input" placeholder="ID of candidate" value={candidateId} onChange={e => setCandidateId(e.target.value)} />
+            {candidateInfo && (
+              <Link href={`/candidates/${candidateId}`} className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 mt-1">
+                <User className="w-3 h-3" /> {candidateInfo.firstName} {candidateInfo.lastName}
+                {candidateInfo.currentTitle ? ` — ${candidateInfo.currentTitle}` : ''}
+              </Link>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Job ID</label>
-            <input className="input" placeholder="UUID of job" value={jobId} onChange={e => setJobId(e.target.value)} />
+            <input className="input" placeholder="ID of job" value={jobId} onChange={e => setJobId(e.target.value)} />
+            {jobInfo && (
+              <Link href={`/jobs/${jobId}`} className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 mt-1">
+                <Briefcase className="w-3 h-3" /> {jobInfo.title}
+                {jobInfo.department ? ` — ${jobInfo.department}` : ''}
+              </Link>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Resume Text</label>
@@ -142,7 +178,21 @@ export default function AiScreenPage() {
       {/* Screening Result */}
       {screening && (
         <div className="card space-y-4">
-          <h2 className="font-semibold text-gray-900">Screening Result</h2>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="font-semibold text-gray-900">Screening Result</h2>
+            <div className="flex gap-3">
+              {candidateId && (
+                <Link href={`/candidates/${candidateId}`} className="btn-secondary py-1 px-3 text-xs flex items-center gap-1">
+                  <User className="w-3 h-3" /> View Candidate
+                </Link>
+              )}
+              {jobId && (
+                <Link href={`/jobs/${jobId}`} className="btn-secondary py-1 px-3 text-xs flex items-center gap-1">
+                  <Briefcase className="w-3 h-3" /> View Job
+                </Link>
+              )}
+            </div>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <div className={`text-4xl font-bold ${screening.score >= 70 ? 'text-green-600' : screening.score >= 50 ? 'text-amber-500' : 'text-red-500'}`}>

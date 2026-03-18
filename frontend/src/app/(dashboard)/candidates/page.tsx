@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { candidatesApi } from '@/lib/api-client';
 import Link from 'next/link';
-import { UserPlus, Search, Filter } from 'lucide-react';
+import { UserPlus, Search, Filter, Briefcase } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const STAGE_BADGE: Record<string, string> = {
@@ -54,6 +54,7 @@ export default function CandidatesPage() {
             <tr>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Title / Company</th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Applications</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Added</th>
@@ -61,9 +62,9 @@ export default function CandidatesPage() {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {isLoading ? (
-              <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
             ) : data?.data?.length === 0 ? (
-              <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">No candidates found</td></tr>
+              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No candidates found</td></tr>
             ) : (
               data?.data?.map((c: any) => (
                 <tr key={c.id} className="hover:bg-gray-50 transition-colors">
@@ -76,6 +77,12 @@ export default function CandidatesPage() {
                   <td className="px-6 py-4 text-gray-600">
                     <div>{c.currentTitle}</div>
                     <div className="text-xs text-gray-400">{c.currentCompany}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <Link href={`/candidates/${c.id}`} className="flex items-center gap-1 text-sm text-gray-600 hover:text-brand-600">
+                      <Briefcase className="w-3.5 h-3.5" />
+                      {c._count?.applications ?? 0} job{(c._count?.applications ?? 0) !== 1 ? 's' : ''}
+                    </Link>
                   </td>
                   <td className="px-6 py-4">
                     <span className={STAGE_BADGE[c.stage] ?? 'badge-gray'}>{c.stage}</span>
