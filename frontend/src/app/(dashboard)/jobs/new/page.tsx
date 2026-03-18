@@ -38,16 +38,49 @@ export default function NewJobPage() {
     setJdFile(file);
     setIsParsing(true);
     try {
-      // For JD files, extract text and parse
-      const form = new FormData();
-      form.append('file', file);
-      const result = await aiApi.parseResume(file); // reuse parse endpoint for JD text extraction
-      if (result?.title) setValue('title', result.title);
-      if (result?.department) setValue('department', result.department);
-      if (result?.location) setValue('location', result.location);
-      if (result?.description) setValue('description', result.description);
-      if (result?.requirements) setValue('requirements', result.requirements);
-      if (result?.skills) setValue('skills', Array.isArray(result.skills) ? result.skills.join(', ') : result.skills);
+      // Step 1: Extract raw text from file (PDF/Word/TXT)
+      const extracted = await aiApi.parseResume(file);
+      const rawText = extracted?.resumeText || '';
+
+      if (!rawText) {
+        toast.error('Could not extract text from file');
+        return;
+      }
+
+      // Set raw text as description
+      setValue('description', rawText);
+
+      // Step 2: Parse the extracted text into structured JD fields via AI
+      const parsed = await aiApi.parseJd(rawText);
+      if (parsed?.title) setValue('title', parsed.title);
+      if (parsed?.department) setValue('department', parsed.department);
+      if (parsed?.location) setValue('location', parsed.location);
+      if (parsed?.requiredSkills?.length) setValue('skills', parsed.requiredSkills.join(', '));
+      if (parsed?.salaryMin) setValue('salaryMin', parsed.salaryMin);
+      if (parsed?.salaryMax) setValue('salaryMax', parsed.salaryMax);
+      if (parsed?.currency) setValue('salaryCurrency', parsed.currency);
+      if (parsed?.jobType) {
+        const typeMap: Record<string, string> = {
+          'Full-time': 'FULL_TIME', 'Full Time': 'FULL_TIME', 'FULL_TIME': 'FULL_TIME',
+          'Part-time': 'PART_TIME', 'Part Time': 'PART_TIME', 'PART_TIME': 'PART_TIME',
+          'Contract': 'CONTRACT', 'CONTRACT': 'CONTRACT',
+          'Freelance': 'FREELANCE', 'FREELANCE': 'FREELANCE',
+          'Internship': 'INTERNSHIP', 'INTERNSHIP': 'INTERNSHIP',
+        };
+        const mapped = typeMap[parsed.jobType] || parsed.jobType;
+        if (['FULL_TIME', 'PART_TIME', 'CONTRACT', 'FREELANCE', 'INTERNSHIP'].includes(mapped)) {
+          setValue('employmentType', mapped);
+        }
+      }
+      if (parsed?.yearsExperienceMin != null) {
+        const yrs = parsed.yearsExperienceMin;
+        if (yrs <= 2) setValue('experienceLevel', 'JUNIOR');
+        else if (yrs <= 5) setValue('experienceLevel', 'MID');
+        else setValue('experienceLevel', 'SENIOR');
+      }
+      if (parsed?.responsibilities?.length) {
+        setValue('description', rawText + '\n\nResponsibilities:\n' + parsed.responsibilities.join('\n'));
+      }
       toast.success('JD parsed! Please review and confirm the details.');
     } catch {
       toast.error('Could not auto-parse JD. Please fill in fields manually.');
@@ -69,12 +102,18 @@ export default function NewJobPage() {
 
   const createMutation = useMutation({
     mutationFn: (data: JobForm) => {
-      const payload = {
-        ...data,
-        skills: data.skills ? data.skills.split(',').map(s => s.trim()).filter(Boolean) : [],
+      const payload: any = {
+        title: data.title,
+        department: data.department,
+        location: data.location,
+        jobType: data.employmentType,
+        description: data.description,
+        requiredSkills: data.skills ? data.skills.split(',').map(s => s.trim()).filter(Boolean) : [],
         requirements: data.requirements ? data.requirements.split('\n').filter(Boolean) : [],
-        salaryMin: data.salaryMin ? Number(data.salaryMin) : undefined,
-        salaryMax: data.salaryMax ? Number(data.salaryMax) : undefined,
+        salaryMin: data.salaryMin ? String(data.salaryMin) : undefined,
+        salaryMax: data.salaryMax ? String(data.salaryMax) : undefined,
+        salaryCurrency: data.salaryCurrency,
+        experience: data.experienceLevel,
       };
       return jobsApi.create(payload);
     },

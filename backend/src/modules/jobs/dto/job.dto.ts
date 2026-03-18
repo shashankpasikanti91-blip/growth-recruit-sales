@@ -51,6 +51,10 @@ export class CreateJobDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  requirements?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
   requiredExperience?: number;
 
   @ApiPropertyOptional({ example: '3+ years' })

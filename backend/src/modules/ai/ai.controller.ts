@@ -9,6 +9,7 @@ import { ResumeScreeningService } from './services/resume-screening.service';
 import { OutreachGenerationService } from './services/outreach-generation.service';
 import { LeadScoringService } from './services/lead-scoring.service';
 import { JdParserService } from './services/jd-parser.service';
+import { AiProviderService } from './providers/ai-provider.service';
 import { AiService } from './ai.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import pdfParse from 'pdf-parse';
@@ -90,6 +91,7 @@ export class AiController {
     private readonly outreachGeneration: OutreachGenerationService,
     private readonly leadScoring: LeadScoringService,
     private readonly jdParser: JdParserService,
+    private readonly aiProvider: AiProviderService,
     private readonly aiService: AiService,
     private readonly prisma: PrismaService,
   ) {}
@@ -171,7 +173,57 @@ export class AiController {
 
     if (!text) throw new BadRequestException('Could not extract text from the uploaded file');
 
-    // Return extracted text so the frontend can populate the resume textarea
-    return { resumeText: text, charCount: text.length };
+    // Call AI to extract structured candidate fields from the resume text
+    try {
+      const { data: parsed } = await this.aiProvider.completeJson<any>(
+        `Extract structured candidate information from this resume text. Return ONLY valid JSON.
+
+{
+  "firstName": "",
+  "lastName": "",
+  "email": "",
+  "phone": "",
+  "currentTitle": "",
+  "currentCompany": "",
+  "location": "",
+  "linkedinUrl": "",
+  "skills": [],
+  "summary": "",
+  "yearsExperience": null,
+  "nationality": "",
+  "visaType": "",
+  "visaExpiry": "",
+  "isForeigner": false
+}
+
+Rules:
+- Extract ONLY information explicitly stated in the resume
+- Split the candidate's full name into firstName and lastName
+- For skills, list technical skills, tools, frameworks, and methodologies as an array of strings
+- If a field is not found, use "" for strings, [] for arrays, null for numbers, false for booleans
+- For linkedinUrl, extract any LinkedIn profile URL if present
+- For nationality, extract if explicitly mentioned or inferable from education/location context
+- For visaType, extract work visa info if mentioned (e.g. H-1B, EP, S Pass, 482, PR, Citizen)
+- For isForeigner, set true if nationality and work location suggest the person needs a work visa
+- For yearsExperience, calculate total years from work history dates if possible
+
+Resume Text:
+${text}`,
+        {
+          systemPrompt: 'You are an expert resume parser. Extract factual information only. Return ONLY valid JSON, no markdown.',
+          temperature: 0.1,
+          maxTokens: 1000,
+        },
+      );
+
+      return {
+        resumeText: text,
+        charCount: text.length,
+        ...parsed,
+      };
+    } catch {
+      // If AI extraction fails, return raw text as fallback
+      return { resumeText: text, charCount: text.length };
+    }
   }
 }

@@ -9,8 +9,7 @@ import { Zap, AlertTriangle, Upload, FileText, Briefcase, User } from 'lucide-re
 import toast from 'react-hot-toast';
 
 const DECISION_COLOR: Record<string, string> = {
-  'Strong Shortlist': 'text-green-600',
-  'Shortlist': 'text-blue-600',
+  'Shortlisted': 'text-green-600',
   'KIV': 'text-amber-600',
   'Rejected': 'text-red-600',
 };
@@ -129,8 +128,7 @@ function AiScreenContent() {
     disabled: parseJdFileMutation.isPending,
   });
 
-  const result = screenMutation.data;
-  const screening = result?.screening;
+  const screening = screenMutation.data;
 
   return (
     <div className="space-y-6">
@@ -265,11 +263,11 @@ function AiScreenContent() {
               <div className="text-xs text-gray-400 mt-1">Decision</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-600">{screening.matchAnalysis?.skillMatchScore ?? '—'}</div>
+              <div className="text-xl font-bold text-blue-600">{screening.score_breakdown?.skill_match ?? '—'}</div>
               <div className="text-xs text-gray-400 mt-1">Skill Match</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-purple-600">{screening.matchAnalysis?.experienceScore ?? '—'}</div>
+              <div className="text-xl font-bold text-purple-600">{screening.score_breakdown?.experience_relevance ?? '—'}</div>
               <div className="text-xs text-gray-400 mt-1">Experience Score</div>
             </div>
           </div>
@@ -280,27 +278,79 @@ function AiScreenContent() {
             </div>
           )}
 
-          {screening.matchedSkills?.length > 0 && (
+          {/* Candidate Profile extracted by AI */}
+          {screening.candidate_profile && (
+            <div>
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Candidate Profile</div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                {screening.candidate_profile.full_name && <div><span className="text-gray-400">Name:</span> {screening.candidate_profile.full_name}</div>}
+                {screening.candidate_profile.email && <div><span className="text-gray-400">Email:</span> {screening.candidate_profile.email}</div>}
+                {screening.candidate_profile.current_role && <div><span className="text-gray-400">Role:</span> {screening.candidate_profile.current_role}</div>}
+                {screening.candidate_profile.current_company && <div><span className="text-gray-400">Company:</span> {screening.candidate_profile.current_company}</div>}
+                {screening.candidate_profile.total_experience_years && <div><span className="text-gray-400">Total Exp:</span> {screening.candidate_profile.total_experience_years} yrs</div>}
+                {screening.candidate_profile.relevant_experience_years && <div><span className="text-gray-400">Relevant Exp:</span> {screening.candidate_profile.relevant_experience_years} yrs</div>}
+                {screening.candidate_profile.current_location && <div><span className="text-gray-400">Location:</span> {screening.candidate_profile.current_location}</div>}
+                {screening.candidate_profile.nationality && screening.candidate_profile.nationality !== 'Not Found' && <div><span className="text-gray-400">Nationality:</span> {screening.candidate_profile.nationality}</div>}
+                {screening.candidate_profile.visa_type && screening.candidate_profile.visa_type !== 'Not Found' && <div><span className="text-gray-400">Visa:</span> {screening.candidate_profile.visa_type}</div>}
+              </div>
+            </div>
+          )}
+
+          {screening.match_analysis?.skill_match?.matched_skills?.length > 0 && (
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Matched Skills</div>
               <div className="flex flex-wrap gap-1">
-                {screening.matchedSkills.map((s: any) => (
-                  <span key={s.skill} className={`badge text-xs ${s.proficiency === 'Expert' ? 'badge-green' : 'badge-blue'}`}>
-                    {s.skill} {s.yearsUsed ? `${s.yearsUsed}y` : ''}
-                  </span>
+                {screening.match_analysis.skill_match.matched_skills.map((s: string) => (
+                  <span key={s} className="badge text-xs badge-green">{s}</span>
                 ))}
               </div>
             </div>
           )}
 
-          {screening.redFlags?.length > 0 && (
+          {screening.match_analysis?.skill_match?.missing_skills?.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Missing Skills</div>
+              <div className="flex flex-wrap gap-1">
+                {screening.match_analysis.skill_match.missing_skills.map((s: string) => (
+                  <span key={s} className="badge text-xs badge-red">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {screening.match_analysis?.red_flags?.length > 0 && (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-lg p-3">
               <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
                 <div className="text-xs font-semibold text-amber-700 mb-1">Red Flags</div>
                 <ul className="text-xs text-amber-700 space-y-1">
-                  {screening.redFlags.map((f: string) => <li key={f}>• {f}</li>)}
+                  {screening.match_analysis.red_flags.map((f: string) => <li key={f}>• {f}</li>)}
                 </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Score Breakdown */}
+          {screening.score_breakdown && (
+            <div>
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Score Breakdown</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-blue-600">{screening.score_breakdown.skill_match}/35</div>
+                  <div className="text-xs text-gray-400">Skill Match</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-purple-600">{screening.score_breakdown.experience_relevance}/30</div>
+                  <div className="text-xs text-gray-400">Experience</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-teal-600">{screening.score_breakdown.role_alignment}/20</div>
+                  <div className="text-xs text-gray-400">Role Alignment</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-orange-600">{screening.score_breakdown.stability}/15</div>
+                  <div className="text-xs text-gray-400">Stability</div>
+                </div>
               </div>
             </div>
           )}

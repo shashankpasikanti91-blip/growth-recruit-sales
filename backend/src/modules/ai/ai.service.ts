@@ -22,7 +22,7 @@ export class AiService {
         candidateId,
         inputData: { jobId },
         outputData: result as any,
-        model: 'gpt-4o',
+        model: 'openai/gpt-4.1-mini',
         tokensUsed,
         latencyMs,
       },
@@ -65,7 +65,7 @@ export class AiService {
 
     // Log AI usage
     await this.prisma.aiUsageLog.create({
-      data: { tenantId, serviceType: 'CANDIDATE_SCORING', model: 'gpt-4o', tokensInput: Math.round(tokensUsed * 0.6), tokensOutput: Math.round(tokensUsed * 0.4) },
+      data: { tenantId, serviceType: 'CANDIDATE_SCORING', model: 'openai/gpt-4.1-mini', tokensInput: Math.round(tokensUsed * 0.6), tokensOutput: Math.round(tokensUsed * 0.4) },
     });
   }
 }

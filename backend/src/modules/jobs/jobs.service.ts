@@ -32,6 +32,7 @@ export class JobsService {
         location: dto.location,
         jobType: dto.jobType as any,
         description: dto.description,
+        requirements: dto.requirements ?? [],
         skills: dto.requiredSkills ?? [],
         experience: dto.experience,
         salaryMin: dto.salaryMin ? parseFloat(dto.salaryMin) : undefined,
