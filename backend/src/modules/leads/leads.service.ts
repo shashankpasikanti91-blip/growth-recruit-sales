@@ -20,21 +20,23 @@ export class LeadsService {
       if (existing) throw new ConflictException('Lead with this email already exists');
     }
 
+    // Split fullName into firstName + lastName
+    const nameParts = (dto.fullName ?? '').trim().split(/\s+/);
+    const firstName = nameParts[0] ?? '';
+    const lastName = nameParts.slice(1).join(' ') || firstName;
+
     return this.prisma.lead.create({
       data: {
         tenantId,
-        fullName: dto.fullName,
+        firstName,
+        lastName,
         email: dto.email,
         phone: dto.phone,
         title: dto.title,
         companyId: dto.companyId,
-        companyName: dto.companyName,
         linkedinUrl: dto.linkedinUrl,
-        source: dto.source ?? 'manual',
+        sourceName: dto.source ?? 'manual',
         stage: 'NEW',
-        countryCode: dto.countryCode,
-        industry: dto.industry,
-        tags: dto.tags ?? [],
       },
     });
   }
@@ -50,18 +52,17 @@ export class LeadsService {
       limit?: number;
     },
   ) {
-    const { search, stage, countryCode, source, page = 1, limit = 20 } = filters;
+    const { search, stage, source, page = 1, limit = 20 } = filters;
     const where: any = { tenantId };
 
     if (stage) where.stage = stage;
-    if (countryCode) where.countryCode = countryCode;
-    if (source) where.source = source;
+    if (source) where.sourceName = source;
 
     if (search) {
       where.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
-        { companyName: { contains: search, mode: 'insensitive' } },
         { title: { contains: search, mode: 'insensitive' } },
       ];
     }
@@ -90,7 +91,7 @@ export class LeadsService {
         activities: { orderBy: { createdAt: 'desc' }, take: 20 },
         outreachMessages: { orderBy: { createdAt: 'desc' }, take: 10 },
         aiAnalyses: { orderBy: { createdAt: 'desc' }, take: 5 },
-        contacts: { select: { id: true, firstName: true, lastName: true, email: true, title: true } },
+        contact: { select: { id: true, firstName: true, lastName: true, email: true, title: true } },
       },
     });
     if (!lead) throw new NotFoundException('Lead not found');
@@ -111,7 +112,8 @@ export class LeadsService {
         data: {
           tenantId,
           leadId: id,
-          activityType: 'NOTE',
+          type: 'NOTE',
+          title: 'Stage updated',
           description: dto.note,
         },
       });
@@ -120,7 +122,7 @@ export class LeadsService {
     this.eventEmitter.emit('lead.stage_changed', {
       tenantId,
       leadId: id,
-      oldStage: lead.stage,
+      oldStage: (lead as any).stage,
       newStage: dto.stage,
     });
 
@@ -128,29 +130,30 @@ export class LeadsService {
   }
 
   async scoreLead(tenantId: string, id: string) {
-    const lead = await this.findOne(tenantId, id);
+    const lead = await this.prisma.lead.findFirst({
+      where: { id, tenantId },
+      include: { company: true },
+    });
+    if (!lead) throw new NotFoundException('Lead not found');
 
-    // Load tenant ICP if exists
     const icp = await this.prisma.icpProfile.findFirst({ where: { tenantId, isActive: true } });
     if (!icp) return { error: 'No active ICP profile found for tenant' };
 
-    const result = await this.leadScoring.score(
-      {
-        fullName: lead.fullName,
+    const result = await this.leadScoring.score({
+      leadData: {
+        name: `${lead.firstName} ${lead.lastName}`,
         title: lead.title ?? '',
-        company: lead.company as any,
-        industry: lead.industry ?? '',
-        countryCode: lead.countryCode ?? '',
+        company: (lead.company as any)?.name ?? '',
+        industry: (lead.company as any)?.industry ?? '',
         email: lead.email ?? '',
         linkedinUrl: lead.linkedinUrl ?? '',
       },
-      icp as any,
-    );
+      icpData: icp as any,
+    });
 
-    // Update lead's AI score
     await this.prisma.lead.update({
       where: { id },
-      data: { aiScore: result.score, enrichmentData: { icpScore: result } },
+      data: { score: result.score, scoreDetails: { icpScore: result } as any },
     });
 
     return result;
@@ -159,7 +162,7 @@ export class LeadsService {
   async addNote(tenantId: string, id: string, note: string) {
     await this.findOne(tenantId, id);
     return this.prisma.activity.create({
-      data: { tenantId, leadId: id, activityType: 'NOTE', description: note },
+      data: { tenantId, leadId: id, type: 'NOTE', title: 'Note added', description: note },
     });
   }
 }

@@ -2,7 +2,7 @@ import { Processor, Process, OnQueueFailed } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { OutreachGenerationService } from '../modules/outreach/outreach.service';
+import { OutreachGenerationService } from '../modules/ai/services/outreach-generation.service';
 
 export interface OutreachJobData {
   tenantId: string;
@@ -44,19 +44,24 @@ export class OutreachProcessor {
     } else {
       const lead = await this.prisma.lead.findFirst({ where: { id: targetId, tenantId }, include: { company: { select: { name: true } } } });
       if (!lead) return { skipped: true };
-      targetProfile = { name: lead.fullName, title: lead.title, company: lead.company?.name ?? lead.companyName };
+      targetProfile = { name: `${lead.firstName} ${lead.lastName}`, title: lead.title, company: (lead.company as any)?.name };
     }
 
-    const message = await this.outreachService.generate(targetProfile, { channel: channel ?? 'EMAIL' });
+    const message = await this.outreachService.generate({
+      channel: (channel?.toLowerCase() ?? 'email') as 'email' | 'linkedin' | 'whatsapp',
+      entityType: targetType.toLowerCase() as 'candidate' | 'lead',
+      tone: 'professional',
+      recipientData: targetProfile,
+      contextData: { jobId },
+    });
 
     await this.prisma.outreachMessage.create({
       data: {
         tenantId,
-        stepNumber: 1,
         channel: channel ?? 'EMAIL',
         subject: message.subject,
         body: message.body,
-        status: 'PENDING',
+        status: 'DRAFT',
         ...(targetType === 'CANDIDATE' ? { candidateId: targetId } : { leadId: targetId }),
       },
     });
@@ -68,10 +73,10 @@ export class OutreachProcessor {
   async sendFollowUp(job: Job<{ tenantId: string; messageId: string }>) {
     const { tenantId, messageId } = job.data;
     const message = await this.prisma.outreachMessage.findFirst({ where: { id: messageId, tenantId } });
-    if (!message || message.status !== 'PENDING') return { skipped: true };
+    if (!message || message.status !== 'DRAFT') return { skipped: true };
 
     // Mark as queued — actual SMTP/LinkedIn send done via n8n node triggered by this event
-    await this.prisma.outreachMessage.update({ where: { id: messageId }, data: { status: 'PENDING' } });
+    await this.prisma.outreachMessage.update({ where: { id: messageId }, data: { status: 'PENDING_APPROVAL' } });
     this.logger.log(`Follow-up queued for message ${messageId} — n8n will handle dispatch`);
     return { queued: true };
   }

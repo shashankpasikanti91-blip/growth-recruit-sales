@@ -5,94 +5,96 @@ const PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    monthly: 49,
-    annual: 39,
-    description: 'Perfect for small teams just getting started with AI recruitment.',
+    badge: 'Beta',
+    monthly: 0,
+    annual: 0,
+    description: 'Get started free — explore the platform with limited usage.',
     color: 'border-gray-200',
     highlight: false,
     features: [
-      '3 team members',
-      '500 candidates',
-      '250 leads',
-      '200 AI calls / month',
-      'CSV & Excel imports',
+      '2 team members',
+      '100 candidates',
+      '50 leads',
+      '50 AI calls / month',
+      'CSV imports',
       'Basic analytics',
       'Email outreach',
       'Community support',
     ],
-    notIncluded: ['PDF/Word resume parsing', 'Advanced analytics', 'n8n workflows', 'SSO / SAML'],
+    notIncluded: ['PDF/Word resume parsing', 'n8n workflows', 'Advanced analytics'],
   },
   {
     id: 'growth',
     name: 'Growth',
-    monthly: 129,
-    annual: 103,
-    description: 'For growing teams that need more power and automation.',
-    color: 'border-blue-200',
-    highlight: false,
-    features: [
-      '10 team members',
-      '5,000 candidates',
-      '2,500 leads',
-      '1,000 AI calls / month',
-      'All file formats (PDF, Word, Excel, CSV)',
-      'Advanced analytics',
-      'n8n workflow automation',
-      'Priority email support',
-    ],
-    notIncluded: ['Custom AI prompts', 'SSO / SAML', 'Dedicated account manager'],
-  },
-  {
-    id: 'professional',
-    name: 'Professional',
-    monthly: 299,
-    annual: 239,
-    description: 'The complete platform for high-volume recruiting and sales teams.',
+    badge: 'Early Access',
+    monthly: 19,
+    annual: 15,
+    description: 'For small teams ready to supercharge their hiring pipeline.',
     color: 'border-brand-500 ring-2 ring-brand-500',
     highlight: true,
     features: [
-      '30 team members',
-      '25,000 candidates',
-      '10,000 leads',
-      '5,000 AI calls / month',
+      '5 team members',
+      '1,000 candidates',
+      '500 leads',
+      '500 AI calls / month',
+      'All file formats (PDF, Word, Excel, CSV)',
+      'Advanced analytics',
+      'n8n workflow automation',
+      'Email support',
+    ],
+    notIncluded: ['Custom AI prompts', 'SSO / SAML'],
+  },
+  {
+    id: 'professional',
+    name: 'Pro',
+    badge: 'Early Access',
+    monthly: 49,
+    annual: 39,
+    description: 'Full-featured platform for growing recruitment & sales teams.',
+    color: 'border-blue-200',
+    highlight: false,
+    features: [
+      '15 team members',
+      '10,000 candidates',
+      '5,000 leads',
+      '2,000 AI calls / month',
       'All file formats + bulk upload',
       'Power BI-style analytics',
       'Custom AI prompts',
       '5 n8n workflow templates',
-      'Priority chat support',
+      'Priority support',
     ],
     notIncluded: ['SSO / SAML', 'Dedicated account manager'],
   },
   {
     id: 'enterprise',
     name: 'Enterprise',
-    monthly: 799,
-    annual: 639,
-    description: 'Unlimited scale with enterprise-grade security and support.',
+    badge: null,
+    monthly: null,
+    annual: null,
+    description: 'Custom pricing for large teams. White-label, SSO & dedicated support.',
     color: 'border-gray-800',
     highlight: false,
     features: [
       'Unlimited team members',
-      'Unlimited candidates',
-      'Unlimited leads',
+      'Unlimited candidates & leads',
       'Unlimited AI calls',
       'All file formats + API',
-      'Custom analytics & reporting',
-      'Custom AI models',
-      'Unlimited n8n workflows',
+      'Custom AI models (BYO key)',
       'SSO / SAML',
       'Dedicated account manager',
       'SLA guarantee',
+      'White-label option',
     ],
     notIncluded: [],
   },
 ];
 
 const COMPARISON = [
-  { feature: 'Team members', starter: '3', growth: '10', professional: '30', enterprise: 'Unlimited' },
-  { feature: 'Candidates', starter: '500', growth: '5,000', professional: '25,000', enterprise: 'Unlimited' },
-  { feature: 'Leads', starter: '250', growth: '2,500', professional: '10,000', enterprise: 'Unlimited' },
-  { feature: 'AI calls/month', starter: '200', growth: '1,000', professional: '5,000', enterprise: 'Unlimited' },
+  { feature: 'Team members', starter: '2', growth: '5', professional: '15', enterprise: 'Unlimited' },
+  { feature: 'Candidates', starter: '100', growth: '1,000', professional: '10,000', enterprise: 'Unlimited' },
+  { feature: 'Leads', starter: '50', growth: '500', professional: '5,000', enterprise: 'Unlimited' },
+  { feature: 'AI calls/month', starter: '50', growth: '500', professional: '2,000', enterprise: 'Unlimited' },
   { feature: 'CSV/Excel imports', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
   { feature: 'PDF/Word resume parsing', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
   { feature: 'n8n automation', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
@@ -128,12 +130,12 @@ export default function PricingPage() {
         <Link href="/" className="inline-flex items-center gap-1 text-gray-400 text-xs hover:text-gray-600 mb-6 transition-colors">
           <ArrowLeft className="w-3 h-3" /> Back to home
         </Link>
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-4">Simple, transparent pricing</h1>
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-4">Early access pricing</h1>
         <p className="text-gray-500 text-lg max-w-xl mx-auto mb-3">
-          Start free for 14 days. No credit card required. Scale as you grow.
+          We&apos;re just getting started. Lock in the lowest prices — they&apos;ll never be this low again.
         </p>
         <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-green-200">
-          <Check className="w-3 h-3" /> Annual billing saves up to 20%
+          <Zap className="w-3 h-3" /> Launch pricing — save up to 80% vs future rates
         </div>
       </section>
 
@@ -148,12 +150,26 @@ export default function PricingPage() {
                 </div>
               )}
               <div className="mb-5">
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{plan.name}</div>
-                <div className="flex items-end gap-1 mb-1">
-                  <span className="text-3xl font-extrabold text-gray-900">${plan.monthly}</span>
-                  <span className="text-gray-400 text-sm mb-1">/mo</span>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{plan.name}</span>
+                  {plan.badge && (
+                    <span className="text-[10px] font-bold bg-brand-100 text-brand-700 px-1.5 py-0.5 rounded-full">{plan.badge}</span>
+                  )}
                 </div>
-                <div className="text-xs text-green-600 font-medium mb-2">${plan.annual}/mo billed annually</div>
+                {plan.monthly !== null ? (
+                  <>
+                    <div className="flex items-end gap-1 mb-1">
+                      <span className="text-3xl font-extrabold text-gray-900">{plan.monthly === 0 ? 'Free' : `$${plan.monthly}`}</span>
+                      {plan.monthly > 0 && <span className="text-gray-400 text-sm mb-1">/mo</span>}
+                    </div>
+                    {plan.annual > 0 && <div className="text-xs text-green-600 font-medium mb-2">${plan.annual}/mo billed annually</div>}
+                    {plan.monthly === 0 && <div className="text-xs text-green-600 font-medium mb-2">No credit card required</div>}
+                  </>
+                ) : (
+                  <div className="flex items-end gap-1 mb-1">
+                    <span className="text-3xl font-extrabold text-gray-900">Custom</span>
+                  </div>
+                )}
                 <p className="text-xs text-gray-500 leading-relaxed">{plan.description}</p>
               </div>
 
@@ -180,7 +196,7 @@ export default function PricingPage() {
                     : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                 }`}
               >
-                {plan.id === 'enterprise' ? 'Contact sales' : 'Start free trial'}
+                {plan.id === 'enterprise' ? 'Contact us' : plan.monthly === 0 ? 'Get started free' : 'Start free trial'}
               </Link>
             </div>
           ))}
@@ -188,7 +204,7 @@ export default function PricingPage() {
 
         {/* Trial note */}
         <p className="text-center text-gray-400 text-xs mt-8">
-          All plans include a 14-day free trial. No credit card required. Cancel anytime.
+          Early access pricing — lock in these rates forever. All paid plans include a 14-day free trial. Cancel anytime.
         </p>
       </section>
 
@@ -241,7 +257,8 @@ export default function PricingPage() {
               { q: 'What file formats are supported for imports?', a: 'CSV, Excel (.xlsx), PDF resumes, and Word documents (.docx) are all supported. The AI automatically extracts and maps candidate or lead data.' },
               { q: 'How does the AI resume screening work?', a: 'Upload a resume (any format) and select a job. Our AI compares the candidate against the job requirements and returns a score, decision, and detailed breakdown.' },
               { q: 'What is an AI call?', a: 'An AI call is any request to the AI model — resume screening, lead scoring, JD parsing, or outreach generation. Each action uses one or more credits depending on complexity.' },
-              { q: 'Is there a free trial?', a: 'Yes! Every plan includes a 14-day free trial with full access. No credit card required.' },
+              { q: 'Is there a free plan?', a: 'Yes! The Starter plan is completely free with limited usage. Paid plans include a 14-day trial. No credit card required.' },
+              { q: 'Will prices go up?', a: 'Yes — these are early access launch prices. If you sign up now, your rate is locked in forever.' },
             ].map(faq => (
               <details key={faq.q} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm group">
                 <summary className="font-semibold text-gray-800 text-sm cursor-pointer list-none flex justify-between items-center">
@@ -257,8 +274,8 @@ export default function PricingPage() {
 
       {/* CTA */}
       <section className="py-20 px-4 bg-gradient-to-r from-brand-700 to-brand-500 text-center">
-        <h2 className="text-2xl font-bold text-white mb-3">Start your free trial today</h2>
-        <p className="text-brand-100 mb-8 text-sm">No credit card. Full access. Cancel anytime.</p>
+        <h2 className="text-2xl font-bold text-white mb-3">Get early access now</h2>
+        <p className="text-brand-100 mb-8 text-sm">Free to start. Lock in launch pricing forever.</p>
         <Link href="/login" className="inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-8 py-3 rounded-xl hover:bg-brand-50 transition-colors shadow-lg text-sm">
           Create free account <ArrowRight className="w-4 h-4" />
         </Link>

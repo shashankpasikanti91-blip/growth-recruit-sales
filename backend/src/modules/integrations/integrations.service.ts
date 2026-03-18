@@ -17,7 +17,7 @@ export class IntegrationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(tenantId: string) {
-    return this.prisma.integration.findMany({ where: { tenantId }, orderBy: { provider: 'asc' } });
+    return this.prisma.integration.findMany({ where: { tenantId }, orderBy: { name: 'asc' } });
   }
 
   async upsert(
@@ -26,15 +26,20 @@ export class IntegrationsService {
     config: Record<string, any>,
     isActive = true,
   ) {
-    return this.prisma.integration.upsert({
-      where: { tenantId_provider: { tenantId, provider } },
-      create: { tenantId, provider, config, isActive, status: 'ACTIVE' },
-      update: { config, isActive, status: isActive ? 'ACTIVE' : 'INACTIVE' },
+    const existing = await this.prisma.integration.findFirst({ where: { tenantId, type: provider } });
+    if (existing) {
+      return this.prisma.integration.update({
+        where: { id: existing.id },
+        data: { config, isActive, status: isActive ? 'ACTIVE' : 'INACTIVE' },
+      });
+    }
+    return this.prisma.integration.create({
+      data: { tenantId, name: provider, type: provider, config, isActive, status: 'ACTIVE' },
     });
   }
 
   async test(tenantId: string, provider: string): Promise<{ success: boolean; message: string }> {
-    const integration = await this.prisma.integration.findFirst({ where: { tenantId, provider } });
+    const integration = await this.prisma.integration.findFirst({ where: { tenantId, type: provider } });
     if (!integration) return { success: false, message: 'Integration not configured' };
     // Placeholder — real implementations would call the external API
     return { success: true, message: `${provider} integration is configured` };

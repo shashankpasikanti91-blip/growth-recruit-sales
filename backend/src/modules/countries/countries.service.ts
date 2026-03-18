@@ -45,4 +45,40 @@ export class CountriesService {
     if (!tenant) throw new NotFoundException('Tenant not found');
     return this.findOne(tenant.countryCode);
   }
+
+  // ─── Visa Rules ───────────────────────────────────────────────────────────
+
+  async getVisaRules(countryCode: string) {
+    await this.findOne(countryCode);
+    return this.prisma.visaRule.findMany({
+      where: { countryCode, isActive: true },
+      orderBy: { visaType: 'asc' },
+    });
+  }
+
+  async getVisaRule(countryCode: string, visaType: string) {
+    const rule = await this.prisma.visaRule.findUnique({
+      where: { countryCode_visaType: { countryCode, visaType } },
+    });
+    if (!rule) throw new NotFoundException(`Visa rule "${visaType}" not found for ${countryCode}`);
+    return rule;
+  }
+
+  async getAllVisaRulesGrouped() {
+    const rules = await this.prisma.visaRule.findMany({
+      where: { isActive: true },
+      include: { country: { select: { name: true, code: true } } },
+      orderBy: [{ countryCode: 'asc' }, { category: 'asc' }, { visaType: 'asc' }],
+    });
+
+    const grouped: Record<string, any> = {};
+    for (const rule of rules) {
+      const key = rule.countryCode;
+      if (!grouped[key]) {
+        grouped[key] = { countryCode: key, countryName: rule.country.name, visaTypes: [] };
+      }
+      grouped[key].visaTypes.push(rule);
+    }
+    return Object.values(grouped);
+  }
 }

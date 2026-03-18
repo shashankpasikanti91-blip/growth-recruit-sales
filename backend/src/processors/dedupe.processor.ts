@@ -31,10 +31,10 @@ export class DedupeProcessor {
 
     if (duplicates.length === 0) return { isDuplicate: false };
 
-    // Flag newest record — keep oldest
+    // Flag as possible duplicate
     await this.prisma.candidate.update({
       where: { id: entityId },
-      data: { tags: { push: '__possible_duplicate' } },
+      data: { isDuplicate: true },
     });
 
     this.logger.warn(`Candidate ${entityId} flagged as possible duplicate of ${duplicates.map(d => d.id).join(', ')}`);
@@ -54,7 +54,7 @@ export class DedupeProcessor {
 
     await this.prisma.lead.update({
       where: { id: entityId },
-      data: { tags: { push: '__possible_duplicate' } },
+      data: { isDuplicate: true },
     });
 
     this.logger.warn(`Lead ${entityId} flagged as possible duplicate of ${duplicates.map(d => d.id).join(', ')}`);

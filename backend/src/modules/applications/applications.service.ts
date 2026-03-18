@@ -20,10 +20,7 @@ export class ApplicationsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  // ─── Create Application ────────────────────────────────────────────────────
-
   async create(tenantId: string, createdById: string, dto: CreateApplicationDto) {
-    // Verify candidate and job belong to tenant
     const [candidate, job] = await Promise.all([
       this.prisma.candidate.findFirst({ where: { id: dto.candidateId, tenantId } }),
       this.prisma.job.findFirst({ where: { id: dto.jobId, tenantId } }),
@@ -33,7 +30,6 @@ export class ApplicationsService {
     if (!job) throw new NotFoundException('Job not found');
     if (!job.isActive) throw new BadRequestException('Job is closed');
 
-    // Prevent duplicate applications
     const existing = await this.prisma.application.findFirst({
       where: { candidateId: dto.candidateId, jobId: dto.jobId },
     });
@@ -44,10 +40,7 @@ export class ApplicationsService {
         tenantId,
         candidateId: dto.candidateId,
         jobId: dto.jobId,
-        source: dto.source ?? 'manual',
-        stage: 'APPLIED',
-        resumeText: dto.resumeText,
-        coverNote: dto.coverNote,
+        stage: CandidateStage.SOURCED,
       },
       include: {
         candidate: { select: { id: true, firstName: true, lastName: true, email: true } },
@@ -60,19 +53,21 @@ export class ApplicationsService {
     return application;
   }
 
-  // ─── AI Screen (Core Pipeline Step) ────────────────────────────────────────
-
   async screenApplication(tenantId: string, applicationId: string, resumeTextOverride?: string) {
     const application = await this.prisma.application.findFirst({
       where: { id: applicationId, tenantId },
       include: {
-        candidate: true,
+        candidate: {
+          include: {
+            resumes: { where: { isPrimary: true }, take: 1 },
+          },
+        },
         job: {
           select: {
             title: true,
             description: true,
-            requiredSkills: true,
-            requiredExperience: true,
+            skills: true,
+            experience: true,
             department: true,
             location: true,
             countryCode: true,
@@ -82,61 +77,56 @@ export class ApplicationsService {
     });
     if (!application) throw new NotFoundException('Application not found');
 
-    const resumeText = resumeTextOverride || application.resumeText || application.candidate.rawResumeText;
+    const candidate = application.candidate as any;
+    const primaryResume = candidate.resumes?.[0];
+    const resumeText = resumeTextOverride || primaryResume?.rawText || '';
     if (!resumeText) throw new BadRequestException('No resume text available for screening');
 
-    // Build job description string for the screening prompt
+    const job = application.job as any;
     const jobDescription = [
-      `Title: ${application.job.title}`,
-      application.job.department ? `Department: ${application.job.department}` : '',
-      application.job.description ?? '',
-      application.job.requiredSkills?.length
-        ? `Required Skills: ${(application.job.requiredSkills as string[]).join(', ')}`
-        : '',
-      application.job.requiredExperience
-        ? `Required Experience: ${application.job.requiredExperience} years`
-        : '',
+      `Title: ${job.title}`,
+      job.department ? `Department: ${job.department}` : '',
+      job.description ?? '',
+      job.skills?.length ? `Required Skills: ${(job.skills as string[]).join(', ')}` : '',
+      job.experience ? `Required Experience: ${job.experience}` : '',
     ]
       .filter(Boolean)
       .join('\n');
 
-    // Get country-specific rules if job has a country
-    let countryRules: string | undefined;
-    if (application.job.countryCode) {
+    let fullJobDescription = jobDescription;
+    if (job.countryCode) {
       const country = await this.prisma.countryConfig.findUnique({
-        where: { countryCode: application.job.countryCode },
+        where: { code: job.countryCode },
       });
-      if (country?.screeningNotes) countryRules = country.screeningNotes as string;
+      if (country?.complianceNotes) {
+        fullJobDescription += `\n\nCompliance Notes: ${country.complianceNotes}`;
+      }
     }
 
-    // Run the 6-step AI screening
-    const result = await this.resumeScreening.screen({
+    const screenOutput = await this.resumeScreening.screen({
       resumeText,
-      jobDescription,
-      countryRules,
+      jobDescription: fullJobDescription,
     });
 
-    // Persist result: → AiAnalysisResult + Scorecard + update Application stage + log usage
-    await this.aiService.persistScreeningResult(tenantId, {
-      candidateId: application.candidateId,
-      applicationId: application.id,
-      jobId: application.jobId,
-      result,
-    });
+    await this.aiService.persistScreeningResult(
+      tenantId,
+      application.candidateId,
+      application.jobId,
+      screenOutput.result,
+      screenOutput.tokensUsed,
+      screenOutput.latencyMs,
+    );
 
-    // Emit event for n8n/workflow to pick up
     this.eventEmitter.emit('application.screened', {
       tenantId,
       applicationId,
-      decision: result.decision,
-      score: result.score,
+      decision: screenOutput.result.decision,
+      score: screenOutput.result.score,
       candidateId: application.candidateId,
     });
 
-    return { applicationId, screening: result };
+    return { applicationId, screening: screenOutput.result };
   }
-
-  // ─── Stage Update ───────────────────────────────────────────────────────────
 
   async updateStage(tenantId: string, id: string, dto: UpdateApplicationStageDto) {
     const application = await this.prisma.application.findFirst({ where: { id, tenantId } });
@@ -144,11 +134,8 @@ export class ApplicationsService {
 
     const updated = await this.prisma.application.update({
       where: { id },
-      data: { stage: dto.stage as any },
+      data: { stage: dto.stage as CandidateStage },
     });
-
-    // Sync candidate's stage to highest-level application stage
-    await this.syncCandidateStage(application.candidateId);
 
     this.eventEmitter.emit('application.stage_changed', {
       tenantId,
@@ -159,8 +146,6 @@ export class ApplicationsService {
 
     return updated;
   }
-
-  // ─── Queries ────────────────────────────────────────────────────────────────
 
   async findAll(
     tenantId: string,
@@ -179,9 +164,16 @@ export class ApplicationsService {
         take: limit,
         orderBy: { appliedAt: 'desc' },
         include: {
-          candidate: { select: { id: true, firstName: true, lastName: true, email: true, currentTitle: true, overallScore: true } },
+          candidate: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              currentTitle: true,
+            },
+          },
           job: { select: { id: true, title: true, department: true } },
-          scorecards: { orderBy: { createdAt: 'desc' }, take: 1 },
         },
       }),
       this.prisma.application.count({ where }),
@@ -195,53 +187,10 @@ export class ApplicationsService {
       where: { id, tenantId },
       include: {
         candidate: true,
-        job: { select: { id: true, title: true, department: true, requiredSkills: true } },
-        scorecards: { orderBy: { createdAt: 'desc' } },
-        aiAnalyses: { orderBy: { createdAt: 'desc' }, take: 5 },
+        job: { select: { id: true, title: true, department: true, skills: true } },
       },
     });
     if (!app) throw new NotFoundException('Application not found');
     return app;
-  }
-
-  // ─── Private Helpers ────────────────────────────────────────────────────────
-
-  private readonly stageOrder = [
-    'APPLIED', 'SCREENING', 'SHORTLISTED', 'INTERVIEW', 'OFFER', 'HIRED',
-  ];
-
-  private async syncCandidateStage(candidateId: string) {
-    const applications = await this.prisma.application.findMany({
-      where: { candidateId },
-      select: { stage: true },
-    });
-
-    const highestStageIndex = Math.max(
-      ...applications.map((a) => this.stageOrder.indexOf(a.stage as string)),
-    );
-
-    if (highestStageIndex >= 0) {
-      const targetStage = this.stageOrder[highestStageIndex];
-      const prismaStage = this.mapAppStageToCandidateStage(targetStage);
-      if (prismaStage) {
-        await this.prisma.candidate.update({
-          where: { id: candidateId },
-          data: { stage: prismaStage },
-        });
-      }
-    }
-  }
-
-  private mapAppStageToCandidateStage(stage: string): CandidateStage | null {
-    const map: Record<string, CandidateStage> = {
-      APPLIED: CandidateStage.APPLIED,
-      SCREENING: CandidateStage.SCREENING,
-      SHORTLISTED: CandidateStage.SHORTLISTED,
-      INTERVIEW: CandidateStage.INTERVIEW,
-      OFFER: CandidateStage.OFFER,
-      HIRED: CandidateStage.HIRED,
-      REJECTED: CandidateStage.REJECTED,
-    };
-    return map[stage] ?? null;
   }
 }

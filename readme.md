@@ -34,6 +34,8 @@
   - [10. Error-Proof Integration Design](#10-error-proof-integration-design)
   - [11. Outreach & Approval Model](#11-outreach--approval-model)
   - [12. Multi-Country Support](#12-multi-country-support)
+  - [13. Visa & Immigration Rules Engine](#13-visa--immigration-rules-engine)
+  - [14. Role-Aware AI Resume Screening](#14-role-aware-ai-resume-screening)
 - [🖥️ UI Pages](#️-ui-pages)
 - [📊 Analytics](#-analytics)
 - [🔧 Backend & API Expectations](#-backend--api-expectations)
@@ -351,6 +353,46 @@ Each pack includes:
 
 ---
 
+### 13. Visa & Immigration Rules Engine
+
+Country-specific visa rules database with comprehensive work permit information:
+
+| Feature | Description |
+|---------|-------------|
+| Visa Rules Database | 16 visa types across 7 countries (MY, SG, AU, AE, US, GB, IN) |
+| Candidate Visa Tracking | Nationality, visa type, expiry date, status, foreigner flag |
+| Visa Guide UI | Interactive country selector with expandable visa cards |
+| AI Integration | Resume screening extracts visa/nationality data automatically |
+| Expiry Alerts | Visual warnings for visas expiring within 90 days |
+
+**Visa Categories:** WORK, DEPENDENT, STUDENT, VISITOR, PR
+
+**API Endpoints:**
+- `GET /api/v1/countries/visa-rules` — All visa rules grouped by country
+- `GET /api/v1/countries/:code/visa-rules` — Rules for a specific country
+- `GET /api/v1/countries/:code/visa-rules/:visaType` — Single rule detail
+
+---
+
+### 14. Role-Aware AI Resume Screening
+
+Comprehensive AI-powered screening with role category detection:
+
+| Role Category | Key Validation |
+|---------------|---------------|
+| 🏢 Executive | C-suite tenure, board experience, industry reputation |
+| 💻 Technical | Certifications, hands-on tools, code/system architecture |
+| 📊 Business | Revenue targets, client portfolio, market expansion |
+| 💰 Finance | Certifications (CPA/ACCA), regulatory knowledge, audit experience |
+| ⚙️ Operations | Supply chain, process optimization, team management |
+| 🔧 Blue-Collar | Safety certs, physical skills, machinery operation |
+
+**Scoring:** Skill Match (35%) + Experience Relevance (30%) + Role Alignment (20%) + Stability (15%)
+
+**Decisions:** Shortlisted (≥70) | KIV (55-69) | Rejected (<55)
+
+---
+
 ## 🖥️ UI Pages
 
 | Page | Description |
@@ -362,10 +404,11 @@ Each pack includes:
 | Mapping Templates | Create, edit, and preview field mappings |
 | Jobs | Job board with pipeline view |
 | Candidates | Searchable candidate list with filters |
-| Candidate Detail | Full profile, timeline, AI scores, outreach |
+| Candidate Detail | Full profile, timeline, AI scores, visa info, outreach |
 | Lead List | Filterable lead pipeline |
 | Lead Detail | Company context, contacts, activity log |
 | Outreach Drafts | Review and approve AI-generated messages |
+| Visa Guide | Country-wise visa rules with eligibility, docs, fees |
 | Workflow Executions | Per-run logs and status |
 | Error Center | Grouped failures, retry controls |
 | Analytics | Charts, funnels, AI usage, source performance |

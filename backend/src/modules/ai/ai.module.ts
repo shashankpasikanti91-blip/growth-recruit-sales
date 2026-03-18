@@ -23,6 +23,7 @@ import { AiController } from './ai.controller';
     OutreachGenerationService,
     LeadScoringService,
     JdParserService,
+    AiService,
   ],
 })
 export class AiModule {}

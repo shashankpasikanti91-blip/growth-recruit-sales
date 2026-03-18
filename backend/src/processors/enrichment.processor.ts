@@ -1,8 +1,8 @@
 import { Processor, Process, OnQueueFailed, OnQueueCompleted } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { LeadScoringService } from '../ai/services/lead-scoring.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { LeadScoringService } from '../modules/ai/services/lead-scoring.service';
 
 export interface EnrichmentJobData {
   tenantId: string;
@@ -44,25 +44,24 @@ export class EnrichmentProcessor {
       return { skipped: true, reason: 'no-icp' };
     }
 
-    const result = await this.leadScoring.score(
-      {
-        fullName: lead.fullName,
+    const result = await this.leadScoring.score({
+      leadData: {
+        name: `${lead.firstName} ${lead.lastName}`,
         title: lead.title ?? '',
-        company: lead.company as any,
-        industry: lead.industry ?? '',
-        countryCode: lead.countryCode ?? '',
+        company: (lead.company as any)?.name ?? '',
+        industry: (lead.company as any)?.industry ?? '',
         email: lead.email ?? '',
         linkedinUrl: lead.linkedinUrl ?? '',
       },
-      icp as any,
-    );
+      icpData: icp as any,
+    });
 
     await this.prisma.lead.update({
       where: { id: entityId },
-      data: { aiScore: result.score, enrichmentData: { icpScore: result } },
+      data: { score: result.score, scoreDetails: { icpScore: result } as any },
     });
 
-    return { score: result.score, recommendation: result.recommendation };
+    return { score: result.score, recommendation: result.nextBestAction };
   }
 
   @Process('enrich-candidate')

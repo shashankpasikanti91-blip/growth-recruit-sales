@@ -5,8 +5,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ImportSource } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import { parse as csvParse } from 'csv-parse/sync';
-import * as pdfParse from 'pdf-parse';
-import * as mammoth from 'mammoth';
+import pdfParse from 'pdf-parse';
+import mammoth from 'mammoth';
 
 @Injectable()
 export class ImportsService {

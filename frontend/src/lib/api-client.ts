@@ -97,7 +97,15 @@ export const billingApi = {
   changePlan: (planId: string, billingCycle: 'MONTHLY' | 'ANNUAL') =>
     api.post('/billing/change-plan', { planId, billingCycle }).then(r => r.data),
 };
+// ─── Countries & Visa Rules ──────────────────────────────────────────────────
 
+export const countriesApi = {
+  list: () => api.get('/countries').then(r => r.data),
+  visaRules: () => api.get('/countries/visa-rules').then(r => r.data),
+  visaRulesByCountry: (code: string) => api.get(`/countries/${code}/visa-rules`).then(r => r.data),
+  visaRuleDetail: (code: string, visaType: string) =>
+    api.get(`/countries/${code}/visa-rules/${visaType}`).then(r => r.data),
+};
 // ─── AI ───────────────────────────────────────────────────────────────────────
 
 export const aiApi = {

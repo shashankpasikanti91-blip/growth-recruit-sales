@@ -21,6 +21,11 @@ interface CandidateForm {
   skills?: string;
   resumeText?: string;
   source?: string;
+  nationality?: string;
+  visaType?: string;
+  visaExpiry?: string;
+  visaStatus?: string;
+  isForeigner?: boolean;
 }
 
 export default function NewCandidatePage() {
@@ -52,6 +57,10 @@ export default function NewCandidatePage() {
       if (result?.linkedinUrl) setValue('linkedinUrl', result.linkedinUrl);
       if (result?.skills) setValue('skills', Array.isArray(result.skills) ? result.skills.join(', ') : result.skills);
       if (result?.resumeText) setValue('resumeText', result.resumeText);
+      if (result?.nationality) setValue('nationality', result.nationality);
+      if (result?.visaType) setValue('visaType', result.visaType);
+      if (result?.visaExpiry) setValue('visaExpiry', result.visaExpiry);
+      if (result?.isForeigner !== undefined) setValue('isForeigner', result.isForeigner);
       toast.success('Resume parsed! Please review and confirm the details.');
     } catch {
       toast.error('Could not auto-parse resume. Please fill in fields manually.');
@@ -197,6 +206,44 @@ export default function NewCandidatePage() {
             <option value="JOB_BOARD">Job Board</option>
             <option value="WEBSITE">Website</option>
           </select>
+        </div>
+
+        {/* Visa & Immigration */}
+        <div className="border-t pt-4 mt-2">
+          <h3 className="text-sm font-semibold text-gray-800 mb-3">Visa & Immigration</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Nationality</label>
+              <input {...register('nationality')} className="input" placeholder="Malaysian" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Visa Type</label>
+              <input {...register('visaType')} className="input" placeholder="EP, SP, H-1B..." />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 mt-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Visa Expiry</label>
+              <input {...register('visaExpiry')} type="date" className="input" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Visa Status</label>
+              <select {...register('visaStatus')} className="input">
+                <option value="">Select...</option>
+                <option value="CITIZEN">Citizen</option>
+                <option value="PR">Permanent Resident</option>
+                <option value="VALID">Valid Visa</option>
+                <option value="EXPIRING_SOON">Expiring Soon</option>
+                <option value="EXPIRED">Expired</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-3">
+            <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
+              <input {...register('isForeigner')} type="checkbox" className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+              Foreign worker (requires work visa / permit)
+            </label>
+          </div>
         </div>
 
         <div>

@@ -170,16 +170,19 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              { name: 'Starter', price: '$49', period: '/mo', color: 'border-gray-200', highlight: false, features: ['3 users', '500 candidates', '200 AI calls/mo', 'Basic analytics'] },
-              { name: 'Growth', price: '$129', period: '/mo', color: 'border-blue-200', highlight: false, features: ['10 users', '5,000 candidates', '1,000 AI calls/mo', 'Advanced analytics'] },
-              { name: 'Professional', price: '$299', period: '/mo', color: 'border-brand-500 ring-2 ring-brand-500', highlight: true, features: ['30 users', '25,000 candidates', '5,000 AI calls/mo', 'Power BI reports'] },
-              { name: 'Enterprise', price: '$799', period: '/mo', color: 'border-gray-200', highlight: false, features: ['Unlimited users', 'Unlimited data', 'Unlimited AI', 'Dedicated support'] },
+              { name: 'Starter', badge: 'Beta', price: 'Free', period: '', color: 'border-gray-200', highlight: false, features: ['2 team members', '100 candidates', '50 AI calls/mo', 'Basic analytics'] },
+              { name: 'Growth', badge: 'Early Access', price: '$19', period: '/mo', color: 'border-brand-500 ring-2 ring-brand-500', highlight: true, features: ['5 team members', '1,000 candidates', '500 AI calls/mo', 'Advanced analytics'] },
+              { name: 'Pro', badge: 'Early Access', price: '$49', period: '/mo', color: 'border-blue-200', highlight: false, features: ['15 team members', '10,000 candidates', '2,000 AI calls/mo', 'Power BI reports'] },
+              { name: 'Enterprise', price: 'Custom', period: '', color: 'border-gray-200', highlight: false, features: ['Unlimited users', 'Unlimited data', 'Unlimited AI', 'Dedicated support'] },
             ].map(p => (
               <div key={p.name} className={`relative rounded-2xl border-2 p-6 bg-white shadow-sm ${p.color}`}>
                 {p.highlight && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-xs font-bold px-3 py-1 rounded-full">Most Popular</div>}
                 <div className="mb-4">
-                  <div className="text-sm font-semibold text-gray-500 mb-1">{p.name}</div>
-                  <div className="text-3xl font-extrabold text-gray-900">{p.price}<span className="text-sm text-gray-400 font-normal">{p.period}</span></div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-semibold text-gray-500">{p.name}</span>
+                    {(p as any).badge && <span className="text-[10px] font-bold bg-brand-100 text-brand-700 px-1.5 py-0.5 rounded">{(p as any).badge}</span>}
+                  </div>
+                  <div className="text-3xl font-extrabold text-gray-900">{p.price}{p.period && <span className="text-sm text-gray-400 font-normal">{p.period}</span>}</div>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {p.features.map(f => (

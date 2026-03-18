@@ -4,7 +4,8 @@
 // ───────────────────────────────────────────────────────────────────────────────
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -221,8 +222,40 @@ model CountryConfig {
   updatedAt       DateTime @updatedAt
 
   tenantConfigs TenantCountryConfig[]
+  visaRules     VisaRule[]
 
   @@map("country_configs")
+}
+
+// ─── Visa Rules (per country, per visa type) ──────────────────────────────────
+
+model VisaRule {
+  id                String   @id @default(uuid())
+  countryCode       String
+  visaType          String              // e.g. "EP", "DP", "S Pass", "Work Visa", "482", "186", "H-1B"
+  visaName          String              // e.g. "Employment Pass", "Dependent Pass"
+  category          String   @default("WORK")  // WORK, DEPENDENT, STUDENT, VISITOR, PR
+  description       String?
+  eligibility       String[]  @default([])   // bullet-point eligibility criteria
+  requiredDocuments String[]  @default([])   // list of required docs
+  processingTimeDays Int?                     // typical processing time
+  validityMonths    Int?                      // typical visa validity
+  renewalInfo       String?                   // how to renew
+  fees              Json?                      // { application: 100, processing: 50, currency: "SGD" }
+  salaryThreshold   Float?                    // minimum salary if applicable
+  quotaInfo         String?                   // quota/levy info if applicable
+  latestUpdates     String[]  @default([])   // recent changes or news about this visa
+  lastUpdatedDate   DateTime?                 // when rules were last updated
+  tips              String[]  @default([])   // practical tips for applicants
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  country CountryConfig @relation(fields: [countryCode], references: [code])
+
+  @@unique([countryCode, visaType])
+  @@index([countryCode])
+  @@map("visa_rules")
 }
 
 model TenantCountryConfig {
@@ -259,6 +292,11 @@ model Candidate {
   skills          String[]        @default([])
   languages       String[]        @default([])
   summary         String?
+  nationality     String?                     // e.g. "Indian", "Malaysian", "Australian"
+  visaType        String?                     // current visa type e.g. "EP", "H-1B", "482"
+  visaExpiry      DateTime?                   // visa expiry date
+  visaStatus      String?                     // VALID, EXPIRING_SOON, EXPIRED, CITIZEN, PR
+  isForeigner     Boolean         @default(false) // true if candidate is a foreigner in work country
   sourceImportId  String?
   sourceName      String?
   rawData         Json?

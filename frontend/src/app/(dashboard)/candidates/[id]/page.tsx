@@ -156,6 +156,63 @@ export default function CandidateDetailPage() {
             </dl>
           </div>
 
+          {/* Visa & Immigration Info */}
+          {(candidate.nationality || candidate.visaType || candidate.isForeigner) && (
+            <div className="card">
+              <h2 className="font-semibold text-gray-900 mb-3">Visa & Immigration</h2>
+              <dl className="space-y-2 text-sm">
+                {candidate.nationality && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Nationality</dt>
+                    <dd className="font-medium text-gray-900">{candidate.nationality}</dd>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">Status</dt>
+                  <dd>
+                    {candidate.isForeigner ? (
+                      <span className="badge-yellow text-xs">Foreign Worker</span>
+                    ) : (
+                      <span className="badge-green text-xs">{candidate.visaStatus === 'PR' ? 'PR' : 'Citizen / Local'}</span>
+                    )}
+                  </dd>
+                </div>
+                {candidate.visaType && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Visa Type</dt>
+                    <dd className="font-medium text-gray-900">{candidate.visaType}</dd>
+                  </div>
+                )}
+                {candidate.visaExpiry && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Visa Expiry</dt>
+                    <dd className={`font-medium ${new Date(candidate.visaExpiry) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) ? 'text-red-600' : 'text-gray-900'}`}>
+                      {new Date(candidate.visaExpiry).toLocaleDateString()}
+                      {new Date(candidate.visaExpiry) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) && (
+                        <span className="text-xs text-red-500 block">Expiring soon!</span>
+                      )}
+                    </dd>
+                  </div>
+                )}
+                {candidate.visaStatus && candidate.visaStatus !== 'CITIZEN' && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">Visa Status</dt>
+                    <dd>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        candidate.visaStatus === 'VALID' ? 'bg-green-100 text-green-700' :
+                        candidate.visaStatus === 'EXPIRING_SOON' ? 'bg-amber-100 text-amber-700' :
+                        candidate.visaStatus === 'EXPIRED' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {candidate.visaStatus}
+                      </span>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
           {candidate.skills?.length > 0 && (
             <div className="card">
               <h2 className="font-semibold text-gray-900 mb-3">Skills</h2>

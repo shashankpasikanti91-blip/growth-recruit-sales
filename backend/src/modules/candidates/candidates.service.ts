@@ -17,6 +17,11 @@ export class CreateCandidateDto {
   @IsOptional() @IsArray() skills?: string[];
   @IsOptional() @IsArray() languages?: string[];
   @IsOptional() @IsString() summary?: string;
+  @IsOptional() @IsString() nationality?: string;
+  @IsOptional() @IsString() visaType?: string;
+  @IsOptional() @IsString() visaExpiry?: string;
+  @IsOptional() @IsString() visaStatus?: string;
+  @IsOptional() @IsBoolean() isForeigner?: boolean;
 }
 
 @Injectable()
@@ -24,7 +29,14 @@ export class CandidatesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(tenantId: string, dto: CreateCandidateDto) {
-    return this.prisma.candidate.create({ data: { tenantId, ...dto } });
+    const { visaExpiry, ...rest } = dto;
+    return this.prisma.candidate.create({
+      data: {
+        tenantId,
+        ...rest,
+        visaExpiry: visaExpiry ? new Date(visaExpiry) : undefined,
+      },
+    });
   }
 
   async findAll(tenantId: string, filters: { search?: string; skills?: string; stage?: string; page?: number; limit?: number }) {
@@ -52,7 +64,7 @@ export class CandidatesService {
         orderBy: { createdAt: 'desc' },
         include: {
           _count: { select: { applications: true, resumes: true } },
-          scorecards: { orderBy: { createdAt: 'desc' }, take: 1, select: { score: true, decision: false } },
+          scorecards: { orderBy: { createdAt: 'desc' }, take: 1, select: { score: true } },
         },
       }),
       this.prisma.candidate.count({ where }),

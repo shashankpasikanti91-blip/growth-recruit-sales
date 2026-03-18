@@ -16,6 +16,7 @@ import {
   Zap,
   CreditCard,
   Tag,
+  Globe,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -28,6 +29,7 @@ const navItems = [
   { label: 'Imports', href: '/imports', icon: Upload },
   { label: 'Outreach', href: '/outreach', icon: Mail },
   { label: 'AI Screen', href: '/ai/screen', icon: Zap },
+  { label: 'Visa Guide', href: '/visa-guide', icon: Globe },
   { label: 'Analytics', href: '/analytics', icon: BarChart3 },
   { label: 'Billing', href: '/billing', icon: CreditCard },
   { label: 'Settings', href: '/settings', icon: Settings },

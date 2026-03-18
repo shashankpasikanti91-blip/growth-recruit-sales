@@ -10,8 +10,8 @@ import { OutreachGenerationService } from './services/outreach-generation.servic
 import { LeadScoringService } from './services/lead-scoring.service';
 import { JdParserService } from './services/jd-parser.service';
 import { AiService } from './ai.service';
-import * as pdfParse from 'pdf-parse';
-import * as mammoth from 'mammoth';
+import pdfParse from 'pdf-parse';
+import mammoth from 'mammoth';
 
 class ScreenResumeDto {
   @ApiProperty()

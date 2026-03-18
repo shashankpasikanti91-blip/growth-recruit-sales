@@ -18,10 +18,9 @@ export class WorkflowsService {
       data: {
         tenantId: params.tenantId,
         workflowType: params.workflowType as any,
-        entityId: params.entityId,
         triggeredBy: params.triggeredBy,
         status: params.status as any,
-        metadata: params.metadata ?? {},
+        inputData: { entityId: params.entityId, ...(params.metadata ?? {}) },
       },
     });
   }
@@ -29,7 +28,7 @@ export class WorkflowsService {
   async findAll(tenantId: string, workflowType?: string) {
     return this.prisma.workflowRun.findMany({
       where: { tenantId, ...(workflowType ? { workflowType: workflowType as any } : {}) },
-      orderBy: { startedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 100,
     });
   }
@@ -37,14 +36,14 @@ export class WorkflowsService {
   async markComplete(id: string, result?: Record<string, any>) {
     return this.prisma.workflowRun.update({
       where: { id },
-      data: { status: 'COMPLETED', finishedAt: new Date(), result: result ?? {} },
+      data: { status: 'SUCCESS', completedAt: new Date(), outputData: result ?? {} },
     });
   }
 
   async markFailed(id: string, errorMessage: string) {
     return this.prisma.workflowRun.update({
       where: { id },
-      data: { status: 'FAILED', finishedAt: new Date(), errorMessage },
+      data: { status: 'FAILED', completedAt: new Date(), errorMessage },
     });
   }
 
@@ -62,7 +61,7 @@ export class WorkflowsService {
       tenantId: payload.tenantId,
       workflowType: 'CANDIDATE_SCREENING',
       entityId: payload.applicationId,
-      status: 'COMPLETED',
+      status: 'SUCCESS',
       metadata: { decision: payload.decision, score: payload.score },
     });
   }

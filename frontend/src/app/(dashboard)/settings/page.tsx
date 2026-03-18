@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import api from '@/lib/api';
 import { Settings, Key, User, Building2, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 

@@ -67,36 +67,37 @@ export class OutreachService {
       });
       if (!lead) throw new NotFoundException('Lead not found');
       targetProfile = {
-        name: lead.fullName,
+        name: `${lead.firstName} ${lead.lastName}`,
         title: lead.title,
-        company: lead.company?.name ?? lead.companyName,
-        industry: lead.company?.industry ?? lead.industry,
+        company: lead.company?.name,
+        industry: (lead.company as any)?.industry,
       };
     }
 
     if (dto.sequenceSteps && dto.sequenceSteps > 1) {
       // Multi-step sequence
-      const messages = await this.outreachGen.generateFollowUpSequence(
-        targetProfile,
-        context,
-        dto.sequenceSteps,
-      );
+      const outreachResult = await this.outreachGen.generateFollowUpSequence({
+        entityType: dto.targetType.toLowerCase() as 'candidate' | 'lead',
+        recipientData: targetProfile,
+        previousOutreach: '',
+        steps: dto.sequenceSteps,
+      });
 
       // Create a sequence + messages in DB
       const sequence = await this.prisma.outreachSequence.create({
         data: {
           tenantId,
           name: `AI Sequence - ${targetProfile.name} - ${new Date().toISOString().slice(0, 10)}`,
-          ...(dto.targetType === 'CANDIDATE' ? { candidateId: dto.targetId } : { leadId: dto.targetId }),
-          status: 'DRAFT',
+          entityType: dto.targetType,
+          steps: outreachResult.sequence as any,
+          isActive: true,
           messages: {
-            create: messages.map((msg, i) => ({
+            create: outreachResult.sequence.map((msg) => ({
               tenantId,
-              stepNumber: i + 1,
               channel: dto.channel ?? 'EMAIL',
               subject: msg.subject,
               body: msg.body,
-              status: 'PENDING',
+              status: 'DRAFT',
               ...(dto.targetType === 'CANDIDATE' ? { candidateId: dto.targetId } : { leadId: dto.targetId }),
             })),
           },
@@ -106,16 +107,21 @@ export class OutreachService {
       return sequence;
     } else {
       // Single message
-      const msg = await this.outreachGen.generate(targetProfile, context);
+      const msg = await this.outreachGen.generate({
+        channel: (dto.channel?.toLowerCase() ?? 'email') as 'email' | 'linkedin' | 'whatsapp',
+        entityType: dto.targetType.toLowerCase() as 'candidate' | 'lead',
+        tone: 'professional',
+        recipientData: targetProfile,
+        contextData: context,
+      });
 
       const message = await this.prisma.outreachMessage.create({
         data: {
           tenantId,
-          stepNumber: 1,
           channel: dto.channel ?? 'EMAIL',
           subject: msg.subject,
           body: msg.body,
-          status: 'PENDING',
+          status: 'DRAFT',
           ...(dto.targetType === 'CANDIDATE' ? { candidateId: dto.targetId } : { leadId: dto.targetId }),
         },
       });
@@ -142,7 +148,7 @@ export class OutreachService {
   async listSequences(tenantId: string) {
     return this.prisma.outreachSequence.findMany({
       where: { tenantId },
-      include: { messages: { orderBy: { stepNumber: 'asc' } } },
+      include: { messages: { orderBy: { createdAt: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
   }

@@ -23,8 +23,8 @@ export class AuditService {
         action: params.action,
         entityType: params.entityType,
         entityId: params.entityId,
-        oldValues: params.oldValues ?? {},
-        newValues: params.newValues ?? {},
+        oldValue: params.oldValues ?? {},
+        newValue: params.newValues ?? {},
         ipAddress: params.ipAddress,
       },
     });

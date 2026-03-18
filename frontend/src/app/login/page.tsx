@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,6 +24,14 @@ const DEMO_CREDENTIALS = {
 };
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const login = useAuthStore((s) => s.login);
@@ -146,80 +154,3 @@ export default function LoginPage() {
   );
 }
 
-
-export default function LoginPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const login = useAuthStore((s) => s.login);
-  const [loading, setLoading] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
-
-  const onSubmit = async (data: LoginForm) => {
-    setLoading(true);
-    try {
-      await login(data.email, data.password, data.tenantSlug);
-      const redirect = searchParams.get('redirect') || '/dashboard';
-      router.push(redirect);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">RecruiSales AI</h1>
-          <p className="mt-2 text-brand-100">Recruitment & Sales Automation Platform</p>
-        </div>
-
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Sign in to your account</h2>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                {...register('email')}
-                type="email"
-                placeholder="admin@company.com"
-                className="input"
-                autoComplete="email"
-              />
-              {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                {...register('password')}
-                type="password"
-                className="input"
-                autoComplete="current-password"
-              />
-              {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tenant Slug <span className="text-gray-400">(optional for multi-tenant)</span>
-              </label>
-              <input {...register('tenantSlug')} className="input" placeholder="my-company" />
-            </div>
-
-            <button type="submit" className="btn-primary w-full justify-center" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}

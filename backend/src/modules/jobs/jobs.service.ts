@@ -17,7 +17,7 @@ export class JobsService {
         const parsed = await this.jdParser.parse(dto.description);
         dto.title = dto.title || parsed.title;
         dto.requiredSkills = parsed.requiredSkills || [];
-        dto.requiredExperience = dto.requiredExperience ?? parsed.minExperienceYears;
+        dto.experience = dto.experience ?? String(parsed.yearsExperienceMin ?? '');
         dto.department = dto.department || parsed.department;
       } catch {
         // fall through with original dto if AI fails
@@ -27,21 +27,18 @@ export class JobsService {
     return this.prisma.job.create({
       data: {
         tenantId,
-        createdById,
         title: dto.title,
         department: dto.department,
         location: dto.location,
-        workMode: dto.workMode as any,
         jobType: dto.jobType as any,
         description: dto.description,
-        requiredSkills: dto.requiredSkills ?? [],
-        requiredExperience: dto.requiredExperience,
+        skills: dto.requiredSkills ?? [],
+        experience: dto.experience,
         salaryMin: dto.salaryMin ? parseFloat(dto.salaryMin) : undefined,
         salaryMax: dto.salaryMax ? parseFloat(dto.salaryMax) : undefined,
-        salaryCurrency: dto.salaryCurrency ?? 'USD',
+        currency: dto.salaryCurrency ?? 'USD',
         isActive: dto.isActive ?? true,
         countryCode: dto.countryCode,
-        headcount: dto.headcount ?? 1,
       },
     });
   }
@@ -71,7 +68,6 @@ export class JobsService {
         orderBy: { createdAt: 'desc' },
         include: {
           _count: { select: { applications: true } },
-          createdBy: { select: { id: true, firstName: true, lastName: true } },
         },
       }),
       this.prisma.job.count({ where }),
@@ -84,7 +80,6 @@ export class JobsService {
     const job = await this.prisma.job.findFirst({
       where: { id, tenantId },
       include: {
-        createdBy: { select: { id: true, firstName: true, lastName: true } },
         applications: {
           include: {
             candidate: {
@@ -95,7 +90,6 @@ export class JobsService {
                 email: true,
                 currentTitle: true,
                 skills: true,
-                overallScore: true,
               },
             },
           },
@@ -111,11 +105,14 @@ export class JobsService {
 
   async update(tenantId: string, id: string, dto: UpdateJobDto) {
     await this.findOne(tenantId, id);
-    const { salaryMin, salaryMax, ...rest } = dto;
+    const { salaryMin, salaryMax, salaryCurrency, requiredSkills, requiredExperience, workMode, headcount, ...rest } = dto as any;
     return this.prisma.job.update({
       where: { id },
       data: {
         ...rest,
+        ...(requiredSkills !== undefined ? { skills: requiredSkills } : {}),
+        ...(requiredExperience !== undefined ? { experience: String(requiredExperience) } : {}),
+        ...(salaryCurrency !== undefined ? { currency: salaryCurrency } : {}),
         ...(salaryMin ? { salaryMin: parseFloat(salaryMin) } : {}),
         ...(salaryMax ? { salaryMax: parseFloat(salaryMax) } : {}),
       },

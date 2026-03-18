@@ -44,9 +44,8 @@ export class AiService {
 
     // Update application stage based on decision
     const stageMap: Record<string, string> = {
-      'Strong Shortlist': 'INTERVIEWING',
-      'Shortlist': 'SCREENED',
-      'Keep in View (KIV)': 'SCREENED',
+      'Shortlisted': 'SCREENED',
+      'KIV': 'SCREENED',
       'Rejected': 'REJECTED',
     };
 
@@ -58,8 +57,8 @@ export class AiService {
           stage: newStage as any,
           matchScore: result.score,
           scoreDetails: result.match_analysis as any,
-          isShortlisted: result.decision === 'Strong Shortlist' || result.decision === 'Shortlist',
-          isInterview: result.decision === 'Strong Shortlist',
+          isShortlisted: result.decision === 'Shortlisted',
+          isInterview: false,
         },
       });
     }

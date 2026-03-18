@@ -42,8 +42,8 @@ import redisConfig from './config/redis.config';
     // Event emitter for domain events
     EventEmitterModule.forRoot({ wildcard: true }),
 
-    // Rate limiting — 500 req/min per IP (generous for prod dashboard usage)
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 500 }]),
+    // Rate limiting — 1000 req/min per IP
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 1000 }]),
 
     // Bull queue
     BullModule.forRootAsync({

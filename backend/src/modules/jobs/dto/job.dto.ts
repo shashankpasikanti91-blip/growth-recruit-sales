@@ -53,6 +53,11 @@ export class CreateJobDto {
   @IsOptional()
   requiredExperience?: number;
 
+  @ApiPropertyOptional({ example: '3+ years' })
+  @IsOptional()
+  @IsString()
+  experience?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

@@ -9,11 +9,16 @@ export class MappingsService {
     return this.prisma.mappingTemplate.findMany({ where: { tenantId }, orderBy: { createdAt: 'desc' } });
   }
 
-  async upsertTemplate(tenantId: string, name: string, sourceType: string, mappingConfig: Record<string, string>) {
-    return this.prisma.mappingTemplate.upsert({
-      where: { tenantId_name: { tenantId, name } },
-      create: { tenantId, name, sourceType, mappingConfig },
-      update: { mappingConfig, sourceType },
+  async upsertTemplate(tenantId: string, name: string, entityType: string, mappings: Record<string, string>) {
+    const existing = await this.prisma.mappingTemplate.findFirst({ where: { tenantId, name } });
+    if (existing) {
+      return this.prisma.mappingTemplate.update({
+        where: { id: existing.id },
+        data: { mappings, entityType },
+      });
+    }
+    return this.prisma.mappingTemplate.create({
+      data: { tenantId, name, entityType, mappings },
     });
   }
 
