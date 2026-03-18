@@ -30,6 +30,7 @@ function AiScreenContent() {
   const [candidateId, setCandidateId] = useState('');
   const [jobId, setJobId] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [jdFileName, setJdFileName] = useState<string | null>(null);
 
   useEffect(() => {
     const qJob = searchParams.get('jobId');
@@ -55,6 +56,20 @@ function AiScreenContent() {
   const parseMutation = useMutation({
     mutationFn: () => aiApi.parseJd(jdText),
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'JD parsing failed'),
+  });
+
+  const parseJdFileMutation = useMutation({
+    mutationFn: (file: File) => aiApi.parseResume(file),
+    onSuccess: (data) => {
+      const text = data?.resumeText ?? data?.text ?? '';
+      if (text) {
+        setJdText(text);
+        toast.success('JD text extracted from file');
+      } else {
+        toast.error('Could not extract text from file');
+      }
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'JD file parse failed'),
   });
 
   const parseResumeMutation = useMutation({
@@ -85,6 +100,13 @@ function AiScreenContent() {
     }
   }, []);
 
+  const onDropJd = useCallback((accepted: File[]) => {
+    if (accepted[0]) {
+      setJdFileName(accepted[0].name);
+      parseJdFileMutation.mutate(accepted[0]);
+    }
+  }, []);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
@@ -94,6 +116,17 @@ function AiScreenContent() {
     },
     maxFiles: 1,
     disabled: parseResumeMutation.isPending,
+  });
+
+  const { getRootProps: getJdRootProps, getInputProps: getJdInputProps, isDragActive: isJdDragActive } = useDropzone({
+    onDrop: onDropJd,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/msword': ['.doc'],
+    },
+    maxFiles: 1,
+    disabled: parseJdFileMutation.isPending,
   });
 
   const result = screenMutation.data;
@@ -169,8 +202,27 @@ function AiScreenContent() {
         <div className="card space-y-4">
           <h2 className="font-semibold text-gray-900">JD Parser</h2>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Job Description Text</label>
-            <textarea className="input resize-y" rows={8} placeholder="Paste raw JD text here..." value={jdText} onChange={e => setJdText(e.target.value)} />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Job Description</label>
+            <div
+              {...getJdRootProps()}
+              className={`mb-2 flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                isJdDragActive ? 'border-brand-500 bg-brand-50' : 'border-gray-300 hover:border-brand-400'
+              }`}
+            >
+              <input {...getJdInputProps()} />
+              {parseJdFileMutation.isPending ? (
+                <span className="text-sm text-gray-500">Extracting JD text…</span>
+              ) : (
+                <>
+                  {jdFileName ? (
+                    <><FileText className="w-4 h-4 text-brand-500" /><span className="text-sm text-gray-700">{jdFileName}</span></>
+                  ) : (
+                    <><Upload className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-500">{isJdDragActive ? 'Drop here' : 'Upload JD as PDF or Word'}</span></>
+                  )}
+                </>
+              )}
+            </div>
+            <textarea className="input resize-y" rows={8} placeholder="Or paste raw JD text here..." value={jdText} onChange={e => setJdText(e.target.value)} />
           </div>
           <button onClick={() => parseMutation.mutate()} disabled={parseMutation.isPending || !jdText} className="btn-secondary w-full justify-center">
             {parseMutation.isPending ? 'Parsing...' : 'Parse JD'}

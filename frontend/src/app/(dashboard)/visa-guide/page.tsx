@@ -27,6 +27,24 @@ const COUNTRY_FULL_NAMES: Record<string, string> = {
   CA: 'Canada', DE: 'Germany', JP: 'Japan', NZ: 'New Zealand', HK: 'Hong Kong',
 };
 
+function Linkify({ text }: { text: string }) {
+  const urlRegex = /(https?:\/\/[^\s,)]+)/g;
+  const parts = text.split(urlRegex);
+  return (
+    <span>
+      {parts.map((part, i) =>
+        urlRegex.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800 break-all">
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  );
+}
+
 function VisaCard({ rule }: { rule: any }) {
   const [expanded, setExpanded] = useState(false);
   const cat = CATEGORY_CONFIG[rule.category] || CATEGORY_CONFIG.WORK;
@@ -171,7 +189,7 @@ function VisaCard({ rule }: { rule: any }) {
                 {rule.latestUpdates.map((update: string, i: number) => (
                   <div key={i} className="text-sm text-gray-600 flex items-start gap-2 bg-red-50 rounded-lg px-3 py-2 border border-red-100">
                     <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
-                    {update}
+                    <Linkify text={update} />
                   </div>
                 ))}
               </div>
@@ -188,7 +206,7 @@ function VisaCard({ rule }: { rule: any }) {
                 {rule.tips.map((tip: string, i: number) => (
                   <div key={i} className="text-sm text-gray-600 flex items-start gap-2 bg-yellow-50 rounded-lg px-3 py-2 border border-yellow-100">
                     <Lightbulb className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                    {tip}
+                    <Linkify text={tip} />
                   </div>
                 ))}
               </div>

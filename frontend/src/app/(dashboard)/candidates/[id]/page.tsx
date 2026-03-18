@@ -80,14 +80,14 @@ export default function CandidateDetailPage() {
               <div>
                 <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Message</div>
                 <div className="text-sm text-gray-800 bg-gray-50 rounded-lg px-3 py-3 whitespace-pre-wrap max-h-64 overflow-auto leading-relaxed">
-                  {outreachResult.message ?? outreachResult.content ?? JSON.stringify(outreachResult)}
+                  {outreachResult.body ?? outreachResult.message ?? outreachResult.content ?? ''}
                 </div>
               </div>
             </div>
             <div className="flex gap-3 p-5 border-t">
               <button
                 onClick={() => {
-                  const text = outreachResult.message ?? outreachResult.content ?? '';
+                  const text = outreachResult.body ?? outreachResult.message ?? outreachResult.content ?? '';
                   navigator.clipboard.writeText(text);
                   toast.success('Copied to clipboard!');
                 }}
@@ -97,7 +97,7 @@ export default function CandidateDetailPage() {
               </button>
               {candidate.email && (
                 <a
-                  href={`mailto:${candidate.email}?subject=${encodeURIComponent(outreachResult.subject ?? '')}&body=${encodeURIComponent(outreachResult.message ?? outreachResult.content ?? '')}`}
+                  href={`mailto:${candidate.email}?subject=${encodeURIComponent(outreachResult.subject ?? '')}&body=${encodeURIComponent(outreachResult.body ?? outreachResult.message ?? outreachResult.content ?? '')}`}
                   className="btn-primary flex-1 flex items-center justify-center gap-1.5"
                 >
                   <Mail className="w-4 h-4" /> Open in email client
