@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useDropzone } from 'react-dropzone';
 import { useSearchParams } from 'next/navigation';
@@ -16,6 +16,14 @@ const DECISION_COLOR: Record<string, string> = {
 };
 
 export default function AiScreenPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-gray-400">Loading...</div>}>
+      <AiScreenContent />
+    </Suspense>
+  );
+}
+
+function AiScreenContent() {
   const searchParams = useSearchParams();
   const [resumeText, setResumeText] = useState('');
   const [jdText, setJdText] = useState('');
