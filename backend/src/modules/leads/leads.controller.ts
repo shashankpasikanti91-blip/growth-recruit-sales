@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   UseGuards,
-  ParseUUIDPipe,
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
@@ -61,7 +60,7 @@ export class LeadsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get lead profile with activities and outreach' })
-  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.leadsService.findOne(tenantId, id);
   }
 
@@ -70,7 +69,7 @@ export class LeadsController {
   @Roles(UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.SUPER_ADMIN)
   update(
     @CurrentUser('tenantId') tenantId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateLeadDto,
   ) {
     return this.leadsService.update(tenantId, id, dto);
@@ -81,7 +80,7 @@ export class LeadsController {
   @Roles(UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.SUPER_ADMIN)
   updateStage(
     @CurrentUser('tenantId') tenantId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateLeadStageDto,
   ) {
     return this.leadsService.updateStage(tenantId, id, dto);
@@ -90,7 +89,7 @@ export class LeadsController {
   @Post(':id/score')
   @ApiOperation({ summary: 'Run AI ICP scoring on lead' })
   @Roles(UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.SUPER_ADMIN)
-  score(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+  score(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.leadsService.scoreLead(tenantId, id);
   }
 
@@ -98,7 +97,7 @@ export class LeadsController {
   @ApiOperation({ summary: 'Add note to lead' })
   addNote(
     @CurrentUser('tenantId') tenantId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: AddNoteDto,
   ) {
     return this.leadsService.addNote(tenantId, id, dto.note);

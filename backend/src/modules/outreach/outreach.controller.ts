@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, ParseUUIDPipe, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -47,7 +47,7 @@ export class OutreachController {
   @ApiOperation({ summary: 'Update message delivery status (e.g. SENT, OPENED, REPLIED)' })
   updateStatus(
     @CurrentUser('tenantId') tenantId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateMessageStatusDto,
   ) {
     return this.outreachService.updateMessageStatus(tenantId, id, dto.status);

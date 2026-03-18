@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   UseGuards,
-  ParseUUIDPipe,
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
@@ -58,7 +57,7 @@ export class JobsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get job by ID with applications' })
-  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.jobsService.findOne(tenantId, id);
   }
 
@@ -67,7 +66,7 @@ export class JobsController {
   @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SUPER_ADMIN)
   update(
     @CurrentUser('tenantId') tenantId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateJobDto,
   ) {
     return this.jobsService.update(tenantId, id, dto);
@@ -76,7 +75,7 @@ export class JobsController {
   @Patch(':id/close')
   @ApiOperation({ summary: 'Close a job posting' })
   @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SUPER_ADMIN)
-  close(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+  close(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.jobsService.close(tenantId, id);
   }
 }

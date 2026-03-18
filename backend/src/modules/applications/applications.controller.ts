@@ -7,7 +7,6 @@ import {
   Param,
   Query,
   UseGuards,
-  ParseUUIDPipe,
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
@@ -47,7 +46,7 @@ export class ApplicationsController {
   @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SUPER_ADMIN)
   screen(
     @CurrentUser('tenantId') tenantId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: ScreenApplicationDto,
   ) {
     return this.applicationsService.screenApplication(tenantId, id, dto.resumeText);
@@ -58,7 +57,7 @@ export class ApplicationsController {
   @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SUPER_ADMIN)
   updateStage(
     @CurrentUser('tenantId') tenantId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateApplicationStageDto,
   ) {
     return this.applicationsService.updateStage(tenantId, id, dto);
@@ -84,7 +83,7 @@ export class ApplicationsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get application details with scorecards and AI analyses' })
-  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.applicationsService.findOne(tenantId, id);
   }
 }

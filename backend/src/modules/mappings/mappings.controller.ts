@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -33,7 +33,7 @@ export class MappingsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a mapping template' })
-  delete(@CurrentUser('tenantId') tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+  delete(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.mappingsService.deleteTemplate(tenantId, id);
   }
 }

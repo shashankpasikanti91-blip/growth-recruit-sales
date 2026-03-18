@@ -21,6 +21,12 @@ const COUNTRY_FLAGS: Record<string, string> = {
   CA: '🇨🇦', DE: '🇩🇪', JP: '🇯🇵', NZ: '🇳🇿', HK: '🇭🇰',
 };
 
+const COUNTRY_FULL_NAMES: Record<string, string> = {
+  MY: 'Malaysia', SG: 'Singapore', AU: 'Australia', AE: 'United Arab Emirates',
+  US: 'United States', GB: 'United Kingdom', IN: 'India',
+  CA: 'Canada', DE: 'Germany', JP: 'Japan', NZ: 'New Zealand', HK: 'Hong Kong',
+};
+
 function VisaCard({ rule }: { rule: any }) {
   const [expanded, setExpanded] = useState(false);
   const cat = CATEGORY_CONFIG[rule.category] || CATEGORY_CONFIG.WORK;
@@ -240,7 +246,7 @@ export default function VisaGuidePage() {
               >
                 <span className="text-3xl">{COUNTRY_FLAGS[country.countryCode] || '🏳️'}</span>
                 <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">{country.countryName}</div>
+                  <div className="text-sm font-semibold text-gray-900">{COUNTRY_FULL_NAMES[country.countryCode] || country.countryName}</div>
                   <div className="text-xs text-gray-500">{country.visaTypes?.length || 0} visa types</div>
                 </div>
               </button>
@@ -259,7 +265,7 @@ export default function VisaGuidePage() {
             <div className="space-y-3">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <span className="text-2xl">{COUNTRY_FLAGS[activeCountry.countryCode] || '🏳️'}</span>
-                {activeCountry.countryName} — Visa Types
+                {COUNTRY_FULL_NAMES[activeCountry.countryCode] || activeCountry.countryName} — Immigration & Visa Guide
               </h2>
               {activeCountry.visaTypes?.map((rule: any) => (
                 <VisaCard key={rule.visaType} rule={rule} />
