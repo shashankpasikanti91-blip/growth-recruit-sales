@@ -241,7 +241,7 @@ export default function VisaGuidePage() {
                 <span className="text-3xl">{COUNTRY_FLAGS[country.countryCode] || '🏳️'}</span>
                 <div className="text-center">
                   <div className="text-sm font-semibold text-gray-900">{country.countryName}</div>
-                  <div className="text-xs text-gray-500">{country.rules?.length || 0} visa types</div>
+                  <div className="text-xs text-gray-500">{country.visaTypes?.length || 0} visa types</div>
                 </div>
               </button>
             ))}
@@ -261,7 +261,7 @@ export default function VisaGuidePage() {
                 <span className="text-2xl">{COUNTRY_FLAGS[activeCountry.countryCode] || '🏳️'}</span>
                 {activeCountry.countryName} — Visa Types
               </h2>
-              {activeCountry.rules?.map((rule: any) => (
+              {activeCountry.visaTypes?.map((rule: any) => (
                 <VisaCard key={rule.visaType} rule={rule} />
               ))}
             </div>

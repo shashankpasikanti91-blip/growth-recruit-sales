@@ -2,10 +2,61 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { Settings, Key, User, Building2, ShieldCheck } from 'lucide-react';
+import { Settings, Key, User, Building2, ShieldCheck, ExternalLink, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const PROVIDERS = ['LINKEDIN','INDEED','APOLLO','HUNTER','CLEARBIT','SMTP','SLACK','WEBHOOK'];
+
+const PROVIDER_HELP: Record<string, { description: string; keyLabel: string; getKeyUrl: string; getKeyLabel: string }> = {
+  APOLLO: {
+    description: 'Apollo.io — B2B contact & company enrichment, lead generation.',
+    keyLabel: 'API Key',
+    getKeyUrl: 'https://app.apollo.io/settings/integrations/api',
+    getKeyLabel: 'Get key → app.apollo.io › Settings › API',
+  },
+  LINKEDIN: {
+    description: 'LinkedIn — Profile lookup and Sales Navigator integration.',
+    keyLabel: 'Access Token',
+    getKeyUrl: 'https://www.linkedin.com/developers/apps',
+    getKeyLabel: 'Create app → developers.linkedin.com',
+  },
+  HUNTER: {
+    description: 'Hunter.io — Find and verify professional email addresses by domain.',
+    keyLabel: 'API Key',
+    getKeyUrl: 'https://hunter.io/api-keys',
+    getKeyLabel: 'Get key → hunter.io › Account › API',
+  },
+  CLEARBIT: {
+    description: 'Clearbit — Company and person enrichment data.',
+    keyLabel: 'Secret Key',
+    getKeyUrl: 'https://dashboard.clearbit.com/api',
+    getKeyLabel: 'Get key → dashboard.clearbit.com › API',
+  },
+  SMTP: {
+    description: 'SMTP — Send outreach emails. Use Gmail App Password or SendGrid API key.',
+    keyLabel: 'Password / API Key',
+    getKeyUrl: 'https://myaccount.google.com/apppasswords',
+    getKeyLabel: 'Gmail App Password → myaccount.google.com/apppasswords',
+  },
+  SLACK: {
+    description: 'Slack — Get notifications for new leads, placements, and pipeline updates.',
+    keyLabel: 'Bot Token (xoxb-...)',
+    getKeyUrl: 'https://api.slack.com/apps',
+    getKeyLabel: 'Create app → api.slack.com/apps',
+  },
+  WEBHOOK: {
+    description: 'Webhook — Push events to your own URL (Zapier, Make, custom backend).',
+    keyLabel: 'Webhook URL',
+    getKeyUrl: 'https://zapier.com/app/editor',
+    getKeyLabel: 'Create webhook URL via Zapier / Make / n8n',
+  },
+  INDEED: {
+    description: 'Indeed — Post jobs and import applicants from Indeed.',
+    keyLabel: 'Publisher ID / API Key',
+    getKeyUrl: 'https://ads.indeed.com/jobroll/xmlfeed',
+    getKeyLabel: 'Get Publisher ID → Indeed Advertiser portal',
+  },
+};
 
 function IntegrationsTab() {
   const queryClient = useQueryClient();
@@ -16,6 +67,8 @@ function IntegrationsTab() {
 
   const [newProvider, setNewProvider] = useState('APOLLO');
   const [apiKey, setApiKey] = useState('');
+
+  const help = PROVIDER_HELP[newProvider];
 
   const save = useMutation({
     mutationFn: () => api.post('/integrations', { provider: newProvider, encryptedCredentials: { apiKey } }),
@@ -28,19 +81,42 @@ function IntegrationsTab() {
   return (
     <div className="space-y-6">
       <div className="card">
-        <h3 className="font-semibold text-gray-900 mb-4">Add / Update Integration</h3>
+        <h3 className="font-semibold text-gray-900 mb-1">Add / Update Integration</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Connect external services to enrich leads, send outreach emails, and post jobs.
+          You need to provide your <strong>own API key</strong> from each provider — the system does not generate these for you.
+        </p>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Provider</label>
-            <select className="input" value={newProvider} onChange={e => setNewProvider(e.target.value)}>
+            <select className="input" value={newProvider} onChange={e => { setNewProvider(e.target.value); setApiKey(''); }}>
               {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">API Key / Credential</label>
-            <input className="input" type="password" placeholder="Paste key..." value={apiKey} onChange={e => setApiKey(e.target.value)} />
+            <label className="block text-xs font-medium text-gray-700 mb-1">{help?.keyLabel ?? 'API Key / Credential'}</label>
+            <input className="input" type="password" placeholder="Paste your key here..." value={apiKey} onChange={e => setApiKey(e.target.value)} />
           </div>
         </div>
+
+        {/* Per-provider help banner */}
+        {help && (
+          <div className="mt-3 flex items-start gap-2 text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2.5 border border-blue-100">
+            <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium mb-0.5">{help.description}</p>
+              <a
+                href={help.getKeyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-blue-600 hover:underline font-medium"
+              >
+                {help.getKeyLabel} <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+        )}
+
         <button onClick={() => save.mutate()} disabled={save.isPending || !apiKey} className="btn-primary mt-4">
           {save.isPending ? 'Saving...' : 'Save Integration'}
         </button>

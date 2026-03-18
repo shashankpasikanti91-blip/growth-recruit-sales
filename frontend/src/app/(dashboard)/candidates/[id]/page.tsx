@@ -1,19 +1,24 @@
 'use client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { candidatesApi, applicationsApi } from '@/lib/api-client';
+import { candidatesApi, applicationsApi, outreachApi } from '@/lib/api-client';
 import { useParams } from 'next/navigation';
-import { Zap, Mail, FileText, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Zap, Mail, FileText, ChevronRight, AlertTriangle, X, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { useState } from 'react';
 
 const STAGE_BADGE: Record<string, string> = {
-  NEW: 'badge-gray', SCREENING: 'badge-purple', SHORTLISTED: 'badge-yellow',
-  INTERVIEW: 'badge-blue', OFFER: 'badge-green', HIRED: 'badge-green', REJECTED: 'badge-red',
+  SOURCED: 'badge-gray', SCREENED: 'badge-purple', SHORTLISTED: 'badge-yellow',
+  INTERVIEWING: 'badge-blue', OFFERED: 'badge-green', PLACED: 'badge-green', REJECTED: 'badge-red',
 };
+
+const APP_STAGES = ['SOURCED', 'SCREENED', 'SHORTLISTED', 'INTERVIEWING', 'OFFERED', 'PLACED', 'REJECTED'];
 
 export default function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const [outreachModal, setOutreachModal] = useState(false);
+  const [outreachResult, setOutreachResult] = useState<any>(null);
 
   const { data: candidate, isLoading } = useQuery({
     queryKey: ['candidate', id],
@@ -29,6 +34,26 @@ export default function CandidateDetailPage() {
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Screening failed'),
   });
 
+  const stageMutation = useMutation({
+    mutationFn: ({ appId, stage }: { appId: string; stage: string }) =>
+      applicationsApi.updateStage(appId, stage),
+    onSuccess: () => {
+      toast.success('Stage updated');
+      queryClient.invalidateQueries({ queryKey: ['candidate', id] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Stage update failed'),
+  });
+
+  const outreachMutation = useMutation({
+    mutationFn: () =>
+      outreachApi.generate({ targetType: 'CANDIDATE', targetId: id, channel: 'EMAIL' }),
+    onSuccess: (data) => {
+      setOutreachResult(data);
+      setOutreachModal(true);
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to generate outreach'),
+  });
+
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Loading...</div>;
   if (!candidate) return <div className="text-red-500">Candidate not found</div>;
 
@@ -36,7 +61,51 @@ export default function CandidateDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* AI Outreach Modal */}
+      {outreachModal && outreachResult && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="flex items-center justify-between p-5 border-b">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2"><Mail className="w-4 h-4 text-brand-600" /> AI-Generated Outreach Email</h3>
+              <button onClick={() => setOutreachModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              {outreachResult.subject && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Subject</div>
+                  <div className="text-sm font-medium text-gray-900 bg-gray-50 rounded-lg px-3 py-2">{outreachResult.subject}</div>
+                </div>
+              )}
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Message</div>
+                <div className="text-sm text-gray-800 bg-gray-50 rounded-lg px-3 py-3 whitespace-pre-wrap max-h-64 overflow-auto leading-relaxed">
+                  {outreachResult.message ?? outreachResult.content ?? JSON.stringify(outreachResult)}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 p-5 border-t">
+              <button
+                onClick={() => {
+                  const text = outreachResult.message ?? outreachResult.content ?? '';
+                  navigator.clipboard.writeText(text);
+                  toast.success('Copied to clipboard!');
+                }}
+                className="btn-secondary flex-1 flex items-center justify-center gap-1.5"
+              >
+                <Copy className="w-4 h-4" /> Copy message
+              </button>
+              {candidate.email && (
+                <a
+                  href={`mailto:${candidate.email}?subject=${encodeURIComponent(outreachResult.subject ?? '')}&body=${encodeURIComponent(outreachResult.message ?? outreachResult.content ?? '')}`}
+                  className="btn-primary flex-1 flex items-center justify-center gap-1.5"
+                >
+                  <Mail className="w-4 h-4" /> Open in email client
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="card">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
@@ -58,9 +127,18 @@ export default function CandidateDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => outreachMutation.mutate()}
+              disabled={outreachMutation.isPending}
+              className="btn-primary flex items-center gap-1.5"
+              title="Generate AI outreach email for this candidate"
+            >
+              <Mail className="w-4 h-4" />
+              {outreachMutation.isPending ? 'Generating...' : 'AI Email'}
+            </button>
             {candidate.email && (
-              <a href={`mailto:${candidate.email}`} className="btn-secondary">
-                <Mail className="w-4 h-4" /> Email
+              <a href={`mailto:${candidate.email}`} className="btn-secondary" title="Open native email client">
+                Direct Email
               </a>
             )}
           </div>
@@ -85,7 +163,14 @@ export default function CandidateDetailPage() {
                       <div className="text-xs text-gray-400">{app.job?.department}</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={STAGE_BADGE[app.stage] ?? 'badge-gray'}>{app.stage}</span>
+                      <select
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        value={app.stage}
+                        onChange={e => stageMutation.mutate({ appId: app.id, stage: e.target.value })}
+                        disabled={stageMutation.isPending}
+                      >
+                        {APP_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
                       <button
                         onClick={() => screenMutation.mutate(app.id)}
                         disabled={screenMutation.isPending}

@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useDropzone } from 'react-dropzone';
 import { aiApi } from '@/lib/api-client';
-import { Zap, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Zap, AlertTriangle, Upload, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DECISION_COLOR: Record<string, string> = {
@@ -17,15 +18,50 @@ export default function AiScreenPage() {
   const [jdText, setJdText] = useState('');
   const [candidateId, setCandidateId] = useState('');
   const [jobId, setJobId] = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
+  const parseMutation = useMutation({
+    mutationFn: () => aiApi.parseJd(jdText),
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'JD parsing failed'),
+  });
+
+  const parseResumeMutation = useMutation({
+    mutationFn: (file: File) => aiApi.parseResume(file),
+    onSuccess: (data) => {
+      if (data?.resumeText) {
+        setResumeText(data.resumeText);
+        toast.success('Resume parsed — text extracted');
+      } else if (data?.text) {
+        setResumeText(data.text);
+        toast.success('Resume parsed — text extracted');
+      } else {
+        toast.error('Could not extract text from file');
+      }
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Resume parse failed'),
+  });
 
   const screenMutation = useMutation({
     mutationFn: () => aiApi.screenResume(candidateId, jobId, resumeText),
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Screening failed'),
   });
 
-  const parseMutation = useMutation({
-    mutationFn: () => aiApi.parseJd(jdText),
-    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'JD parsing failed'),
+  const onDrop = useCallback((accepted: File[]) => {
+    if (accepted[0]) {
+      setUploadedFileName(accepted[0].name);
+      parseResumeMutation.mutate(accepted[0]);
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/msword': ['.doc'],
+    },
+    maxFiles: 1,
+    disabled: parseResumeMutation.isPending,
   });
 
   const result = screenMutation.data;
@@ -54,7 +90,27 @@ export default function AiScreenPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Resume Text</label>
-            <textarea className="input resize-y" rows={8} placeholder="Paste resume text here..." value={resumeText} onChange={e => setResumeText(e.target.value)} />
+            {/* File upload dropzone */}
+            <div
+              {...getRootProps()}
+              className={`mb-2 flex items-center justify-center gap-2 py-3 px-4 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                isDragActive ? 'border-brand-500 bg-brand-50' : 'border-gray-300 hover:border-brand-400'
+              }`}
+            >
+              <input {...getInputProps()} />
+              {parseResumeMutation.isPending ? (
+                <span className="text-sm text-gray-500">Parsing resume…</span>
+              ) : (
+                <>
+                  {uploadedFileName ? (
+                    <><FileText className="w-4 h-4 text-brand-500" /><span className="text-sm text-gray-700">{uploadedFileName}</span></>
+                  ) : (
+                    <><Upload className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-500">{isDragActive ? 'Drop here' : 'Upload PDF or Word to auto-extract text'}</span></>
+                  )}
+                </>
+              )}
+            </div>
+            <textarea className="input resize-y" rows={8} placeholder="Or paste resume text here..." value={resumeText} onChange={e => setResumeText(e.target.value)} />
           </div>
           <button
             onClick={() => screenMutation.mutate()}

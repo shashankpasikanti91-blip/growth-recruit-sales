@@ -689,6 +689,64 @@ Write a 2–3 line recruiter-style summary:
 
 ---
 
+## 🔧 Changelog & Deployment History
+
+### Round 3 Fixes — March 18, 2026
+
+| Issue | Root Cause | Fix Applied |
+|---|---|---|
+| **Visa Guide shows "0 visa types"** | `VisaRule` table empty on production server | Seed runs on every deploy (`prisma db seed`) which upserts all 16 visa rules across 7 countries |
+| **JD Parser returns nothing** | Frontend sent `{ text: jdText }` but `ParseJdDto` expects `{ jobDescription }` field | Fixed `aiApi.parseJd` in `api-client.ts` to send `{ jobDescription: text }`; also made backend accept both fields for backward compat |
+| **AI Screen — PDF/Word upload error** | `POST /ai/parse-resume` was calling `jdParser.parse(text)` (returns JD structure) instead of returning extracted text | Fixed `parseResume` endpoint to return `{ resumeText, charCount }` so frontend populates the textarea correctly |
+| **AI Screen — "Run AI Screening" fails** | `POST /ai/screen-resume` required `jobDescription` but frontend only sends `candidateId + jobId + resumeText` | Made `jobDescription` optional; if not supplied, backend auto-fetches the job description from DB using `jobId` |
+| **Import page "Import failed" error** | Frontend sent `source: 'CSV_UPLOAD'` which is not a valid `ImportSource` enum value (valid: `CSV`, `EXCEL`, `MANUAL`, etc.) | Fixed `imports/page.tsx` to detect file type and send correct source: `.csv` → `CSV`, `.xlsx/.xls` → `EXCEL`, PDF/Word → `MANUAL`. Also improved error messages to show actual backend error |
+
+All issues deployed to `growth.srpailabs.com` and verified E2E (HTTP 200 on all pages).
+
+| Issue | Root Cause | Fix Applied |
+|---|---|---|
+| **Import fails with "Import failed"** | Frontend sent `importType: 'CANDIDATE'` (uppercase) but backend DTO validates lowercase `'candidate'` | Changed `imports/page.tsx` state type to `'candidate' \| 'lead'` (lowercase) |
+| **Billing shows NaN%** | `UsageMeter` div-by-zero: `used / 0 = NaN` when no subscription and `limit = 0` | Added `hasNoLimit` guard in `UsageMeter`; shows "No active plan" instead of NaN% |
+| **Enterprise plan shows $0** | Backend seed has `monthlyPrice: 0` for Enterprise tier (correct for "Custom") but UI displayed `$0` | Display "Custom" when `plan.tier === 'ENTERPRISE'` in billing page plan cards and current plan header |
+| **Settings — "how to get API key"** | No guidance on where to get API keys for each provider | Added per-provider help banner with description + direct link (Apollo, LinkedIn, Hunter, Clearbit, SMTP, Slack, Webhook, Indeed) |
+| **Candidate email opens native client** | Email button was `<a href="mailto:...">` — no AI personalization | Replaced with "AI Email" button calling `outreachApi.generate()` → shows AI-generated subject+body in modal with Copy + Open in email client options |
+| **Visa Guide shows 0 visa types** | No VisaRule records in database | Seeded 16 visa rules across 7 countries (MY, SG, AU, AE, US, GB, IN) via `node prisma/seed.js` |
+| **AI Screen no file upload** | AI screen page had dropzone locally but old version was deployed on server | SCP'd latest `ai/screen/page.tsx` to server and rebuilt frontend container |
+| **Landing page old prices ($49/$129/$299/$799)** | `page.tsx` was not deployed in previous round | SCP'd landing `page.tsx` to server (shows Free/$19/$49/Custom) and rebuilt |
+
+### Round 1 Fixes — Previous Session
+
+| Issue | Fix |
+|---|---|
+| Companies page shows wrong total count | `data?.total` → `data?.meta?.total` |
+| Jobs page shows "not found" on empty state | Added "Post your first job" empty state card |
+| Leads page confusing AI Score/Stage | Complete rewrite: stage labels with emoji, AI Score explanation banner, "Run AI Score" button |
+| New lead form missing | Created `leads/new/page.tsx` |
+| Lead detail page missing | Created `leads/[id]/page.tsx` |
+| Imports page 2-step confusing UX | Replaced with single drag-and-drop (create + upload in one step) |
+| Dashboard all zeros confusing | Added "Get Started" 3-step quickstart guide when all metrics are 0 |
+
+### Login Credentials (Demo)
+```
+Email:    admin@srp-ai-labs.com
+Password: Admin@123
+URL:      https://growth.srpailabs.com
+```
+
+### Server Deploy Commands
+```bash
+# SCP a frontend file
+scp frontend/src/app/(dashboard)/PAGE/page.tsx root@5.223.67.236:/opt/growth-platform/frontend/src/app/(dashboard)/PAGE/page.tsx
+
+# Rebuild & restart frontend only
+ssh root@5.223.67.236 "cd /opt/growth-platform && docker compose -f docker-compose.prod.yml build frontend && docker compose -f docker-compose.prod.yml up -d frontend"
+
+# Re-run seed (demo data + visa rules)
+ssh root@5.223.67.236 "docker cp backend/prisma/seed.js growth_backend:/app/prisma/seed.js && docker exec growth_backend node prisma/seed.js"
+```
+
+---
+
 <div align="center">
 
 **Built by SRP AI Labs** · Powered by n8n + AI + Clean Architecture

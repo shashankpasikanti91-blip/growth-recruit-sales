@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { IsString, IsOptional, IsObject, IsEnum, IsNumber, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -10,13 +10,15 @@ import { OutreachGenerationService } from './services/outreach-generation.servic
 import { LeadScoringService } from './services/lead-scoring.service';
 import { JdParserService } from './services/jd-parser.service';
 import { AiService } from './ai.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 
 class ScreenResumeDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  jobDescription: string;
+  jobDescription?: string;
 
   @ApiProperty()
   @IsString()
@@ -57,8 +59,15 @@ class GenerateOutreachDto {
 
 class ParseJdDto {
   @ApiProperty()
+  @IsOptional()
   @IsString()
-  jobDescription: string;
+  jobDescription?: string;
+
+  // Legacy field support — frontend may send 'text' instead of 'jobDescription'
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  text?: string;
 }
 
 class ScoreLeadDto {
@@ -82,14 +91,27 @@ export class AiController {
     private readonly leadScoring: LeadScoringService,
     private readonly jdParser: JdParserService,
     private readonly aiService: AiService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post('screen-resume')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Screen a resume against a job description using AI' })
   async screenResume(@CurrentUser() user: any, @Body() dto: ScreenResumeDto) {
+    // Resolve job description — use provided text or fetch from DB via jobId
+    let jobDescription = dto.jobDescription;
+    if (!jobDescription && dto.jobId) {
+      const job = await this.prisma.job.findFirst({ where: { id: dto.jobId } });
+      if (job) {
+        jobDescription = job.description || `${job.title} at ${job.location || 'unknown location'}. Requirements: ${(job.requirements as string[] || []).join(', ')}. Skills: ${(job.skills as string[] || []).join(', ')}.`;
+      }
+    }
+    if (!jobDescription) {
+      throw new BadRequestException('jobDescription is required, or provide a valid jobId to auto-fetch it');
+    }
+
     const { result, tokensUsed, latencyMs } = await this.resumeScreening.screen({
-      jobDescription: dto.jobDescription,
+      jobDescription,
       resumeText: dto.resumeText,
     });
 
@@ -109,7 +131,9 @@ export class AiController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Parse a job description into structured data' })
   parseJd(@Body() dto: ParseJdDto) {
-    return this.jdParser.parse(dto.jobDescription);
+    const text = dto.jobDescription || dto.text;
+    if (!text) throw new BadRequestException('jobDescription is required');
+    return this.jdParser.parse(text);
   }
 
   @Post('generate-outreach')
@@ -128,24 +152,26 @@ export class AiController {
 
   @Post('parse-resume')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Parse a resume file (PDF/Word) into structured candidate data' })
+  @ApiOperation({ summary: 'Extract text from a resume file (PDF/Word) for AI screening' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
   async parseResume(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file uploaded');
     let text = '';
-    if (!file) throw new Error('No file uploaded');
 
     if (file.originalname.endsWith('.pdf') || file.mimetype === 'application/pdf') {
       const data = await pdfParse(file.buffer);
-      text = data.text;
+      text = data.text?.trim() || '';
     } else if (file.originalname.match(/\.docx?$/) || file.mimetype.includes('word')) {
       const result = await mammoth.extractRawText({ buffer: file.buffer });
-      text = result.value;
+      text = result.value?.trim() || '';
     } else {
-      text = file.buffer.toString('utf-8');
+      text = file.buffer.toString('utf-8').trim();
     }
 
-    // Use JD parser to extract structured data from resume text
-    return this.jdParser.parse(text);
+    if (!text) throw new BadRequestException('Could not extract text from the uploaded file');
+
+    // Return extracted text so the frontend can populate the resume textarea
+    return { resumeText: text, charCount: text.length };
   }
 }

@@ -111,7 +111,7 @@ export const countriesApi = {
 export const aiApi = {
   screenResume: (candidateId: string, jobId: string, resumeText: string) =>
     api.post('/ai/screen-resume', { candidateId, jobId, resumeText }).then(r => r.data),
-  parseJd: (text: string) => api.post('/ai/parse-jd', { text }).then(r => r.data),
+  parseJd: (text: string) => api.post('/ai/parse-jd', { jobDescription: text }).then(r => r.data),
   parseResume: (file: File) => {
     const form = new FormData();
     form.append('file', file);

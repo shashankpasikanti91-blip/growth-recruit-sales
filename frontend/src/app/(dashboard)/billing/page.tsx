@@ -15,10 +15,11 @@ const PLAN_COLORS: Record<string, string> = {
 };
 
 function UsageMeter({ label, used, limit, icon: Icon, color }: any) {
-  const pct = limit === -1 ? 0 : Math.min(100, Math.round((used / limit) * 100));
-  const isUnlimited = limit === -1;
-  const isWarning = pct >= 80;
-  const isCritical = pct >= 95;
+  const isUnlimited = limit === -1 || limit >= 999999;
+  const hasNoLimit = !isUnlimited && (limit == null || limit === 0);
+  const pct = isUnlimited || hasNoLimit ? 0 : Math.min(100, Math.round((used / limit) * 100));
+  const isWarning = !hasNoLimit && pct >= 80;
+  const isCritical = !hasNoLimit && pct >= 95;
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
@@ -30,10 +31,10 @@ function UsageMeter({ label, used, limit, icon: Icon, color }: any) {
           <span className="text-sm font-medium text-gray-700">{label}</span>
         </div>
         <span className="text-xs text-gray-400">
-          {isUnlimited ? `${used.toLocaleString()} / ∞` : `${used.toLocaleString()} / ${limit.toLocaleString()}`}
+          {isUnlimited ? `${used.toLocaleString()} / ∞` : hasNoLimit ? `${used.toLocaleString()} / —` : `${used.toLocaleString()} / ${limit.toLocaleString()}`}
         </span>
       </div>
-      {!isUnlimited && (
+      {!isUnlimited && !hasNoLimit && (
         <>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
@@ -54,6 +55,7 @@ function UsageMeter({ label, used, limit, icon: Icon, color }: any) {
         </>
       )}
       {isUnlimited && <div className="text-xs text-emerald-500 font-medium mt-1">Unlimited</div>}
+      {hasNoLimit && <div className="text-xs text-gray-400 font-medium mt-1">No active plan</div>}
     </div>
   );
 }
@@ -137,8 +139,13 @@ export default function BillingPage() {
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-gray-900">
-                ${cycle === 'ANNUAL' ? sub.subscription.plan?.annualPrice : sub.subscription.plan?.monthlyPrice}
-                <span className="text-sm text-gray-400 font-normal">/{cycle === 'ANNUAL' ? 'yr' : 'mo'}</span>
+                {sub.subscription.plan?.tier === 'ENTERPRISE' ? (
+                  <span className="text-brand-700">Custom</span>
+                ) : (cycle === 'ANNUAL' ? sub.subscription.plan?.annualPrice : sub.subscription.plan?.monthlyPrice) === 0 ? (
+                  <span>Free</span>
+                ) : (
+                  <>${cycle === 'ANNUAL' ? sub.subscription.plan?.annualPrice : sub.subscription.plan?.monthlyPrice}<span className="text-sm text-gray-400 font-normal">/{cycle === 'ANNUAL' ? 'yr' : 'mo'}</span></>
+                )}
               </div>
             </div>
           </div>
@@ -181,7 +188,13 @@ export default function BillingPage() {
                   {isCurrent && <div className="text-xs font-bold text-brand-600 mb-1">Current Plan</div>}
                   <div className="font-bold text-gray-900 text-sm mb-0.5">{plan.name}</div>
                   <div className="text-xl font-extrabold text-gray-900 mb-4">
-                    ${price}<span className="text-xs text-gray-400 font-normal">/{cycle === 'ANNUAL' ? 'yr' : 'mo'}</span>
+                    {plan.tier === 'ENTERPRISE' ? (
+                      <span className="text-brand-700">Custom</span>
+                    ) : price === 0 ? (
+                      <span>Free</span>
+                    ) : (
+                      <>${price}<span className="text-xs text-gray-400 font-normal">/{cycle === 'ANNUAL' ? 'yr' : 'mo'}</span></>
+                    )}
                   </div>
                   <ul className="space-y-1.5 mb-4 flex-1">
                     {(plan.features ?? []).slice(0, 4).map((f: string) => (

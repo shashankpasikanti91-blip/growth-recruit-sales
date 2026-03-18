@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -591,7 +591,7 @@ Context:
     { id: 'app-3', tenantId: tenant.id, candidateId: 'cand-3', jobId: 'job-ds', stage: 'OFFERED' as const, matchScore: 95, isShortlisted: true, isInterview: true, scoreDetails: { skill_match: 98, experience_match: 92, education_match: 95 } },
     { id: 'app-4', tenantId: tenant.id, candidateId: 'cand-4', jobId: 'job-pm', stage: 'INTERVIEWING' as const, matchScore: 90, isShortlisted: true, isInterview: true, scoreDetails: { skill_match: 88, experience_match: 95, education_match: 90 } },
     { id: 'app-5', tenantId: tenant.id, candidateId: 'cand-5', jobId: 'job-swe', stage: 'SCREENED' as const, matchScore: 72, isShortlisted: false, scoreDetails: { skill_match: 70, experience_match: 75, education_match: 70 } },
-    { id: 'app-6', tenantId: tenant.id, candidateId: 'cand-6', jobId: 'job-fe', stage: 'SOURCED' as const, matchScore: null, scoreDetails: null },
+    { id: 'app-6', tenantId: tenant.id, candidateId: 'cand-6', jobId: 'job-fe', stage: 'SOURCED' as const, matchScore: null, scoreDetails: Prisma.DbNull },
     { id: 'app-7', tenantId: tenant.id, candidateId: 'cand-7', jobId: 'job-fe', stage: 'REJECTED' as const, matchScore: 35, scoreDetails: { skill_match: 40, experience_match: 20, education_match: 50 } },
     { id: 'app-8', tenantId: tenant.id, candidateId: 'cand-8', jobId: 'job-sales', stage: 'PLACED' as const, matchScore: 94, isShortlisted: true, isInterview: true, scoreDetails: { skill_match: 96, experience_match: 92, education_match: 85 } },
     { id: 'app-9', tenantId: tenant.id, candidateId: 'cand-9', jobId: 'job-swe', stage: 'SCREENED' as const, matchScore: 85, isShortlisted: true, scoreDetails: { skill_match: 80, experience_match: 95, education_match: 80 } },

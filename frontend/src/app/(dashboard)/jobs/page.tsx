@@ -42,6 +42,17 @@ export default function JobsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
           <div className="col-span-3 text-center text-gray-400 py-12">Loading...</div>
+        ) : data?.data?.length === 0 ? (
+          <div className="col-span-3 text-center py-16">
+            <div className="w-16 h-16 rounded-2xl bg-brand-100 flex items-center justify-center mx-auto mb-4">
+              <Briefcase className="w-8 h-8 text-brand-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">No job postings yet</h3>
+            <p className="text-gray-400 text-sm mb-6">Post your first job and start receiving applications</p>
+            <Link href="/jobs/new" className="btn-primary inline-flex">
+              <Briefcase className="w-4 h-4" /> Post your first job
+            </Link>
+          </div>
         ) : data?.data?.map((job: any) => (
           <Link key={job.id} href={`/jobs/${job.id}`}
             className="card hover:shadow-md transition-shadow cursor-pointer block">

@@ -14,7 +14,7 @@ export default function CompaniesPage() {
   });
 
   const companies: any[] = data?.data ?? [];
-  const total: number = data?.total ?? 0;
+  const total: number = data?.meta?.total ?? 0;
 
   return (
     <div className="space-y-6">
