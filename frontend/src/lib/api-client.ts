@@ -109,8 +109,8 @@ export const countriesApi = {
 // ─── AI ───────────────────────────────────────────────────────────────────────
 
 export const aiApi = {
-  screenResume: (candidateId: string, jobId: string, resumeText: string) =>
-    api.post('/ai/screen-resume', { candidateId, jobId, resumeText }).then(r => r.data),
+  screenResume: (data: { resumeText: string; jobDescription?: string; candidateId?: string; jobId?: string }) =>
+    api.post('/ai/screen-resume', data).then(r => r.data),
   parseJd: (text: string) => api.post('/ai/parse-jd', { jobDescription: text }).then(r => r.data),
   parseResume: (file: File) => {
     const form = new FormData();

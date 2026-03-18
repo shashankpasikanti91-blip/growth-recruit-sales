@@ -231,8 +231,23 @@ export default function NewJobPage() {
               <option value="USD">USD</option>
               <option value="GBP">GBP</option>
               <option value="EUR">EUR</option>
-              <option value="AED">AED</option>
+              <option value="INR">INR</option>
+              <option value="MYR">MYR</option>
+              <option value="AUD">AUD</option>
+              <option value="CAD">CAD</option>
               <option value="SGD">SGD</option>
+              <option value="AED">AED</option>
+              <option value="JPY">JPY</option>
+              <option value="CNY">CNY</option>
+              <option value="CHF">CHF</option>
+              <option value="NZD">NZD</option>
+              <option value="SAR">SAR</option>
+              <option value="QAR">QAR</option>
+              <option value="PHP">PHP</option>
+              <option value="THB">THB</option>
+              <option value="IDR">IDR</option>
+              <option value="KRW">KRW</option>
+              <option value="ZAR">ZAR</option>
             </select>
           </div>
         </div>

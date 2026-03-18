@@ -22,6 +22,8 @@ export class CreateCandidateDto {
   @IsOptional() @IsString() visaExpiry?: string;
   @IsOptional() @IsString() visaStatus?: string;
   @IsOptional() @IsBoolean() isForeigner?: boolean;
+  @IsOptional() @IsString() source?: string;
+  @IsOptional() @IsString() resumeText?: string;
 }
 
 @Injectable()
@@ -29,14 +31,30 @@ export class CandidatesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(tenantId: string, dto: CreateCandidateDto) {
-    const { visaExpiry, ...rest } = dto;
-    return this.prisma.candidate.create({
+    const { visaExpiry, source, resumeText, ...rest } = dto;
+    const candidate = await this.prisma.candidate.create({
       data: {
         tenantId,
         ...rest,
+        sourceName: source || 'MANUAL',
         visaExpiry: visaExpiry ? new Date(visaExpiry) : undefined,
       },
     });
+
+    // If resume text was provided (from AI parser), store it as a Resume record
+    if (resumeText) {
+      await this.prisma.resume.create({
+        data: {
+          candidateId: candidate.id,
+          fileName: 'parsed-resume.txt',
+          fileUrl: '',
+          rawText: resumeText,
+          isPrimary: true,
+        },
+      });
+    }
+
+    return candidate;
   }
 
   async findAll(tenantId: string, filters: { search?: string; skills?: string; stage?: string; page?: number; limit?: number }) {

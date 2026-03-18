@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { candidatesApi } from '@/lib/api-client';
 import Link from 'next/link';
-import { UserPlus, Search, Filter, Briefcase } from 'lucide-react';
+import { UserPlus, Search, Filter, Briefcase, Copy, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const STAGE_BADGE: Record<string, string> = {
@@ -14,6 +14,7 @@ const STAGE_BADGE: Record<string, string> = {
 export default function CandidatesPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['candidates', search, page],
@@ -51,6 +52,7 @@ export default function CandidatesPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Title / Company</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Applications</th>
@@ -60,12 +62,22 @@ export default function CandidatesPage() {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {isLoading ? (
-              <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
             ) : data?.data?.length === 0 ? (
-              <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">No candidates found</td></tr>
+              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No candidates found</td></tr>
             ) : (
               data?.data?.map((c: any) => (
                 <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(c.id); setCopiedId(c.id); setTimeout(() => setCopiedId(null), 2000); }}
+                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-brand-600 font-mono"
+                      title="Click to copy ID"
+                    >
+                      {c.id.slice(0, 8)}…
+                      {copiedId === c.id ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </td>
                   <td className="px-6 py-4">
                     <Link href={`/candidates/${c.id}`} className="font-medium text-gray-900 hover:text-brand-600">
                       {c.firstName} {c.lastName}

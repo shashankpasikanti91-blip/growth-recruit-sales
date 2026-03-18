@@ -3,13 +3,14 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { jobsApi } from '@/lib/api-client';
 import Link from 'next/link';
-import { Briefcase, Search } from 'lucide-react';
+import { Briefcase, Search, Copy, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function JobsPage() {
   const [search, setSearch] = useState('');
   const [isActive, setIsActive] = useState<string>('');
   const [page, setPage] = useState(1);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['jobs', search, isActive, page],
@@ -68,6 +69,16 @@ export default function JobsPage() {
             <div className="flex items-center gap-3 text-sm text-gray-500">
               {job.location && <span>{job.location}</span>}
               {job.workMode && <span className="badge-blue">{job.workMode}</span>}
+            </div>
+            <div className="mt-2 flex items-center gap-1">
+              <span className="text-[10px] font-mono text-gray-400">ID: {job.id.slice(0, 8)}…</span>
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(job.id); setCopiedId(job.id); setTimeout(() => setCopiedId(null), 2000); }}
+                className="text-gray-300 hover:text-brand-600 transition-colors"
+                title="Copy Job ID"
+              >
+                {copiedId === job.id ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+              </button>
             </div>
             <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
               <span>{job._count?.applications ?? 0} applications</span>
