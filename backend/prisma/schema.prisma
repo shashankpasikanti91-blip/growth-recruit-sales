@@ -60,6 +60,7 @@ enum ImportSource {
   APIFY
   SCRAPER
   EMAIL
+  GOOGLE_MAPS
 }
 
 enum OutreachStatus {
@@ -83,6 +84,7 @@ enum WorkflowRunStatus {
 
 enum WorkflowType {
   CANDIDATE_IMPORTED
+  CANDIDATE_SCREENING
   LEAD_IMPORTED
   SCHEDULED_ENRICHMENT
   FOLLOW_UP_REMINDER
@@ -123,6 +125,7 @@ enum AiServiceType {
   FOLLOW_UP_GENERATION
   PAIN_POINT_EXTRACTION
   MULTILINGUAL_OUTPUT
+  LINKEDIN_CONTENT
 }
 
 // ─── Tenant ───────────────────────────────────────────────────────────────────
@@ -149,6 +152,10 @@ model Tenant {
   jobs           Job[]
   leads          Lead[]
   companies      Company[]
+  contacts       Contact[]
+  icpProfiles    IcpProfile[]
+  scorecards     Scorecard[]
+  activities     Activity[]
   imports        SourceImport[]
   mappingTemplates MappingTemplate[]
   workflows      WorkflowRun[]
@@ -359,6 +366,7 @@ model Job {
   parsedData      Json?
   isActive        Boolean  @default(true)
   closingDate     DateTime?
+  deletedAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -455,6 +463,7 @@ model Company {
   techStack   String[] @default([])
   painPoints  String[] @default([])
   enrichedData Json?
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -481,9 +490,11 @@ model Contact {
   linkedinUrl String?
   isDecisionMaker Boolean @default(false)
   enrichedData Json?
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   company Company? @relation(fields: [companyId], references: [id])
   leads   Lead[]
   outreachMessages OutreachMessage[]
@@ -506,10 +517,12 @@ model IcpProfile {
   techStackRequired String[] @default([])
   description String?
   isActive    Boolean  @default(true)
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  leads Lead[]
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads  Lead[]
 
   @@index([tenantId])
   @@map("icp_profiles")
@@ -661,6 +674,7 @@ model Activity {
   metadata     Json?
   createdAt    DateTime     @default(now())
 
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
   user        User?        @relation(fields: [userId], references: [id])
   candidate   Candidate?   @relation(fields: [candidateId], references: [id])
   lead        Lead?        @relation(fields: [leadId], references: [id])
@@ -688,6 +702,7 @@ model Scorecard {
   aiGenerated  Boolean  @default(true)
   createdAt    DateTime @default(now())
 
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
   candidate Candidate? @relation(fields: [candidateId], references: [id])
   lead      Lead?      @relation(fields: [leadId], references: [id])
   job       Job?       @relation(fields: [jobId], references: [id])

@@ -1,16 +1,25 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto/tenant.dto';
+import { TenantOnboardingService } from './tenant-onboarding.service';
 
 @Injectable()
 export class TenantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly onboarding: TenantOnboardingService,
+  ) {}
 
   async create(dto: CreateTenantDto) {
     const existing = await this.prisma.tenant.findUnique({ where: { slug: dto.slug } });
     if (existing) throw new ConflictException(`Tenant slug "${dto.slug}" already exists`);
 
-    return this.prisma.tenant.create({ data: dto });
+    const tenant = await this.prisma.tenant.create({ data: dto });
+
+    // Idempotent onboarding: seed default data in background (don't fail tenant creation if seeding fails)
+    this.onboarding.setup(tenant.id).catch(() => {}); 
+
+    return tenant;
   }
 
   async findAll(page = 1, limit = 20) {

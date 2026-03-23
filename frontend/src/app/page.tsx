@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Zap, Users, Target, BarChart3, Upload, Mail, ArrowRight, Check, Star, Shield, Clock, TrendingUp } from 'lucide-react';
+import { Zap, Users, Target, BarChart3, Upload, Mail, ArrowRight, Check, Star, Shield, Clock, TrendingUp, Linkedin, MapPin } from 'lucide-react';
 
 export default function HomePage() {
   return (
@@ -11,7 +11,7 @@ export default function HomePage() {
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">RecruiSales <span className="text-brand-600">AI</span></span>
+            <span className="font-bold text-gray-900">SRP AI <span className="text-brand-600">Labs</span></span>
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-600">
             <Link href="#features" className="hover:text-brand-600 transition-colors">Features</Link>
@@ -34,7 +34,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMwLTkuOTQtOC4wNi0xOC0xOC0xOHY2YzYuNjMgMCAxMiA1LjM3IDEyIDEyaC02eiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjwvZz48L3N2Zz4=')] opacity-30" />
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-brand-500/30 text-brand-100 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-brand-400/40">
-            <Zap className="w-3 h-3" /> AI-Powered · OpenRouter GPT-4.1 Mini
+            <Zap className="w-3 h-3" /> AI-Powered · OpenRouter GPT-4.1 Mini · Multi-Tenant SaaS
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-6">
             Hire Faster.<br />
@@ -88,9 +88,11 @@ export default function HomePage() {
               { icon: Users, color: 'bg-blue-100 text-blue-600', title: 'AI Resume Screening', desc: 'Upload PDF, Word, or Excel. Our AI scores and ranks candidates against job requirements in seconds, not hours.', bullets: ['Multi-format file support', '6-step screening pipeline', 'Auto-stage candidates'] },
               { icon: Target, color: 'bg-purple-100 text-purple-600', title: 'Lead Scoring & CRM', desc: 'AI-powered ICP scoring for every lead. Identify your best prospects and prioritise your sales pipeline automatically.', bullets: ['Auto ICP score 0-100', 'Company intelligence', 'Activity timeline'] },
               { icon: Mail, color: 'bg-green-100 text-green-600', title: 'Outreach Automation', desc: 'Generate personalised emails for candidates and leads. Sequence-based campaigns via n8n integration.', bullets: ['AI-written messages', 'Multi-step sequences', 'Open/reply tracking'] },
-              { icon: Upload, color: 'bg-orange-100 text-orange-600', title: 'Smart Imports', desc: 'Import candidates or leads from CSV, Excel, PDF or Word files. Smart column mapping with preview.', bullets: ['CSV, XLSX, PDF, DOCX', 'Auto column detection', 'Error row recovery'] },
-              { icon: BarChart3, color: 'bg-pink-100 text-pink-600', title: 'Power BI Analytics', desc: 'Real-time dashboards for recruitment funnel, sales pipeline, and AI usage with period-over-period comparisons.', bullets: ['Conversion funnels', 'Period comparison', 'Cost tracking'] },
+              { icon: Upload, color: 'bg-orange-100 text-orange-600', title: 'Smart Imports', desc: 'Import candidates or leads from CSV, Excel, PDF or Word. Plus Google Maps business search — find and import leads in seconds.', bullets: ['CSV, XLSX, PDF, DOCX', 'Google Maps lead finder', 'Apify dataset import'] },
+              { icon: BarChart3, color: 'bg-pink-100 text-pink-600', title: 'Real-Time Analytics', desc: 'Live dashboards for recruitment funnel, sales pipeline, and AI usage. All queries cached for instant load.', bullets: ['Conversion funnels', 'Period comparison', 'Redis-cached KPIs'] },
               { icon: Zap, color: 'bg-yellow-100 text-yellow-600', title: 'n8n Workflow Engine', desc: 'Pre-built automation workflows for onboarding sequences, follow-ups, and integrations with your existing tools.', bullets: ['5 pre-built workflows', 'Webhook triggers', 'Slack / email alerts'] },
+              { icon: Linkedin, color: 'bg-blue-100 text-blue-600', title: 'LinkedIn AI Writer', desc: 'Generate posts, connection requests, InMails, and profile content with one click. 6 content types, all AI-powered.', bullets: ['Posts & connection notes', 'Recruiter & sales InMails', 'Profile About rewrite'] },
+              { icon: MapPin, color: 'bg-green-100 text-green-600', title: 'Google Maps Lead Finder', desc: 'Search any business type in any city and automatically import matching companies as qualified leads.', bullets: ['Business type search', 'Auto company creation', 'Duplicate detection'] },
             ].map(f => {
               const Icon = f.icon;
               return (
@@ -209,7 +211,7 @@ export default function HomePage() {
       <section className="py-20 px-4 bg-gradient-to-r from-brand-700 to-brand-500">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Ready to transform your hiring?</h2>
-          <p className="text-brand-100 mb-8">Join teams already using RecruiSales AI to place better candidates and close more deals.</p>
+          <p className="text-brand-100 mb-8">Join teams already using SRP AI Labs to place better candidates and close more deals.</p>
           <Link href="/login" className="inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-8 py-3.5 rounded-xl hover:bg-brand-50 transition-colors shadow-lg">
             Start your free trial <ArrowRight className="w-4 h-4" />
           </Link>
@@ -223,12 +225,12 @@ export default function HomePage() {
             <div className="w-6 h-6 bg-brand-600 rounded flex items-center justify-center">
               <Zap className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="text-white font-bold text-sm">RecruiSales AI</span>
+            <span className="text-white font-bold text-sm">SRP AI Labs</span>
           </div>
           <div className="flex items-center gap-6 text-gray-400 text-xs">
             <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
             <Link href="/login" className="hover:text-white transition-colors">Login</Link>
-            <span>© 2026 RecruiSales AI. All rights reserved.</span>
+            <span>© 2026 SRP AI Labs. All rights reserved.</span>
           </div>
         </div>
       </footer>

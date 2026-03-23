@@ -87,7 +87,7 @@
     "Normalise Lead": { "main": [[{ "node": "POST to Backend Webhook", "type": "main", "index": 0 }]] }
   },
   "variables": {
-    "BACKEND_URL": "http://backend:4000",
+    "BACKEND_URL": "http://backend:3001",
     "N8N_WEBHOOK_SECRET": "REPLACE_ME",
     "APOLLO_API_KEY": "REPLACE_ME"
   }

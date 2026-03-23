@@ -56,11 +56,12 @@ export class LeadsService {
       limit?: number;
     },
   ) {
-    const { search, stage, source, page = 1, limit = 20 } = filters;
+    const { search, stage, countryCode, source, page = 1, limit = 20 } = filters;
     const where: any = { tenantId };
 
     if (stage) where.stage = stage;
     if (source) where.sourceName = source;
+    if (countryCode) where.company = { countryCode };
 
     if (search) {
       where.OR = [
@@ -104,12 +105,13 @@ export class LeadsService {
 
   async update(tenantId: string, id: string, dto: UpdateLeadDto) {
     await this.findOne(tenantId, id);
-    return this.prisma.lead.update({ where: { id }, data: dto as any });
+    // SECURITY: include tenantId in write where clause to prevent TOCTOU cross-tenant mutation
+    return this.prisma.lead.update({ where: { id, tenantId }, data: dto as any });
   }
 
   async updateStage(tenantId: string, id: string, dto: UpdateLeadStageDto) {
     const lead = await this.findOne(tenantId, id);
-    const updated = await this.prisma.lead.update({ where: { id }, data: { stage: dto.stage as any } });
+    const updated = await this.prisma.lead.update({ where: { id, tenantId }, data: { stage: dto.stage as any } });
 
     if (dto.note) {
       await this.prisma.activity.create({

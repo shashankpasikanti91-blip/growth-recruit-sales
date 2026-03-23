@@ -96,7 +96,7 @@
     "Enrich Company (Clearbit)": { "main": [[{ "node": "Trigger Outreach Generation", "type": "main", "index": 0 }]] }
   },
   "variables": {
-    "BACKEND_URL": "http://backend:4000",
+    "BACKEND_URL": "http://backend:3001",
     "N8N_WEBHOOK_SECRET": "REPLACE_ME",
     "CLEARBIT_KEY": "REPLACE_ME"
   }

@@ -24,6 +24,14 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { HealthModule } from './modules/health/health.module';
+import { AppCacheModule } from './modules/cache/cache.module';
+import { DedupeProcessor } from './processors/dedupe.processor';
+import { EnrichmentProcessor } from './processors/enrichment.processor';
+import { OutreachProcessor } from './processors/outreach.processor';
+import { LeadScoringService } from './modules/ai/services/lead-scoring.service';
+import { OutreachGenerationService } from './modules/ai/services/outreach-generation.service';
+import { AiProviderService } from './modules/ai/providers/ai-provider.service';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
@@ -42,10 +50,10 @@ import redisConfig from './config/redis.config';
     // Event emitter for domain events
     EventEmitterModule.forRoot({ wildcard: true }),
 
-    // Rate limiting — 1000 req/min per IP
+    // Rate limiting — 1000 req/min per IP globally; individual AI endpoints apply stricter limits
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 1000 }]),
 
-    // Bull queue
+    // Bull queue root config
     BullModule.forRootAsync({
       useFactory: () => ({
         redis: {
@@ -62,8 +70,16 @@ import redisConfig from './config/redis.config';
       }),
     }),
 
+    // Register all background processing queues
+    BullModule.registerQueue(
+      { name: 'dedupe' },
+      { name: 'enrichment' },
+      { name: 'outreach' },
+    ),
+
     // Core infrastructure
     PrismaModule,
+    AppCacheModule,
     AuditModule,
 
     // Feature modules
@@ -86,6 +102,17 @@ import redisConfig from './config/redis.config';
     AnalyticsModule,
     IntegrationsModule,
     BillingModule,
+    HealthModule,
+  ],
+  providers: [
+    // Background processors — registered at root level since they depend on cross-module services
+    DedupeProcessor,
+    EnrichmentProcessor,
+    OutreachProcessor,
+    // Supporting services needed by processors
+    LeadScoringService,
+    OutreachGenerationService,
+    AiProviderService,
   ],
 })
 export class AppModule {}

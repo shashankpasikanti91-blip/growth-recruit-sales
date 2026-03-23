@@ -15,7 +15,7 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto) {
-    // Resolve tenant
+    // Resolve tenant — always required unless SUPER_ADMIN or email is globally unique
     let tenantId: string | undefined;
     if (dto.tenantSlug) {
       const tenant = await this.prisma.tenant.findUnique({
@@ -23,6 +23,19 @@ export class AuthService {
       });
       if (!tenant) throw new UnauthorizedException('Tenant not found or inactive');
       tenantId = tenant.id;
+    }
+
+    // SECURITY: if tenantSlug not provided, check for ambiguity across tenants
+    // to prevent cross-tenant logins via shared email addresses
+    if (!tenantId) {
+      const matchCount = await this.prisma.user.count({
+        where: { email: dto.email, isActive: true },
+      });
+      if (matchCount > 1) {
+        throw new BadRequestException(
+          'Multiple accounts found with this email. Please provide your workspace slug (e.g. my-company) to log in.',
+        );
+      }
     }
 
     // Find user

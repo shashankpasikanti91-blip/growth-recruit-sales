@@ -51,8 +51,9 @@ export class AiService {
 
     const newStage = stageMap[result.decision];
     if (newStage) {
+      // SECURITY: always include tenantId in write operations to prevent cross-tenant mutation
       await this.prisma.application.updateMany({
-        where: { candidateId, jobId },
+        where: { candidateId, jobId, tenantId },
         data: {
           stage: newStage as any,
           matchScore: result.score,

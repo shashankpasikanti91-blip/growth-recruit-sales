@@ -146,4 +146,62 @@ export class ImportsService {
     await this.importQueue.add('process-import', { importId, tenantId, retryFailed: true });
     return { message: 'Retry queued for failed rows' };
   }
+
+  /**
+   * Bulk resume upload — creates a single import record, stores each file as a raw_text row,
+   * then queues processing. Supports up to 20 PDF/DOCX files at once.
+   */
+  async bulkResumeUpload(tenantId: string, userId: string, files: Express.Multer.File[]) {
+    if (!files?.length) throw new BadRequestException('No files provided');
+    if (files.length > 20) throw new BadRequestException('Max 20 files per bulk upload');
+
+    const importRecord = await this.prisma.sourceImport.create({
+      data: {
+        tenantId,
+        name: `Bulk Resume Upload — ${files.length} file${files.length !== 1 ? 's' : ''} — ${new Date().toLocaleDateString()}`,
+        source: 'MANUAL',
+        importType: 'candidate',
+        importedById: userId,
+        status: 'PROCESSING',
+        totalRows: files.length,
+      },
+    });
+
+    const rows: { importId: string; rowIndex: number; rawData: any; status: string }[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      let rawText = '';
+
+      try {
+        if (file.originalname.endsWith('.pdf') || file.mimetype === 'application/pdf') {
+          const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
+          const parsed = await pdfParse(file.buffer);
+          rawText = parsed.text.trim();
+        } else {
+          const mammoth = require('mammoth') as { extractRawText: (opts: any) => Promise<{ value: string }> };
+          const result = await mammoth.extractRawText({ buffer: file.buffer });
+          rawText = result.value.trim();
+        }
+      } catch {
+        rawText = '';
+      }
+
+      rows.push({
+        importId: importRecord.id,
+        rowIndex: i,
+        rawData: { raw_text: rawText, file_name: file.originalname, source_type: file.originalname.endsWith('.pdf') ? 'pdf' : 'word' },
+        status: rawText ? 'pending' : 'failed',
+      });
+    }
+
+    await this.prisma.importRow.createMany({ data: rows });
+
+    await this.importQueue.add('process-import', { importId: importRecord.id, tenantId }, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 3000 },
+    });
+
+    return { importId: importRecord.id, totalFiles: files.length, status: 'PROCESSING' };
+  }
 }

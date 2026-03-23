@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './filters/global-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -21,16 +22,23 @@ async function bootstrap() {
   app.use(compression());
   app.use(morgan(nodeEnv === 'production' ? 'combined' : 'dev'));
 
-  // CORS — allow configured frontend origin + localhost for dev
+  // CORS — production allows only the configured frontend; dev also allows localhost
   const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+  const allowedOrigins =
+    nodeEnv === 'production'
+      ? [frontendUrl]
+      : [frontendUrl, 'http://localhost:3000', 'http://localhost:3001'];
   app.enableCors({
-    origin: [frontendUrl, 'http://localhost:3000', 'http://localhost:3001'],
+    origin: allowedOrigins,
     credentials: true,
   });
 
   // Global prefix & versioning
   app.setGlobalPrefix('api', { exclude: ['/health'] });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+
+  // Global exception filter — maps Prisma errors, prevents raw DB leakage
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -52,10 +60,8 @@ async function bootstrap() {
     res.status(200).json({ status: 'ok', env: nodeEnv, ts: new Date().toISOString() });
   });
 
-  // Swagger docs (always enabled)
-  {
-    const isDev = nodeEnv !== 'production';  /* keep docs in prod too — secured by rate limit */
-    if (true) {
+  // Swagger docs — development/staging only; never expose in production
+  if (nodeEnv !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('SRP AI Labs - Recruitment + Sales Platform API')
       .setDescription('Multi-tenant agentic automation platform for recruitment and sales')
@@ -81,8 +87,6 @@ async function bootstrap() {
 
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);
-    void isDev; // suppress unused warning
-    }
   }
 
   await app.listen(port);

@@ -107,8 +107,9 @@ export class JobsService {
   async update(tenantId: string, id: string, dto: UpdateJobDto) {
     await this.findOne(tenantId, id);
     const { salaryMin, salaryMax, salaryCurrency, requiredSkills, requiredExperience, workMode, headcount, ...rest } = dto as any;
+    // SECURITY: include tenantId in write where clause to prevent TOCTOU cross-tenant mutation
     return this.prisma.job.update({
-      where: { id },
+      where: { id, tenantId },
       data: {
         ...rest,
         ...(requiredSkills !== undefined ? { skills: requiredSkills } : {}),
@@ -122,6 +123,6 @@ export class JobsService {
 
   async close(tenantId: string, id: string) {
     await this.findOne(tenantId, id);
-    return this.prisma.job.update({ where: { id }, data: { isActive: false } });
+    return this.prisma.job.update({ where: { id, tenantId }, data: { isActive: false } });
   }
 }

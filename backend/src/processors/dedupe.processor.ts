@@ -62,7 +62,22 @@ export class DedupeProcessor {
   }
 
   @OnQueueFailed()
-  onFailed(job: Job, error: Error) {
-    this.logger.error(`Dedupe job ${job.id} failed: ${error.message}`);
+  async onFailed(job: Job, error: Error) {
+    this.logger.error(`Dedupe job ${job.id} (${job.name}) failed: ${error.message}`);
+    // Persist failure to WorkflowRun for DLQ visibility
+    try {
+      await this.prisma.workflowRun.create({
+        data: {
+          tenantId: job.data?.tenantId ?? 'unknown',
+          workflowType: 'NIGHTLY_DEDUPE',
+          status: 'FAILED',
+          inputData: job.data ?? {},
+          errorMessage: error.message,
+          retryCount: job.attemptsMade,
+          startedAt: new Date(job.processedOn ?? Date.now()),
+          completedAt: new Date(),
+        },
+      });
+    } catch { /* best-effort */ }
   }
 }

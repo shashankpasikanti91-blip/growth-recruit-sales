@@ -110,12 +110,13 @@ export class CandidatesService {
 
   async update(tenantId: string, id: string, dto: Partial<CreateCandidateDto>) {
     await this.findOne(tenantId, id);
-    return this.prisma.candidate.update({ where: { id }, data: dto });
+    // SECURITY: include tenantId in write where clause to prevent TOCTOU cross-tenant mutation
+    return this.prisma.candidate.update({ where: { id, tenantId }, data: dto });
   }
 
   async archive(tenantId: string, id: string) {
     await this.findOne(tenantId, id);
-    return this.prisma.candidate.update({ where: { id }, data: { isActive: false } });
+    return this.prisma.candidate.update({ where: { id, tenantId }, data: { isActive: false } });
   }
 
   async addNote(tenantId: string, candidateId: string, userId: string, note: string) {

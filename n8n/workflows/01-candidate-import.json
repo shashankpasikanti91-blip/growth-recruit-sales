@@ -71,7 +71,7 @@
     "POST to Backend Webhook": { "main": [[{ "node": "Log Result", "type": "main", "index": 0 }]] }
   },
   "variables": {
-    "BACKEND_URL": "http://backend:4000",
+    "BACKEND_URL": "http://backend:3001",
     "N8N_WEBHOOK_SECRET": "REPLACE_ME",
     "LINKEDIN_SEARCH_URL": "REPLACE_ME",
     "LINKEDIN_TOKEN": "REPLACE_ME"

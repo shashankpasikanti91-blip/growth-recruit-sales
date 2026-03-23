@@ -1,0 +1,66 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_backup:
+        description: 'Skip database backup before deploy'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  deploy:
+    name: Deploy to growth.srpailabs.com
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Run pre-deploy (backup + pull + migrate)
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd /opt/growth-platform && bash scripts/pre-deploy.sh"
+
+      - name: Build and restart containers
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            cd /opt/growth-platform
+            docker compose -f docker-compose.prod.yml build --no-cache
+            docker compose -f docker-compose.prod.yml up -d
+          EOF
+
+      - name: Wait for startup
+        run: sleep 20
+
+      - name: Verify health
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd /opt/growth-platform && bash scripts/verify-health.sh"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Deployment failed! Running rollback..."
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd /opt/growth-platform && bash scripts/rollback.sh" || true
+
+# Required GitHub Secrets:
+# DEPLOY_SSH_KEY  — private SSH key for root@<server>
+# DEPLOY_HOST     — server IP or hostname (e.g. 5.223.67.236)
+# DEPLOY_USER     — SSH user (e.g. root)

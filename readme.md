@@ -784,6 +784,151 @@ ssh root@5.223.67.236 "docker cp backend/prisma/seed.js growth_backend:/app/pris
 
 ---
 
+## 🔒 Security & Hardening (v2 — June 2026)
+
+### Critical Security Fixes Applied
+
+| Fix | Description |
+|-----|-------------|
+| **C1** Cross-tenant job lookup | `tenantId` filter enforced on all job queries in AI controller |
+| **C2** Missing WorkflowType enum | Added `CANDIDATE_SCREENING` value + migration `20260323000001` |
+| **C3** Unhandled Prisma errors | Created `GlobalExceptionFilter` mapping P2002/P2025/P2003 → proper HTTP codes |
+| **C4** Weak JWT secret guard | `auth.config.ts` throws at startup if `JWT_SECRET` is missing or fewer than 32 chars |
+| **C5** Dead BullMQ processors | Registered `DedupeProcessor`, `EnrichmentProcessor`, `OutreachProcessor` in `app.module.ts` |
+| **C6** Cross-tenant updateMany | `tenantId` added to `applications.updateMany` scoping |
+| **C7** Password log exposure | Removed raw password from authentication log entries |
+| **C8** Cross-tenant login | Multi-user email ambiguity resolved — `tenantSlug` required for tenant-scoped login |
+| **C9** Swagger in production | Swagger UI gated behind `NODE_ENV !== 'production'` guard |
+| **C10** n8n wrong backend port | Fixed `4000 → 3001` in all 5 n8n workflow JSON files |
+
+### High / Medium Priority Fixes
+
+| Fix | Description |
+|-----|-------------|
+| **H1** Unauthenticated `/health` | Root health endpoint is public; detailed `/api/v1/health` requires auth |
+| **H2** Refresh token rotation | Implemented secure refresh token rotation with 7-day expiry |
+| **H3** Rate limiting | Applied `@nestjs/throttler` on auth endpoints (login, register) |
+| **H4** File type validation | Resume upload validates MIME type + extension whitelist (PDF, DOCX) |
+| **H5** CORS lockdown | `ALLOWED_ORIGINS` env var enforced — no wildcard `*` in production |
+| **H6** Helmet headers | HTTP security headers applied via `@nestjs/helmet` |
+| **H8** Audit logging | `AuditService` logs create/update/delete mutations with actor + IP |
+| **M1** TOCTOU race condition | Idempotent `upsert` patterns across candidates/leads/companies services |
+| **M2** Timing attack on email | `bcrypt.compare` called even for non-existent users to prevent email enumeration |
+
+---
+
+## 🚀 Platform Enhancements (v2 — June 2026)
+
+### Navigation & UX (Phase 2)
+
+The sidebar was rewritten from a flat 12-item list to a **grouped, collapsible navigation**:
+
+| Group | Pages |
+|-------|-------|
+| Recruitment | Candidates, Jobs, Applications, AI Screening, Resume Imports |
+| Sales | Leads, Companies, Contacts, Outreach |
+| Automations | Imports, Workflows, Integrations, Error Logs |
+| Settings | Billing, Settings, Users & Roles (admin only), Visa Guide |
+
+**New pages added:**
+
+| Page | Route | Purpose |
+|------|-------|---------|
+| Applications | `/applications` | Application tracking with status filter tabs |
+| Contacts | `/contacts` | Sales CRM contact list with search |
+| Workflows | `/workflows` | Workflow run history with status/duration |
+| Integrations | `/integrations` | Integration registry (n8n, OpenRouter, SMTP, etc.) |
+| Error Logs | `/errors` | Audit-based error viewer with stack trace expand |
+| Users & Roles | `/users` | User management (admin-only, role-gated) |
+| LinkedIn AI | `/linkedin` | AI content generator for LinkedIn |
+
+### Database Schema (Phase 3)
+
+- Added `deletedAt DateTime?` soft-delete field to **Job**, **Company**, **Contact**, **IcpProfile**
+- Added partial indexes `WHERE "deletedAt" IS NULL` for all soft-deleted models
+- Added `LINKEDIN_CONTENT` to `AiServiceType` enum
+- Fixed missing `@relation` declarations for `Contact`, `Scorecard`, `Activity`, `IcpProfile` → `Tenant`
+- Migration: `20260323000002_soft_delete_and_tenant_relations`
+
+### LinkedIn AI Assistant (Phase 6)
+
+New endpoint: `POST /api/v1/ai/linkedin`
+
+Supports 6 content types:
+
+| Type | Output |
+|------|--------|
+| `linkedin_post` | Thought-leadership post draft |
+| `linkedin_connection` | Personalised connection request note |
+| `linkedin_inmail_recruiter` | Recruiter InMail for active candidates |
+| `linkedin_inmail_sales` | Sales InMail/SDR cold outreach |
+| `linkedin_profile_about` | LinkedIn About section rewrite |
+| `linkedin_comment` | Engaging comment on a post |
+
+All generations are logged to `AiUsageLog` (model, tokens, latency).
+
+### Tenant Onboarding (Phase 7)
+
+New `TenantOnboardingService` auto-runs after every tenant creation (fire-and-forget):
+
+- Seeds 2 default CSV mapping templates (candidates, leads)
+- Seeds 1 default ICP profile with common seniority/title keywords
+- Seeds 1 default outreach prompt template
+
+All operations are fully **idempotent** — safe to re-run via `POST /api/v1/tenants/:id/onboard`.
+
+### Health Check Module (Phase 8)
+
+`GET /api/v1/health` returns live dependency status:
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-06-01T12:00:00.000Z",
+  "checks": {
+    "database": { "status": "ok", "latencyMs": 4 },
+    "redis": { "status": "ok", "latencyMs": 1 }
+  }
+}
+```
+
+### Dead Letter Queue (Phase 8)
+
+All 3 BullMQ processors (`dedupe`, `enrichment`, `outreach`) now persist failed jobs to the `WorkflowRun` table with `status = 'FAILED'`. Query dead-letter items:
+
+```sql
+SELECT * FROM "WorkflowRun" WHERE status = 'FAILED' ORDER BY "createdAt" DESC;
+```
+
+### Redis Caching (Phase 10)
+
+Global `CacheService` (ioredis, graceful degradation — never crashes if Redis is down).
+
+All 4 analytics methods are cached:
+
+| Method | Cache Key | TTL |
+|--------|-----------|-----|
+| `getRecruitmentSummary` | `analytics:recruitment:{tenantId}:{days}` | 5 min |
+| `getSalesSummary` | `analytics:sales:{tenantId}:{days}` | 5 min |
+| `getAiUsage` | `analytics:ai-usage:{tenantId}:{days}` | 5 min |
+| `getDashboardKpis` | `analytics:dashboard:{tenantId}` | 2 min |
+
+Inject `CacheService` anywhere — it's a `@Global()` module.
+
+### Deployment Scripts (Phase 9)
+
+All scripts in `scripts/`:
+
+| Script | Purpose |
+|--------|---------|
+| `backup-db.sh` | pg_dump with timestamp, pruned to 7 backups |
+| `restore-db.sh` | Drop/recreate schema, restore from file |
+| `pre-deploy.sh` | Backup DB + pull + migrations + build |
+| `verify-health.sh` | Curl health endpoints with 10-retry logic |
+| `rollback.sh` | Stop → restore DB → restart → verify |
+
+---
+
 <div align="center">
 
 **Built by SRP AI Labs** · Powered by n8n + AI + Clean Architecture

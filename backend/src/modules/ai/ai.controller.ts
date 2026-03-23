@@ -81,6 +81,39 @@ class ScoreLeadDto {
   icpData: Record<string, any>;
 }
 
+const LINKEDIN_PROMPT_MAP: Record<string, string> = {
+  linkedin_post: `Write a compelling, engaging LinkedIn post based on the following topic or idea. 
+Use a conversational tone, include a hook opening line, share insights, and end with a call to action or question to drive engagement.
+Keep it under 300 words. Do not use hashtags unless they are highly relevant (max 3).
+Topic/idea: {context}`,
+  linkedin_connection: `Write a short, personalised LinkedIn connection request message (max 300 characters).
+It should feel genuine and specific — not generic. Reference the context provided and explain briefly why you want to connect.
+Context: {context}`,
+  linkedin_inmail_recruiter: `Write a professional, persuasive LinkedIn InMail from a recruiter to a potential candidate.
+Be brief (under 200 words), mention the role and why it may interest them, and include a clear CTA.
+Context: {context}`,
+  linkedin_inmail_sales: `Write a concise, value-driven LinkedIn InMail for B2B sales outreach.
+Be respectful of their time (under 150 words), lead with value (not features), and end with a soft next step.
+Context: {context}`,
+  linkedin_profile_about: `Rewrite or generate a LinkedIn About section that is authentic, keyword-rich, and tells a compelling professional story.
+Write in first person. Aim for 200-300 words. Highlight achievements, unique value, and what the person is looking to do next.
+Background: {context}`,
+  linkedin_comment: `Write an insightful, thoughtful comment to add to a LinkedIn post.
+The comment should add value to the conversation — share a perspective, ask a follow-up question, or build on the ideas.
+Keep it under 100 words. Do not start with "Great post!" or similar filler phrases.
+Post context: {context}`,
+};
+
+class LinkedInDto {
+  @ApiProperty({ description: 'Type of LinkedIn content to generate', example: 'linkedin_post' })
+  @IsString()
+  type: string;
+
+  @ApiProperty({ description: 'Context or topic for the content' })
+  @IsString()
+  context: string;
+}
+
 @ApiTags('ai')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -101,9 +134,10 @@ export class AiController {
   @ApiOperation({ summary: 'Screen a resume against a job description using AI' })
   async screenResume(@CurrentUser() user: any, @Body() dto: ScreenResumeDto) {
     // Resolve job description — use provided text or fetch from DB via jobId
+    // SECURITY: scope job lookup to current tenant to prevent cross-tenant data exposure
     let jobDescription = dto.jobDescription;
     if (!jobDescription && dto.jobId) {
-      const job = await this.prisma.job.findFirst({ where: { id: dto.jobId } });
+      const job = await this.prisma.job.findFirst({ where: { id: dto.jobId, tenantId: user.tenantId } });
       if (job) {
         jobDescription = job.description || `${job.title} at ${job.location || 'unknown location'}. Requirements: ${(job.requirements as string[] || []).join(', ')}. Skills: ${(job.skills as string[] || []).join(', ')}.`;
       }
@@ -152,11 +186,56 @@ export class AiController {
     return this.leadScoring.score(dto);
   }
 
+  @Post('linkedin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate LinkedIn content using AI (posts, InMails, comments, etc.)' })
+  async generateLinkedIn(@CurrentUser() user: any, @Body() dto: LinkedInDto) {
+    const promptTemplate = LINKEDIN_PROMPT_MAP[dto.type];
+    if (!promptTemplate) {
+      throw new BadRequestException(`Unknown LinkedIn content type: ${dto.type}. Valid types: ${Object.keys(LINKEDIN_PROMPT_MAP).join(', ')}`);
+    }
+
+    const prompt = promptTemplate.replace('{context}', dto.context.slice(0, 2000));
+
+    const { data, tokensUsed } = await this.aiProvider.completeJson<{ content: string }>(
+      `${prompt}\n\nReturn ONLY a JSON object: { "content": "<your generated text>" }`,
+      {
+        systemPrompt: 'You are an expert LinkedIn copywriter. Generate professional, human-sounding content. Return ONLY valid JSON.',
+        temperature: 0.7,
+        maxTokens: 600,
+      },
+    );
+
+    // Log AI usage
+    await this.prisma.aiUsageLog.create({
+      data: {
+        tenantId: user.tenantId,
+        serviceType: 'LINKEDIN_CONTENT',
+        model: 'auto',
+        tokensInput: tokensUsed ?? 0,
+        tokensOutput: 0,
+      },
+    });
+
+    return { content: data?.content ?? '' };
+  }
+
   @Post('parse-resume')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Extract text from a resume file (PDF/Word) for AI screening' })
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowed = /\.(pdf|doc|docx|txt)$/i;
+      const allowedMimes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+      if (allowedMimes.includes(file.mimetype) || allowed.test(file.originalname)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only PDF, Word (.doc/.docx), and text files are accepted for resume parsing'), false);
+      }
+    },
+  }))
   async parseResume(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
     let text = '';

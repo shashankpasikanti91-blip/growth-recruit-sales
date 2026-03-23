@@ -19,6 +19,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto, UpdateLeadDto, UpdateLeadStageDto } from './dto/lead.dto';
+import { LeadImportService, GoogleMapsImportDto, ApifyImportDto } from './lead-import.service';
 import { IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -29,7 +30,10 @@ class AddNoteDto { @ApiProperty() @IsString() note: string; }
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('leads')
 export class LeadsController {
-  constructor(private readonly leadsService: LeadsService) {}
+  constructor(
+    private readonly leadsService: LeadsService,
+    private readonly leadImport: LeadImportService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create lead' })
@@ -101,5 +105,27 @@ export class LeadsController {
     @Body() dto: AddNoteDto,
   ) {
     return this.leadsService.addNote(tenantId, id, dto.note);
+  }
+
+  // ── Lead Import endpoints ──────────────────────────────────────────────────
+
+  @Post('import/google-maps')
+  @ApiOperation({ summary: 'Search Google Maps Places and import results as leads' })
+  @Roles(UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.SUPER_ADMIN)
+  importFromGoogleMaps(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: GoogleMapsImportDto,
+  ) {
+    return this.leadImport.importFromGoogleMaps(tenantId, dto);
+  }
+
+  @Post('import/apify')
+  @ApiOperation({ summary: 'Bulk import leads from an Apify dataset' })
+  @Roles(UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.SUPER_ADMIN)
+  importFromApify(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: ApifyImportDto,
+  ) {
+    return this.leadImport.importFromApify(tenantId, dto);
   }
 }

@@ -82,7 +82,21 @@ export class OutreachProcessor {
   }
 
   @OnQueueFailed()
-  onFailed(job: Job, error: Error) {
-    this.logger.error(`Outreach job ${job.id} (${job.name}) failed: ${error.message}`);
+  async onFailed(job: Job, error: Error) {
+    this.logger.error(`Outreach job (DLQ) ${job.id} (${job.name}) failed: ${error.message}`);
+    try {
+      await this.prisma.workflowRun.create({
+        data: {
+          tenantId: job.data?.tenantId ?? 'unknown',
+          workflowType: 'OUTREACH_DRAFT_GENERATION',
+          status: 'FAILED',
+          inputData: job.data ?? {},
+          errorMessage: error.message,
+          retryCount: job.attemptsMade,
+          startedAt: new Date(job.processedOn ?? Date.now()),
+          completedAt: new Date(),
+        },
+      });
+    } catch { /* best-effort */ }
   }
 }

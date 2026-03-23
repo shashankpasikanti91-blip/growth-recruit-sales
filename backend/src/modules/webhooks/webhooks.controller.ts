@@ -14,6 +14,7 @@ import { ApplicationsService } from '../applications/applications.service';
 import { LeadsService } from '../leads/leads.service';
 import { OutreachService } from '../outreach/outreach.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import * as crypto from 'crypto';
 
 /**
  * Secured webhook endpoints for n8n to call back into the backend.
@@ -38,7 +39,17 @@ export class WebhooksController {
 
   private verifySecret(secret: string | undefined) {
     const expected = this.config.get<string>('N8N_WEBHOOK_SECRET');
-    if (!expected || secret !== expected) {
+    if (!expected || !secret) {
+      throw new UnauthorizedException('Invalid webhook secret');
+    }
+    // Use timing-safe comparison to prevent timing attacks
+    try {
+      const a = Buffer.from(secret.padEnd(expected.length));
+      const b = Buffer.from(expected.padEnd(secret.length));
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        throw new UnauthorizedException('Invalid webhook secret');
+      }
+    } catch {
       throw new UnauthorizedException('Invalid webhook secret');
     }
   }

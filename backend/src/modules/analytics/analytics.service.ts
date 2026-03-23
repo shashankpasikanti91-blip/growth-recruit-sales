@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   private sinceDate(days: number) {
     return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -20,7 +24,9 @@ export class AnalyticsService {
   }
 
   async getRecruitmentSummary(tenantId: string, days = 30) {
-    const since = this.sinceDate(days);
+    const cacheKey = `analytics:recruitment:${tenantId}:${days}`;
+    return this.cache.getOrSet(cacheKey, async () => {
+      const prevSince = this.sinceDate(days * 2);
     const prevSince = this.sinceDate(days * 2);
 
     const [
@@ -89,24 +95,27 @@ export class AnalyticsService {
     const pct = (curr: number, prev: number) =>
       prev === 0 ? 100 : Math.round(((curr - prev) / prev) * 100);
 
-    return {
-      period: { days, since },
-      kpis: {
-        candidates: { value: totalCandidates, change: pct(totalCandidates, prevCandidates) },
-        applications: { value: totalApplications, change: pct(totalApplications, prevApplications) },
-        aiScreenings: { value: aiScreened, change: pct(aiScreened, prevAiScreened) },
-        placed: { value: placed, change: pct(placed, prevPlaced) },
-      },
-      stageBreakdown: stageBreakdown.map(s => ({ stage: s.stage, count: s._count })),
-      funnel,
-      timeSeries,
-      topSkills,
-    };
+      return {
+        period: { days, since },
+        kpis: {
+          candidates: { value: totalCandidates, change: pct(totalCandidates, prevCandidates) },
+          applications: { value: totalApplications, change: pct(totalApplications, prevApplications) },
+          aiScreenings: { value: aiScreened, change: pct(aiScreened, prevAiScreened) },
+          placed: { value: placed, change: pct(placed, prevPlaced) },
+        },
+        stageBreakdown: stageBreakdown.map(s => ({ stage: s.stage, count: s._count })),
+        funnel,
+        timeSeries,
+        topSkills,
+      };
+    }, 5 * 60); // cache 5 minutes
   }
 
   async getSalesSummary(tenantId: string, days = 30) {
-    const since = this.sinceDate(days);
-    const prevSince = this.sinceDate(days * 2);
+    const cacheKey = `analytics:sales:${tenantId}:${days}`;
+    return this.cache.getOrSet(cacheKey, async () => {
+      const since = this.sinceDate(days);
+      const prevSince = this.sinceDate(days * 2);
 
     const [
       totalLeads, prevLeads,
@@ -152,22 +161,25 @@ export class AnalyticsService {
       pct: totalCount > 0 ? Math.round((s._count / totalCount) * 100) : 0,
     }));
 
-    return {
-      period: { days, since },
-      kpis: {
-        leads: { value: totalLeads, change: pct(totalLeads, prevLeads) },
-        companies: { value: totalCompanies, change: 0 },
-        wonDeals: { value: wonDeals, change: pct(wonDeals, prevWonDeals) },
-        avgScore: { value: Math.round(avgScore._avg.score ?? 0), change: 0 },
-      },
-      stageBreakdown: stageData,
-      timeSeries,
-      topIndustries: topIndustries.map(i => ({ industry: i.industry ?? 'Unknown', count: i._count })),
-    };
+      return {
+        period: { days, since },
+        kpis: {
+          leads: { value: totalLeads, change: pct(totalLeads, prevLeads) },
+          companies: { value: totalCompanies, change: 0 },
+          wonDeals: { value: wonDeals, change: pct(wonDeals, prevWonDeals) },
+          avgScore: { value: Math.round(avgScore._avg.score ?? 0), change: 0 },
+        },
+        stageBreakdown: stageData,
+        timeSeries,
+        topIndustries: topIndustries.map(i => ({ industry: i.industry ?? 'Unknown', count: i._count })),
+      };
+    }, 5 * 60); // cache 5 minutes
   }
 
   async getAiUsage(tenantId: string, days = 30) {
-    const since = this.sinceDate(days);
+    const cacheKey = `analytics:ai-usage:${tenantId}:${days}`;
+    return this.cache.getOrSet(cacheKey, async () => {
+      const since = this.sinceDate(days);
 
     const [logs, daily, totalAgg] = await Promise.all([
       this.prisma.aiUsageLog.groupBy({
@@ -201,28 +213,31 @@ export class AnalyticsService {
       cost: Math.round((costMap[b.date] ?? 0) * 1000) / 1000,
     }));
 
-    return {
-      period: { days },
-      summary: {
-        totalCalls: daily.length,
-        totalTokens: (totalAgg._sum.tokensInput ?? 0) + (totalAgg._sum.tokensOutput ?? 0),
-        totalCost: Math.round((totalAgg._sum.cost ?? 0) * 100) / 100,
-      },
-      byService: logs.map(l => ({
-        serviceType: l.serviceType,
-        model: l.model,
-        calls: l._count,
-        tokensIn: l._sum.tokensInput ?? 0,
-        tokensOut: l._sum.tokensOutput ?? 0,
-        cost: Math.round((l._sum.cost ?? 0) * 100) / 100,
-      })),
-      timeSeries,
-    };
+      return {
+        period: { days },
+        summary: {
+          totalCalls: daily.length,
+          totalTokens: (totalAgg._sum.tokensInput ?? 0) + (totalAgg._sum.tokensOutput ?? 0),
+          totalCost: Math.round((totalAgg._sum.cost ?? 0) * 100) / 100,
+        },
+        byService: logs.map(l => ({
+          serviceType: l.serviceType,
+          model: l.model,
+          calls: l._count,
+          tokensIn: l._sum.tokensInput ?? 0,
+          tokensOut: l._sum.tokensOutput ?? 0,
+          cost: Math.round((l._sum.cost ?? 0) * 100) / 100,
+        })),
+        timeSeries,
+      };
+    }, 5 * 60); // cache 5 minutes
   }
 
   async getDashboardKpis(tenantId: string) {
-    const since7 = this.sinceDate(7);
-    const since30 = this.sinceDate(30);
+    const cacheKey = `analytics:dashboard:${tenantId}`;
+    return this.cache.getOrSet(cacheKey, async () => {
+      const since7 = this.sinceDate(7);
+      const since30 = this.sinceDate(30);
 
     const [
       totalCandidates, newCandidates7d,
@@ -251,14 +266,15 @@ export class AnalyticsService {
       }),
     ]);
 
-    return {
-      kpis: [
-        { label: 'Total Candidates', value: totalCandidates, sub: `+${newCandidates7d} this week`, color: 'blue', icon: 'users' },
-        { label: 'Total Leads', value: totalLeads, sub: `+${newLeads7d} this week`, color: 'purple', icon: 'target' },
-        { label: 'Open Jobs', value: openJobs, sub: `${openApplications} active applications`, color: 'green', icon: 'briefcase' },
-        { label: 'AI Calls (30d)', value: aiCallsThisMonth, sub: 'Screenings + scoring', color: 'orange', icon: 'zap' },
-      ],
-      recentActivities,
-    };
+      return {
+        kpis: [
+          { label: 'Total Candidates', value: totalCandidates, sub: `+${newCandidates7d} this week`, color: 'blue', icon: 'users' },
+          { label: 'Total Leads', value: totalLeads, sub: `+${newLeads7d} this week`, color: 'purple', icon: 'target' },
+          { label: 'Open Jobs', value: openJobs, sub: `${openApplications} active applications`, color: 'green', icon: 'briefcase' },
+          { label: 'AI Calls (30d)', value: aiCallsThisMonth, sub: 'Screenings + scoring', color: 'orange', icon: 'zap' },
+        ],
+        recentActivities,
+      };
+    }, 2 * 60); // cache 2 minutes — dashboard is high-traffic
   }
 }

@@ -12,6 +12,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "test:e2e": "jest --config jest.config.js --testPathPattern test/e2e --runInBand --forceExit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:prod": "prisma migrate deploy",

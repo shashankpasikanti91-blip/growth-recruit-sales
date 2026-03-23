@@ -79,7 +79,7 @@
     "Match Candidate to Job": { "main": [[{ "node": "Trigger Screening Webhook", "type": "main", "index": 0 }]] }
   },
   "variables": {
-    "BACKEND_URL": "http://backend:4000",
+    "BACKEND_URL": "http://backend:3001",
     "N8N_WEBHOOK_SECRET": "REPLACE_ME",
     "BACKEND_SERVICE_TOKEN": "REPLACE_ME - generate a long-lived admin JWT for internal n8n calls"
   }

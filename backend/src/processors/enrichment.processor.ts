@@ -72,8 +72,22 @@ export class EnrichmentProcessor {
   }
 
   @OnQueueFailed()
-  onFailed(job: Job, error: Error) {
-    this.logger.error(`Enrichment job ${job.id} failed: ${error.message}`);
+  async onFailed(job: Job, error: Error) {
+    this.logger.error(`Enrichment job ${job.id} (${job.name}) failed: ${error.message}`);
+    try {
+      await this.prisma.workflowRun.create({
+        data: {
+          tenantId: job.data?.tenantId ?? 'unknown',
+          workflowType: 'SCHEDULED_ENRICHMENT',
+          status: 'FAILED',
+          inputData: job.data ?? {},
+          errorMessage: error.message,
+          retryCount: job.attemptsMade,
+          startedAt: new Date(job.processedOn ?? Date.now()),
+          completedAt: new Date(),
+        },
+      });
+    } catch { /* best-effort */ }
   }
 
   @OnQueueCompleted()

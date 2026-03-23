@@ -1,18 +1,23 @@
-import { Controller, Get, Post, Put, Patch, Body, Param, Query, UseGuards, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Body, Param, Query, UseGuards, ParseIntPipe, DefaultValuePipe, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { TenantsService } from './tenants.service';
+import { TenantOnboardingService } from './tenant-onboarding.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto/tenant.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('tenants')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({ path: 'tenants', version: '1' })
 export class TenantsController {
-  constructor(private readonly tenantsService: TenantsService) {}
+  constructor(
+    private readonly tenantsService: TenantsService,
+    private readonly onboarding: TenantOnboardingService,
+  ) {}
 
   @Post()
   @Roles(UserRole.SUPER_ADMIN)
@@ -34,14 +39,22 @@ export class TenantsController {
   @Get(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN)
   @ApiOperation({ summary: 'Get tenant by ID' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    // TENANT_ADMIN can only view their own tenant
+    if (user.role === UserRole.TENANT_ADMIN && user.tenantId !== id) {
+      throw new ForbiddenException('Access denied: you can only view your own tenant');
+    }
     return this.tenantsService.findOne(id);
   }
 
   @Put(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN)
   @ApiOperation({ summary: 'Update tenant' })
-  update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
+  update(@Param('id') id: string, @Body() dto: UpdateTenantDto, @CurrentUser() user: any) {
+    // TENANT_ADMIN can only update their own tenant
+    if (user.role === UserRole.TENANT_ADMIN && user.tenantId !== id) {
+      throw new ForbiddenException('Access denied: you can only update your own tenant');
+    }
     return this.tenantsService.update(id, dto);
   }
 
@@ -50,5 +63,15 @@ export class TenantsController {
   @ApiOperation({ summary: 'Toggle tenant active status' })
   toggleActive(@Param('id') id: string) {
     return this.tenantsService.toggleActive(id);
+  }
+
+  @Post(':id/onboard')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN)
+  @ApiOperation({ summary: 'Re-run tenant onboarding (idempotent — seeds missing defaults only)' })
+  onboard(@Param('id') id: string, @CurrentUser() user: any) {
+    if (user.role === UserRole.TENANT_ADMIN && user.tenantId !== id) {
+      throw new ForbiddenException('Access denied');
+    }
+    return this.onboarding.setup(id);
   }
 }

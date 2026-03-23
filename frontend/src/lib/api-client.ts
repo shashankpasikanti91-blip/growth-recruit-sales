@@ -43,6 +43,9 @@ export const leadsApi = {
     api.patch(`/leads/${id}/stage`, { stage, note }).then(r => r.data),
   score: (id: string) => api.post(`/leads/${id}/score`).then(r => r.data),
   addNote: (id: string, note: string) => api.post(`/leads/${id}/notes`, { note }).then(r => r.data),
+  importGoogleMaps: (data: { query: string; location: string; limit?: number }) =>
+    api.post('/leads/import/google-maps', data).then(r => r.data),
+  importApify: (items: any[]) => api.post('/leads/import/apify', { items }).then(r => r.data),
 };
 
 // ─── Companies ───────────────────────────────────────────────────────────────
@@ -67,6 +70,11 @@ export const importsApi = {
     return api.post(`/imports/${id}/upload`, form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
   },
   retry: (id: string) => api.post(`/imports/${id}/retry`).then(r => r.data),
+  bulkResume: (files: File[]) => {
+    const form = new FormData();
+    files.forEach(f => form.append('files', f));
+    return api.post('/imports/bulk-resume', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
+  },
 };
 
 // ─── Outreach ─────────────────────────────────────────────────────────────────

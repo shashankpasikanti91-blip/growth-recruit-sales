@@ -49,11 +49,13 @@ export class OutreachService {
   async generate(tenantId: string, dto: GenerateOutreachDto) {
     // Load target profile
     let targetProfile: any;
+    let targetEmail: string | undefined;
     let context: any = { channel: dto.channel ?? 'EMAIL' };
 
     if (dto.targetType === 'CANDIDATE') {
       const candidate = await this.prisma.candidate.findFirst({ where: { id: dto.targetId, tenantId } });
       if (!candidate) throw new NotFoundException('Candidate not found');
+      targetEmail = candidate.email ?? undefined;
       targetProfile = { name: `${candidate.firstName} ${candidate.lastName}`, title: candidate.currentTitle, skills: candidate.skills };
 
       if (dto.jobId) {
@@ -66,12 +68,21 @@ export class OutreachService {
         include: { company: { select: { name: true, industry: true } } },
       });
       if (!lead) throw new NotFoundException('Lead not found');
+      targetEmail = lead.email ?? undefined;
       targetProfile = {
         name: `${lead.firstName} ${lead.lastName}`,
         title: lead.title,
         company: lead.company?.name,
         industry: (lead.company as any)?.industry,
       };
+    }
+
+    // Check suppression list before generating — honour opt-outs
+    if (targetEmail) {
+      const isSuppressed = await this.checkSuppression(tenantId, targetEmail);
+      if (isSuppressed) {
+        throw new NotFoundException(`${targetEmail} is on the suppression list. Remove from suppression to generate outreach.`);
+      }
     }
 
     if (dto.sequenceSteps && dto.sequenceSteps > 1) {

@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Param, Body, Query, UseGuards, UseInterceptors, UploadedFile, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Post, Get, Param, Body, Query, UseGuards, UseInterceptors, UploadedFile, UploadedFiles, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { IsString, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -43,7 +43,27 @@ export class ImportsController {
   @Post(':id/upload')
   @ApiOperation({ summary: 'Upload CSV/Excel/PDF/Word file and start processing' })
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 20 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowedMimes = [
+        'text/csv',
+        'application/csv',
+        'text/plain',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ];
+      const allowedExts = /\.(csv|xlsx|xls|pdf|doc|docx|txt)$/i;
+      if (allowedMimes.includes(file.mimetype) || allowedExts.test(file.originalname)) {
+        cb(null, true);
+      } else {
+        cb(new Error(`File type not allowed. Accepted: CSV, Excel, PDF, Word`), false);
+      }
+    },
+  }))
   upload(
     @CurrentUser('tenantId') tenantId: string,
     @Param('id') importId: string,
@@ -82,5 +102,23 @@ export class ImportsController {
   @ApiOperation({ summary: 'Retry failed rows in an import' })
   retry(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.importsService.retryFailedRows(tenantId, id);
+  }
+
+  @Post('bulk-resume')
+  @ApiOperation({ summary: 'Upload up to 20 resume files (PDF/DOCX) as a single bulk import' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FilesInterceptor('files', 20, {
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowed = /\.(pdf|doc|docx)$/i;
+      if (allowed.test(file.originalname)) cb(null, true);
+      else cb(new Error('Only PDF and Word files are allowed for bulk resume import'), false);
+    },
+  }))
+  bulkResume(
+    @CurrentUser() user: any,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.importsService.bulkResumeUpload(user.tenantId, user.id, files);
   }
 }
