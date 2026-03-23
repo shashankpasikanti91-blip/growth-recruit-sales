@@ -26,8 +26,8 @@ export class AnalyticsService {
   async getRecruitmentSummary(tenantId: string, days = 30) {
     const cacheKey = `analytics:recruitment:${tenantId}:${days}`;
     return this.cache.getOrSet(cacheKey, async () => {
+      const since = this.sinceDate(days);
       const prevSince = this.sinceDate(days * 2);
-    const prevSince = this.sinceDate(days * 2);
 
     const [
       totalCandidates, prevCandidates,
@@ -96,7 +96,7 @@ export class AnalyticsService {
       prev === 0 ? 100 : Math.round(((curr - prev) / prev) * 100);
 
       return {
-        period: { days, since },
+        period: { days, since: since.toISOString() },
         kpis: {
           candidates: { value: totalCandidates, change: pct(totalCandidates, prevCandidates) },
           applications: { value: totalApplications, change: pct(totalApplications, prevApplications) },
@@ -162,7 +162,7 @@ export class AnalyticsService {
     }));
 
       return {
-        period: { days, since },
+        period: { days, since: since.toISOString() },
         kpis: {
           leads: { value: totalLeads, change: pct(totalLeads, prevLeads) },
           companies: { value: totalCompanies, change: 0 },

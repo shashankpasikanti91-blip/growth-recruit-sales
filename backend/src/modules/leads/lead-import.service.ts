@@ -112,7 +112,6 @@ export class LeadImportService {
             tenantId,
             name: place.name,
             website: place.website ?? null,
-            phone: place.international_phone_number ?? null,
           },
         });
       }
