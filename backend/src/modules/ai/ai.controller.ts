@@ -197,7 +197,7 @@ export class AiController {
 
     const prompt = promptTemplate.replace('{context}', dto.context.slice(0, 2000));
 
-    const { data, tokensUsed } = await this.aiProvider.completeJson<{ content: string }>(
+    const { data, meta } = await this.aiProvider.completeJson<{ content: string }>(
       `${prompt}\n\nReturn ONLY a JSON object: { "content": "<your generated text>" }`,
       {
         systemPrompt: 'You are an expert LinkedIn copywriter. Generate professional, human-sounding content. Return ONLY valid JSON.',
@@ -211,9 +211,9 @@ export class AiController {
       data: {
         tenantId: user.tenantId,
         serviceType: 'LINKEDIN_CONTENT',
-        model: 'auto',
-        tokensInput: tokensUsed ?? 0,
-        tokensOutput: 0,
+        model: meta.model ?? 'auto',
+        tokensInput: meta.tokensInput ?? 0,
+        tokensOutput: meta.tokensOutput ?? 0,
       },
     });
 
