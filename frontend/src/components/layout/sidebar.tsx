@@ -158,20 +158,23 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-2">
         {sections.map((section, idx) => {
-          if ('item' in section) {
+          if ('item' in section && section.item) {
             const { label, href, icon } = section.item;
             const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
             return <NavLink key={href} href={href} icon={icon} label={label} active={active} />;
           }
-          return (
-            <NavGroupSection
-              key={section.group}
-              group={section.group}
-              items={section.items}
-              pathname={pathname}
-              defaultOpen={idx < 3}
-            />
-          );
+          if ('group' in section) {
+            return (
+              <NavGroupSection
+                key={section.group}
+                group={section.group}
+                items={section.items}
+                pathname={pathname}
+                defaultOpen={idx < 3}
+              />
+            );
+          }
+          return null;
         })}
       </nav>
 
