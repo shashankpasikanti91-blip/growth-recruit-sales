@@ -27,7 +27,10 @@ ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "usageResetAt" TIMESTAMP(3) NOT N
 ALTER TABLE "tenants" ALTER COLUMN "maxUsers" SET DEFAULT 1;
 
 -- Backfill businessId for existing tenants
-UPDATE "tenants" SET "businessId" = 'TEN-' || EXTRACT(YEAR FROM "createdAt")::TEXT || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 4, '0') WHERE "businessId" IS NULL;
+UPDATE "tenants" t SET "businessId" = sub.bid FROM (
+  SELECT id, 'TEN-' || EXTRACT(YEAR FROM "createdAt")::TEXT || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 4, '0') AS bid
+  FROM "tenants" WHERE "businessId" IS NULL
+) sub WHERE t.id = sub.id;
 ALTER TABLE "tenants" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "tenants_businessId_key" ON "tenants"("businessId");
 
@@ -47,7 +50,10 @@ ALTER TABLE "users" ALTER COLUMN "passwordHash" DROP NOT NULL;
 UPDATE "users" SET "fullName" = "firstName" || ' ' || "lastName" WHERE "fullName" = '' OR "fullName" IS NULL;
 
 -- Backfill businessId for existing users
-UPDATE "users" SET "businessId" = 'USR-' || EXTRACT(YEAR FROM "createdAt")::TEXT || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 4, '0') WHERE "businessId" IS NULL;
+UPDATE "users" u SET "businessId" = sub.bid FROM (
+  SELECT id, 'USR-' || EXTRACT(YEAR FROM "createdAt")::TEXT || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 4, '0') AS bid
+  FROM "users" WHERE "businessId" IS NULL
+) sub WHERE u.id = sub.id;
 ALTER TABLE "users" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "users_businessId_key" ON "users"("businessId");
 CREATE INDEX IF NOT EXISTS "users_businessId_idx" ON "users"("businessId");
@@ -56,7 +62,10 @@ CREATE INDEX IF NOT EXISTS "users_businessId_idx" ON "users"("businessId");
 -- CANDIDATE: Add businessId
 -- ============================================================================
 ALTER TABLE "candidates" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
-UPDATE "candidates" SET "businessId" = 'CAN-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "candidates" c SET "businessId" = sub.bid FROM (
+  SELECT id, 'CAN-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') AS bid
+  FROM "candidates" WHERE "businessId" IS NULL
+) sub WHERE c.id = sub.id;
 ALTER TABLE "candidates" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "candidates_businessId_key" ON "candidates"("businessId");
 CREATE INDEX IF NOT EXISTS "candidates_businessId_idx" ON "candidates"("businessId");
@@ -65,7 +74,10 @@ CREATE INDEX IF NOT EXISTS "candidates_businessId_idx" ON "candidates"("business
 -- RESUME: Add businessId
 -- ============================================================================
 ALTER TABLE "resumes" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
-UPDATE "resumes" SET "businessId" = 'RES-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "resumes" r SET "businessId" = sub.bid FROM (
+  SELECT id, 'RES-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') AS bid
+  FROM "resumes" WHERE "businessId" IS NULL
+) sub WHERE r.id = sub.id;
 ALTER TABLE "resumes" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "resumes_businessId_key" ON "resumes"("businessId");
 CREATE INDEX IF NOT EXISTS "resumes_businessId_idx" ON "resumes"("businessId");
@@ -74,7 +86,10 @@ CREATE INDEX IF NOT EXISTS "resumes_businessId_idx" ON "resumes"("businessId");
 -- JOB: Add businessId
 -- ============================================================================
 ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
-UPDATE "jobs" SET "businessId" = 'JOB-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "jobs" j SET "businessId" = sub.bid FROM (
+  SELECT id, 'JOB-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') AS bid
+  FROM "jobs" WHERE "businessId" IS NULL
+) sub WHERE j.id = sub.id;
 ALTER TABLE "jobs" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "jobs_businessId_key" ON "jobs"("businessId");
 CREATE INDEX IF NOT EXISTS "jobs_businessId_idx" ON "jobs"("businessId");
@@ -83,7 +98,10 @@ CREATE INDEX IF NOT EXISTS "jobs_businessId_idx" ON "jobs"("businessId");
 -- APPLICATION: Add businessId
 -- ============================================================================
 ALTER TABLE "applications" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
-UPDATE "applications" SET "businessId" = 'APP-' || TO_CHAR("appliedAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "appliedAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "applications" a SET "businessId" = sub.bid FROM (
+  SELECT id, 'APP-' || TO_CHAR("appliedAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "appliedAt")::TEXT, 6, '0') AS bid
+  FROM "applications" WHERE "businessId" IS NULL
+) sub WHERE a.id = sub.id;
 ALTER TABLE "applications" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "applications_businessId_key" ON "applications"("businessId");
 CREATE INDEX IF NOT EXISTS "applications_businessId_idx" ON "applications"("businessId");
@@ -92,7 +110,10 @@ CREATE INDEX IF NOT EXISTS "applications_businessId_idx" ON "applications"("busi
 -- LEAD: Add businessId
 -- ============================================================================
 ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
-UPDATE "leads" SET "businessId" = 'LED-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "leads" l SET "businessId" = sub.bid FROM (
+  SELECT id, 'LED-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') AS bid
+  FROM "leads" WHERE "businessId" IS NULL
+) sub WHERE l.id = sub.id;
 ALTER TABLE "leads" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "leads_businessId_key" ON "leads"("businessId");
 CREATE INDEX IF NOT EXISTS "leads_businessId_idx" ON "leads"("businessId");
@@ -103,7 +124,10 @@ CREATE INDEX IF NOT EXISTS "leads_businessId_idx" ON "leads"("businessId");
 ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
 ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "domain" TEXT;
 ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "registrationNumber" TEXT;
-UPDATE "companies" SET "businessId" = 'COM-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "companies" co SET "businessId" = sub.bid FROM (
+  SELECT id, 'COM-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') AS bid
+  FROM "companies" WHERE "businessId" IS NULL
+) sub WHERE co.id = sub.id;
 ALTER TABLE "companies" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "companies_businessId_key" ON "companies"("businessId");
 CREATE INDEX IF NOT EXISTS "companies_businessId_idx" ON "companies"("businessId");
@@ -112,7 +136,10 @@ CREATE INDEX IF NOT EXISTS "companies_businessId_idx" ON "companies"("businessId
 -- CONTACT: Add businessId
 -- ============================================================================
 ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
-UPDATE "contacts" SET "businessId" = 'CNT-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "contacts" ct SET "businessId" = sub.bid FROM (
+  SELECT id, 'CNT-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') AS bid
+  FROM "contacts" WHERE "businessId" IS NULL
+) sub WHERE ct.id = sub.id;
 ALTER TABLE "contacts" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "contacts_businessId_key" ON "contacts"("businessId");
 CREATE INDEX IF NOT EXISTS "contacts_businessId_idx" ON "contacts"("businessId");
@@ -121,7 +148,10 @@ CREATE INDEX IF NOT EXISTS "contacts_businessId_idx" ON "contacts"("businessId")
 -- ACTIVITY: Add businessId
 -- ============================================================================
 ALTER TABLE "activities" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
-UPDATE "activities" SET "businessId" = 'ACT-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "activities" ac SET "businessId" = sub.bid FROM (
+  SELECT id, 'ACT-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') AS bid
+  FROM "activities" WHERE "businessId" IS NULL
+) sub WHERE ac.id = sub.id;
 ALTER TABLE "activities" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "activities_businessId_key" ON "activities"("businessId");
 CREATE INDEX IF NOT EXISTS "activities_businessId_idx" ON "activities"("businessId");
@@ -130,7 +160,10 @@ CREATE INDEX IF NOT EXISTS "activities_businessId_idx" ON "activities"("business
 -- OUTREACH MESSAGE: Add businessId
 -- ============================================================================
 ALTER TABLE "outreach_messages" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
-UPDATE "outreach_messages" SET "businessId" = 'OUT-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "outreach_messages" om SET "businessId" = sub.bid FROM (
+  SELECT id, 'OUT-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') AS bid
+  FROM "outreach_messages" WHERE "businessId" IS NULL
+) sub WHERE om.id = sub.id;
 ALTER TABLE "outreach_messages" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "outreach_messages_businessId_key" ON "outreach_messages"("businessId");
 CREATE INDEX IF NOT EXISTS "outreach_messages_businessId_idx" ON "outreach_messages"("businessId");
@@ -139,7 +172,10 @@ CREATE INDEX IF NOT EXISTS "outreach_messages_businessId_idx" ON "outreach_messa
 -- WORKFLOW RUN: Add businessId
 -- ============================================================================
 ALTER TABLE "workflow_runs" ADD COLUMN IF NOT EXISTS "businessId" TEXT;
-UPDATE "workflow_runs" SET "businessId" = 'WFR-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') WHERE "businessId" IS NULL;
+UPDATE "workflow_runs" wr SET "businessId" = sub.bid FROM (
+  SELECT id, 'WFR-' || TO_CHAR("createdAt", 'YYYYMM') || '-' || LPAD(ROW_NUMBER() OVER (ORDER BY "createdAt")::TEXT, 6, '0') AS bid
+  FROM "workflow_runs" WHERE "businessId" IS NULL
+) sub WHERE wr.id = sub.id;
 ALTER TABLE "workflow_runs" ALTER COLUMN "businessId" SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "workflow_runs_businessId_key" ON "workflow_runs"("businessId");
 CREATE INDEX IF NOT EXISTS "workflow_runs_businessId_idx" ON "workflow_runs"("businessId");
