@@ -16,9 +16,9 @@ export interface GoogleProfile {
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private readonly config: ConfigService) {
     super({
-      clientID: config.get<string>('auth.googleClientId'),
-      clientSecret: config.get<string>('auth.googleClientSecret'),
-      callbackURL: config.get<string>('auth.googleCallbackUrl'),
+      clientID: config.get<string>('auth.googleClientId') || 'not-configured',
+      clientSecret: config.get<string>('auth.googleClientSecret') || 'not-configured',
+      callbackURL: config.get<string>('auth.googleCallbackUrl') || 'http://localhost/auth/google/callback',
       scope: ['email', 'profile'],
       passReqToCallback: true,
     });
