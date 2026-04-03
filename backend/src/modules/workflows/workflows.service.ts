@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OnEvent } from '@nestjs/event-emitter';
+import { BusinessIdService } from '../billing/business-id.service';
 
 @Injectable()
 export class WorkflowsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+  ) {}
 
   async logRun(params: {
     tenantId: string;
@@ -16,6 +20,7 @@ export class WorkflowsService {
   }) {
     return this.prisma.workflowRun.create({
       data: {
+        businessId: await this.businessIdService.generate('workflowRun'),
         tenantId: params.tenantId,
         workflowType: params.workflowType as any,
         triggeredBy: params.triggeredBy,

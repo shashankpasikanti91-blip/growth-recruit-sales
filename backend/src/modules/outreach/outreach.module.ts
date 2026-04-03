@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { OutreachService } from './outreach.service';
 import { OutreachController } from './outreach.controller';
 import { AiModule } from '../ai/ai.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
-  imports: [AiModule],
+  imports: [AiModule, BillingModule],
   providers: [OutreachService],
   controllers: [OutreachController],
   exports: [OutreachService],

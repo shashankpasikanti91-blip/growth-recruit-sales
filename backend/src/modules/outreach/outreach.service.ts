@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OutreachGenerationService } from '../ai/services/outreach-generation.service';
+import { BusinessIdService } from '../billing/business-id.service';
 import { IsString, IsOptional, IsEnum, IsArray, IsInt, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -42,6 +43,7 @@ export class OutreachService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly outreachGen: OutreachGenerationService,
+    private readonly businessIdService: BusinessIdService,
   ) {}
 
   // ─── Generate outreach message(s) via AI ──────────────────────────────────
@@ -95,6 +97,7 @@ export class OutreachService {
       });
 
       // Create a sequence + messages in DB
+      const messageBusinessIds = await this.businessIdService.generateBatch('outreachMessage', outreachResult.sequence.length);
       const sequence = await this.prisma.outreachSequence.create({
         data: {
           tenantId,
@@ -103,7 +106,8 @@ export class OutreachService {
           steps: outreachResult.sequence as any,
           isActive: true,
           messages: {
-            create: outreachResult.sequence.map((msg) => ({
+            create: outreachResult.sequence.map((msg, idx) => ({
+              businessId: messageBusinessIds[idx],
               tenantId,
               channel: dto.channel ?? 'EMAIL',
               subject: msg.subject,
@@ -128,6 +132,7 @@ export class OutreachService {
 
       const message = await this.prisma.outreachMessage.create({
         data: {
+          businessId: await this.businessIdService.generate('outreachMessage'),
           tenantId,
           channel: dto.channel ?? 'EMAIL',
           subject: msg.subject,

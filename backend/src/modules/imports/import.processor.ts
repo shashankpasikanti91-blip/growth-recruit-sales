@@ -2,12 +2,16 @@ import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessIdService } from '../billing/business-id.service';
 
 @Processor('import-processing')
 export class ImportProcessor {
   private readonly logger = new Logger(ImportProcessor.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+  ) {}
 
   @Process('process-import')
   async handleImport(job: Job<{ importId: string; tenantId: string; retryFailed?: boolean }>) {
@@ -51,7 +55,7 @@ export class ImportProcessor {
         failedCount++;
         await this.prisma.importRow.update({
           where: { id: row.id },
-          data: { status: 'failed', errorMessage: err.message },
+          data: { status: 'failed', errorMessage: (err as Error).message },
         });
       }
     }
@@ -82,6 +86,7 @@ export class ImportProcessor {
 
     const candidate = await this.prisma.candidate.create({
       data: {
+        businessId: await this.businessIdService.generate('candidate'),
         tenantId,
         sourceImportId: importId,
         firstName: row.firstName || row.first_name || row['First Name'] || '',
@@ -112,6 +117,7 @@ export class ImportProcessor {
 
     const lead = await this.prisma.lead.create({
       data: {
+        businessId: await this.businessIdService.generate('lead'),
         tenantId,
         sourceImportId: importId,
         firstName: row.firstName || row.first_name || row['First Name'] || null,
