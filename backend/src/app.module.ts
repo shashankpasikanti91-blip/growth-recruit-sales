@@ -36,6 +36,7 @@ import { OutreachProcessor } from './processors/outreach.processor';
 import { LeadScoringService } from './modules/ai/services/lead-scoring.service';
 import { OutreachGenerationService } from './modules/ai/services/outreach-generation.service';
 import { AiProviderService } from './modules/ai/providers/ai-provider.service';
+import { BusinessIdService } from './modules/billing/business-id.service';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
@@ -122,6 +123,7 @@ import storageConfig from './config/storage.config';
     LeadScoringService,
     OutreachGenerationService,
     AiProviderService,
+    BusinessIdService,
   ],
 })
 export class AppModule {}

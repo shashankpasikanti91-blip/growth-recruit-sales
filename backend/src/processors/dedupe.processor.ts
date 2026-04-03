@@ -2,6 +2,7 @@ import { Processor, Process, OnQueueFailed } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BusinessIdService } from '../modules/billing/business-id.service';
 
 export interface DedupeJobData {
   tenantId: string;
@@ -18,7 +19,10 @@ export interface DedupeJobData {
 export class DedupeProcessor {
   private readonly logger = new Logger(DedupeProcessor.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+  ) {}
 
   @Process('check-candidate-dupe')
   async checkCandidateDupe(job: Job<DedupeJobData>) {
@@ -76,6 +80,7 @@ export class DedupeProcessor {
           retryCount: job.attemptsMade,
           startedAt: new Date(job.processedOn ?? Date.now()),
           completedAt: new Date(),
+          businessId: await this.businessIdService.generate('workflowRun'),
         },
       });
     } catch { /* best-effort */ }

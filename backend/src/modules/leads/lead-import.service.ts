@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessIdService } from '../billing/business-id.service';
 import { IsString, IsOptional, IsInt, Min, Max, IsArray, IsObject } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -57,7 +58,10 @@ interface PlaceResult {
 
 @Injectable()
 export class LeadImportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+  ) {}
 
   /**
    * Search Google Maps Places API and create leads from business results.
@@ -112,6 +116,7 @@ export class LeadImportService {
             tenantId,
             name: place.name,
             website: place.website ?? null,
+            businessId: await this.businessIdService.generate('company'),
           },
         });
       }
@@ -134,6 +139,7 @@ export class LeadImportService {
           stage: 'NEW',
           companyId: company.id,
           phone: place.international_phone_number ?? null,
+          businessId: await this.businessIdService.generate('lead'),
         },
       });
       created.push(lead.id);
@@ -190,7 +196,7 @@ export class LeadImportService {
           });
           if (!company) {
             company = await this.prisma.company.create({
-              data: { tenantId, name: companyName, website: item.website ?? null },
+              data: { tenantId, name: companyName, website: item.website ?? null, businessId: await this.businessIdService.generate('company') },
             });
           }
           companyId = company.id;
@@ -208,6 +214,7 @@ export class LeadImportService {
             companyId,
             sourceName: 'apify',
             stage: 'NEW',
+            businessId: await this.businessIdService.generate('lead'),
           },
         });
         imported++;

@@ -3,6 +3,7 @@ import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OutreachGenerationService } from '../modules/ai/services/outreach-generation.service';
+import { BusinessIdService } from '../modules/billing/business-id.service';
 
 export interface OutreachJobData {
   tenantId: string;
@@ -24,6 +25,7 @@ export class OutreachProcessor {
   constructor(
     private readonly prisma: PrismaService,
     private readonly outreachService: OutreachGenerationService,
+    private readonly businessIdService: BusinessIdService,
   ) {}
 
   @Process('generate-outreach')
@@ -63,6 +65,7 @@ export class OutreachProcessor {
         body: message.body,
         status: 'DRAFT',
         ...(targetType === 'CANDIDATE' ? { candidateId: targetId } : { leadId: targetId }),
+        businessId: await this.businessIdService.generate('outreachMessage'),
       },
     });
 
@@ -95,6 +98,7 @@ export class OutreachProcessor {
           retryCount: job.attemptsMade,
           startedAt: new Date(job.processedOn ?? Date.now()),
           completedAt: new Date(),
+          businessId: await this.businessIdService.generate('workflowRun'),
         },
       });
     } catch { /* best-effort */ }

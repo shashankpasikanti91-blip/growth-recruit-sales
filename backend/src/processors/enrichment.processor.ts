@@ -3,6 +3,7 @@ import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LeadScoringService } from '../modules/ai/services/lead-scoring.service';
+import { BusinessIdService } from '../modules/billing/business-id.service';
 
 export interface EnrichmentJobData {
   tenantId: string;
@@ -22,6 +23,7 @@ export class EnrichmentProcessor {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadScoring: LeadScoringService,
+    private readonly businessIdService: BusinessIdService,
   ) {}
 
   @Process('enrich-lead')
@@ -85,6 +87,7 @@ export class EnrichmentProcessor {
           retryCount: job.attemptsMade,
           startedAt: new Date(job.processedOn ?? Date.now()),
           completedAt: new Date(),
+          businessId: await this.businessIdService.generate('workflowRun'),
         },
       });
     } catch { /* best-effort */ }

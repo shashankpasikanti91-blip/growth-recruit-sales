@@ -137,6 +137,7 @@ export class LeadsService {
           type: 'NOTE',
           title: 'Stage updated',
           description: dto.note,
+          businessId: await this.businessIdService.generate('activity'),
         },
       });
     }
