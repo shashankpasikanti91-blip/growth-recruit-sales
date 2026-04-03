@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
+const bid = (prefix, date, seq, pad = 6) => `${prefix}-${date}-${String(seq).padStart(pad, '0')}`;
 
 const countrySeeds = [
   {
@@ -71,6 +72,7 @@ async function main() {
     create: {
       name: 'SRP AI Labs', slug: 'srp-ai-labs', countryCode: 'MY',
       timezone: 'Asia/Kuala_Lumpur', currency: 'MYR', locale: 'en-MY',
+      businessId: bid('TEN', '2026', 1, 4),
     },
   });
   console.log(`✅ Seeded tenant: ${tenant.name}`);
@@ -82,6 +84,7 @@ async function main() {
     create: {
       tenantId: tenant.id, email: 'admin@srp-ai-labs.com', passwordHash,
       firstName: 'SRP', lastName: 'Admin', role: 'TENANT_ADMIN',
+      businessId: bid('USR', '2026', 1, 4),
     },
   });
   console.log(`✅ Seeded admin user: ${admin.email}`);
@@ -192,7 +195,7 @@ async function main() {
     { id: 'comp-medflow', name: 'MedFlow Health', website: 'https://medflow.health', industry: 'HealthTech', size: '51-200', revenue: '$5M-10M', countryCode: 'IN', city: 'Bangalore', description: 'Telemedicine platform connecting rural patients with specialists.', techStack: ['Flutter', 'Node.js', 'AWS', 'ML'], painPoints: ['Regulatory compliance', 'Doctor onboarding'] },
   ];
   for (const c of companiesData) {
-    await prisma.company.upsert({ where: { id: c.id }, update: {}, create: { ...c, tenantId: tenant.id } });
+    await prisma.company.upsert({ where: { id: c.id }, update: {}, create: { ...c, tenantId: tenant.id, businessId: bid('COM', '202604', companiesData.indexOf(c) + 1) } });
   }
   console.log(`✅ Seeded ${companiesData.length} demo companies`);
 
@@ -205,7 +208,7 @@ async function main() {
     { id: 'cont-priya', companyId: 'comp-medflow', firstName: 'Priya', lastName: 'Sharma', email: 'priya@medflow.health', phone: '+91-98765-43210', title: 'COO', isDecisionMaker: true },
   ];
   for (const c of contactsData) {
-    await prisma.contact.upsert({ where: { id: c.id }, update: {}, create: { ...c, tenantId: tenant.id } });
+    await prisma.contact.upsert({ where: { id: c.id }, update: {}, create: { ...c, tenantId: tenant.id, businessId: bid('CNT', '202604', contactsData.indexOf(c) + 1) } });
   }
   console.log(`✅ Seeded ${contactsData.length} demo contacts`);
 
@@ -237,7 +240,7 @@ async function main() {
     { id: 'lead-8', firstName: 'Rachel', lastName: 'Wong', email: 'rachel@cloudnine.com.au', title: 'People & Culture Lead', stage: 'CONTACTED', score: 70, painPoints: ['DEI tracking', 'Candidate experience'], notes: 'Wants better candidate experience tools.', sourceName: 'Website' },
   ];
   for (const l of leadsData) {
-    await prisma.lead.upsert({ where: { id: l.id }, update: {}, create: { ...l, tenantId: tenant.id, isActive: true } });
+    await prisma.lead.upsert({ where: { id: l.id }, update: {}, create: { ...l, tenantId: tenant.id, isActive: true, businessId: bid('LED', '202604', leadsData.indexOf(l) + 1) } });
   }
   console.log(`✅ Seeded ${leadsData.length} demo leads`);
 
@@ -250,7 +253,7 @@ async function main() {
     { id: 'job-sales', title: 'Business Development Rep', department: 'Sales', location: 'Remote (APAC)', countryCode: 'MY', jobType: 'Full-time', salaryMin: 5000, salaryMax: 8000, currency: 'MYR', description: 'Drive outbound sales for our AI recruitment platform across APAC.\n\nRequirements:\n- 2+ years B2B SaaS sales experience\n- Experience with CRM tools (HubSpot, Salesforce)\n- Strong communication and presentation skills\n- Self-motivated with proven track record', requirements: ['2+ years B2B sales', 'CRM experience', 'Communication skills', 'Self-motivated'], skills: ['B2B Sales', 'CRM', 'Cold Outreach', 'LinkedIn', 'Pipeline Management'], experience: '2-4 years', educationLevel: 'Bachelor' },
   ];
   for (const j of jobsData) {
-    await prisma.job.upsert({ where: { id: j.id }, update: {}, create: { ...j, tenantId: tenant.id, isActive: true } });
+    await prisma.job.upsert({ where: { id: j.id }, update: {}, create: { ...j, tenantId: tenant.id, isActive: true, businessId: bid('JOB', '202604', jobsData.indexOf(j) + 1) } });
   }
   console.log(`✅ Seeded ${jobsData.length} demo jobs`);
 
@@ -268,7 +271,7 @@ async function main() {
     { id: 'cand-10', firstName: 'Fatimah', lastName: 'Abdullah', email: 'fatimah@deloitte.com', phone: '+60-17-8765-4321', currentTitle: 'ML Engineer', currentCompany: 'Deloitte', location: 'Kuala Lumpur, MY', countryCode: 'MY', yearsExperience: 4, skills: ['Python', 'Machine Learning', 'NLP', 'AWS SageMaker', 'SQL', 'Docker'], languages: ['English', 'Malay', 'Arabic'], summary: 'ML engineer building NLP solutions at Deloitte.', nationality: 'Malaysian', visaStatus: 'CITIZEN', isForeigner: false },
   ];
   for (const c of candidatesData) {
-    await prisma.candidate.upsert({ where: { id: c.id }, update: {}, create: { ...c, tenantId: tenant.id, isActive: true } });
+    await prisma.candidate.upsert({ where: { id: c.id }, update: {}, create: { ...c, tenantId: tenant.id, isActive: true, businessId: bid('CAN', '202604', candidatesData.indexOf(c) + 1) } });
   }
   console.log(`✅ Seeded ${candidatesData.length} demo candidates`);
 
@@ -281,7 +284,7 @@ async function main() {
     { id: 'res-5', candidateId: 'cand-8', fileName: 'Priyanka_Nair_CV.pdf', fileUrl: '/uploads/resumes/priyanka_nair.pdf', mimeType: 'application/pdf', isPrimary: true, rawText: 'PRIYANKA NAIR\nBusiness Development Manager\npriyanka.nair@infosys.com | +91-87654-32109 | Chennai, IN\n\nSUMMARY\nTop BDR at Infosys. Exceeded quota 140% for 6 consecutive quarters.\n\nEXPERIENCE\nBusiness Development Manager — Infosys (2023-Present)\n- Managed $2M+ pipeline across APAC\n- Closed 15 enterprise deals\n\nBDR — Zoho (2021-2023)\n- Booked 200+ qualified demos\n\nSKILLS\nB2B Sales, Salesforce, LinkedIn Sales Navigator, Cold Outreach\n\nEDUCATION\nBBA — Anna University (2021)' },
   ];
   for (const r of resumesData) {
-    await prisma.resume.upsert({ where: { id: r.id }, update: {}, create: r });
+    await prisma.resume.upsert({ where: { id: r.id }, update: {}, create: { ...r, businessId: bid('RES', '202604', resumesData.indexOf(r) + 1) } });
   }
   console.log(`✅ Seeded ${resumesData.length} demo resumes`);
 
@@ -299,7 +302,7 @@ async function main() {
     { id: 'app-10', tenantId: tenant.id, candidateId: 'cand-10', jobId: 'job-ds', stage: 'SCREENED', matchScore: 82, isShortlisted: true, scoreDetails: { skill_match: 85, experience_match: 78, education_match: 82 } },
   ];
   for (const a of applicationsData) {
-    await prisma.application.upsert({ where: { id: a.id }, update: {}, create: a });
+    await prisma.application.upsert({ where: { id: a.id }, update: {}, create: { ...a, businessId: bid('APP', '202604', applicationsData.indexOf(a) + 1) } });
   }
   console.log(`✅ Seeded ${applicationsData.length} demo applications`);
 
@@ -335,7 +338,7 @@ async function main() {
     { id: 'act-12', tenantId: tenant.id, userId: admin.id, candidateId: 'cand-2', type: 'OUTREACH_SENT', title: 'Outreach email sent', description: 'AI-generated introduction email about Frontend Developer role.', createdAt: daysAgo(8) },
   ];
   for (const a of activitiesData) {
-    await prisma.activity.upsert({ where: { id: a.id }, update: {}, create: a });
+    await prisma.activity.upsert({ where: { id: a.id }, update: {}, create: { ...a, businessId: bid('ACT', '202604', activitiesData.indexOf(a) + 1) } });
   }
   console.log(`✅ Seeded ${activitiesData.length} activities`);
 
@@ -347,7 +350,7 @@ async function main() {
     { id: 'out-4', tenantId: tenant.id, leadId: 'lead-5', subject: 'Following up on MedFlow Health demo', body: 'Hi Priya,\n\nThanks for the great demo session. I\'ve prepared the annual pricing proposal.\n\nPlease find attached. Happy to jump on a call.\n\nBest,\nSRP AI Labs', status: 'REPLIED', channel: 'email', aiGenerated: false, sentAt: daysAgo(2), repliedAt: daysAgo(1) },
   ];
   for (const o of outreachData) {
-    await prisma.outreachMessage.upsert({ where: { id: o.id }, update: {}, create: o });
+    await prisma.outreachMessage.upsert({ where: { id: o.id }, update: {}, create: { ...o, businessId: bid('OUT', '202604', outreachData.indexOf(o) + 1) } });
   }
   console.log(`✅ Seeded ${outreachData.length} outreach messages`);
 
@@ -390,7 +393,7 @@ async function main() {
     { id: 'wf-5', tenantId: tenant.id, workflowType: 'FOLLOW_UP_REMINDER', status: 'RUNNING', triggeredBy: 'cron', startedAt: new Date() },
   ];
   for (const w of workflowData) {
-    await prisma.workflowRun.upsert({ where: { id: w.id }, update: {}, create: w });
+    await prisma.workflowRun.upsert({ where: { id: w.id }, update: {}, create: { ...w, businessId: bid('WFR', '202604', workflowData.indexOf(w) + 1) } });
   }
   console.log(`✅ Seeded ${workflowData.length} workflow runs`);
 
