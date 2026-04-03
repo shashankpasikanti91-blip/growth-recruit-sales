@@ -15,6 +15,18 @@ datasource db {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
 enum UserRole {
   SUPER_ADMIN
   TENANT_ADMIN
@@ -115,6 +127,23 @@ enum ActivityType {
   OUTREACH_SENT
 }
 
+enum DocumentType {
+  RESUME
+  LEAD_DOC
+  PROPOSAL
+  CONTRACT
+  COMPANY_DOC
+  OTHER
+}
+
+enum UploadStatus {
+  PENDING
+  UPLOADING
+  COMPLETED
+  FAILED
+  VIRUS_DETECTED
+}
+
 enum AiServiceType {
   RESUME_PARSER
   JD_PARSER
@@ -131,41 +160,54 @@ enum AiServiceType {
 // ─── Tenant ───────────────────────────────────────────────────────────────────
 
 model Tenant {
-  id          String   @id @default(uuid())
-  name        String
-  slug        String   @unique
-  logoUrl     String?
-  domain      String?
-  isActive    Boolean  @default(true)
-  settings    Json     @default("{}")
-  maxUsers    Int      @default(10)
-  maxImports  Int      @default(1000)
-  countryCode String   @default("MY")
-  timezone    String   @default("Asia/Kuala_Lumpur")
-  currency    String   @default("MYR")
-  locale      String   @default("en-MY")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  businessId            String   @unique
+  name                  String
+  slug                  String   @unique
+  logoUrl               String?
+  domain                String?
+  plan                  String   @default("FREE")
+  isActive              Boolean  @default(true)
+  settings              Json     @default("{}")
+  maxUsers              Int      @default(1)
+  maxImports            Int      @default(1000)
+  maxCandidatesPerMonth Int      @default(50)
+  maxLeadsPerMonth      Int      @default(50)
+  maxAiUsagePerMonth    Int      @default(20)
+  currentCandidateUsage Int      @default(0)
+  currentLeadUsage      Int      @default(0)
+  currentAiUsage        Int      @default(0)
+  billingStatus         String   @default("active")
+  usageResetAt          DateTime @default(now())
+  countryCode           String   @default("MY")
+  timezone              String   @default("Asia/Kuala_Lumpur")
+  currency              String   @default("MYR")
+  locale                String   @default("en-MY")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  users          User[]
-  candidates     Candidate[]
-  jobs           Job[]
-  leads          Lead[]
-  companies      Company[]
-  contacts       Contact[]
-  icpProfiles    IcpProfile[]
-  scorecards     Scorecard[]
-  activities     Activity[]
-  imports        SourceImport[]
+  users            User[]
+  candidates       Candidate[]
+  jobs             Job[]
+  leads            Lead[]
+  companies        Company[]
+  contacts         Contact[]
+  icpProfiles      IcpProfile[]
+  scorecards       Scorecard[]
+  activities       Activity[]
+  imports          SourceImport[]
   mappingTemplates MappingTemplate[]
-  workflows      WorkflowRun[]
-  outreachSeqs   OutreachSequence[]
-  integrations   Integration[]
-  aiUsage        AiUsageLog[]
-  promptTemplates PromptTemplate[]
-  auditLogs      AuditLog[]
-  countryConfigs TenantCountryConfig[]
-  subscription   Subscription?
+  workflows        WorkflowRun[]
+  outreachSeqs     OutreachSequence[]
+  integrations     Integration[]
+  aiUsage          AiUsageLog[]
+  promptTemplates  PromptTemplate[]
+  auditLogs        AuditLog[]
+  countryConfigs   TenantCountryConfig[]
+  subscription     Subscription?
+  invites          TenantInvite[]
+  onboarding       TenantOnboarding?
+  documents        Document[]
 
   @@map("tenants")
 }
@@ -173,27 +215,41 @@ model Tenant {
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 model User {
-  id           String    @id @default(uuid())
+  id           String       @id @default(uuid())
+  businessId   String       @unique
   tenantId     String
+  fullName     String       @default("")
   email        String
-  passwordHash String
+  passwordHash String?
   firstName    String
   lastName     String
-  role         UserRole  @default(VIEWER)
-  isActive     Boolean   @default(true)
+  role         UserRole     @default(VIEWER)
+  status       String       @default("active")
+  authProvider AuthProvider @default(EMAIL)
+  googleId     String?
+  isActive     Boolean      @default(true)
   lastLoginAt  DateTime?
-  settings     Json      @default("{}")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  settings     Json         @default("{}")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  activities     Activity[]
-  auditLogs      AuditLog[]
+  invitedByUserId  String?
+  invitedAt        DateTime?
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedBy        User?             @relation("InvitedByUser", fields: [invitedByUserId], references: [id])
+  invitedUsers     User[]            @relation("InvitedByUser")
+  activities       Activity[]
+  auditLogs        AuditLog[]
   approvedOutreach OutreachMessage[]
-  refreshTokens  RefreshToken[]
+  refreshTokens    RefreshToken[]
+  sentInvites      TenantInvite[]    @relation("InviteSender")
+  acceptedInvites  TenantInvite[]    @relation("InviteAcceptor")
+  uploadedDocuments Document[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
+  @@index([businessId])
   @@map("users")
 }
 
@@ -237,26 +293,26 @@ model CountryConfig {
 // ─── Visa Rules (per country, per visa type) ──────────────────────────────────
 
 model VisaRule {
-  id                String   @id @default(uuid())
-  countryCode       String
-  visaType          String              // e.g. "EP", "DP", "S Pass", "Work Visa", "482", "186", "H-1B"
-  visaName          String              // e.g. "Employment Pass", "Dependent Pass"
-  category          String   @default("WORK")  // WORK, DEPENDENT, STUDENT, VISITOR, PR
-  description       String?
-  eligibility       String[]  @default([])   // bullet-point eligibility criteria
-  requiredDocuments String[]  @default([])   // list of required docs
-  processingTimeDays Int?                     // typical processing time
-  validityMonths    Int?                      // typical visa validity
-  renewalInfo       String?                   // how to renew
-  fees              Json?                      // { application: 100, processing: 50, currency: "SGD" }
-  salaryThreshold   Float?                    // minimum salary if applicable
-  quotaInfo         String?                   // quota/levy info if applicable
-  latestUpdates     String[]  @default([])   // recent changes or news about this visa
-  lastUpdatedDate   DateTime?                 // when rules were last updated
-  tips              String[]  @default([])   // practical tips for applicants
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 String    @id @default(uuid())
+  countryCode        String
+  visaType           String // e.g. "EP", "DP", "S Pass", "Work Visa", "482", "186", "H-1B"
+  visaName           String // e.g. "Employment Pass", "Dependent Pass"
+  category           String    @default("WORK") // WORK, DEPENDENT, STUDENT, VISITOR, PR
+  description        String?
+  eligibility        String[]  @default([]) // bullet-point eligibility criteria
+  requiredDocuments  String[]  @default([]) // list of required docs
+  processingTimeDays Int? // typical processing time
+  validityMonths     Int? // typical visa validity
+  renewalInfo        String? // how to renew
+  fees               Json? // { application: 100, processing: 50, currency: "SGD" }
+  salaryThreshold    Float? // minimum salary if applicable
+  quotaInfo          String? // quota/levy info if applicable
+  latestUpdates      String[]  @default([]) // recent changes or news about this visa
+  lastUpdatedDate    DateTime? // when rules were last updated
+  tips               String[]  @default([]) // practical tips for applicants
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   country CountryConfig @relation(fields: [countryCode], references: [code])
 
@@ -266,13 +322,13 @@ model VisaRule {
 }
 
 model TenantCountryConfig {
-  id                String   @id @default(uuid())
-  tenantId          String
-  countryCode       String
-  customTemplates   Json     @default("{}")
-  isDefault         Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String   @id @default(uuid())
+  tenantId        String
+  countryCode     String
+  customTemplates Json     @default("{}")
+  isDefault       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   tenant  Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   country CountryConfig @relation(fields: [countryCode], references: [code])
@@ -284,7 +340,8 @@ model TenantCountryConfig {
 // ─── Candidate ────────────────────────────────────────────────────────────────
 
 model Candidate {
-  id              String          @id @default(uuid())
+  id              String    @id @default(uuid())
+  businessId      String    @unique
   tenantId        String
   firstName       String
   lastName        String
@@ -296,39 +353,42 @@ model Candidate {
   currentTitle    String?
   currentCompany  String?
   yearsExperience Float?
-  skills          String[]        @default([])
-  languages       String[]        @default([])
+  skills          String[]  @default([])
+  languages       String[]  @default([])
   summary         String?
-  nationality     String?                     // e.g. "Indian", "Malaysian", "Australian"
-  visaType        String?                     // current visa type e.g. "EP", "H-1B", "482"
-  visaExpiry      DateTime?                   // visa expiry date
-  visaStatus      String?                     // VALID, EXPIRING_SOON, EXPIRED, CITIZEN, PR
-  isForeigner     Boolean         @default(false) // true if candidate is a foreigner in work country
+  nationality     String? // e.g. "Indian", "Malaysian", "Australian"
+  visaType        String? // current visa type e.g. "EP", "H-1B", "482"
+  visaExpiry      DateTime? // visa expiry date
+  visaStatus      String? // VALID, EXPIRING_SOON, EXPIRED, CITIZEN, PR
+  isForeigner     Boolean   @default(false) // true if candidate is a foreigner in work country
   sourceImportId  String?
   sourceName      String?
   rawData         Json?
-  isActive        Boolean         @default(true)
-  isDuplicate     Boolean         @default(false)
+  isActive        Boolean   @default(true)
+  isDuplicate     Boolean   @default(false)
   duplicateOfId   String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sourceImport SourceImport? @relation(fields: [sourceImportId], references: [id])
-  resumes      Resume[]
-  applications Application[]
-  scorecards   Scorecard[]
-  activities   Activity[]
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceImport     SourceImport?      @relation(fields: [sourceImportId], references: [id])
+  resumes          Resume[]
+  applications     Application[]
+  scorecards       Scorecard[]
+  activities       Activity[]
   outreachMessages OutreachMessage[]
-  aiAnalyses   AiAnalysisResult[]
+  aiAnalyses       AiAnalysisResult[]
+  documents        Document[]
 
   @@index([tenantId])
   @@index([tenantId, email])
+  @@index([businessId])
   @@map("candidates")
 }
 
 model Resume {
   id          String   @id @default(uuid())
+  businessId  String   @unique
   candidateId String
   fileName    String
   fileUrl     String
@@ -342,184 +402,201 @@ model Resume {
   candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@index([candidateId])
+  @@index([businessId])
   @@map("resumes")
 }
 
 // ─── Job ──────────────────────────────────────────────────────────────────────
 
 model Job {
-  id              String   @id @default(uuid())
-  tenantId        String
-  title           String
-  department      String?
-  location        String?
-  countryCode     String?
-  jobType         String?
-  salaryMin       Float?
-  salaryMax       Float?
-  currency        String?
-  description     String?
-  requirements    String[]  @default([])
-  skills          String[]  @default([])
-  experience      String?
-  educationLevel  String?
-  parsedData      Json?
-  isActive        Boolean  @default(true)
-  closingDate     DateTime?
-  deletedAt       DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String    @id @default(uuid())
+  businessId     String    @unique
+  tenantId       String
+  title          String
+  department     String?
+  location       String?
+  countryCode    String?
+  jobType        String?
+  salaryMin      Float?
+  salaryMax      Float?
+  currency       String?
+  description    String?
+  requirements   String[]  @default([])
+  skills         String[]  @default([])
+  experience     String?
+  educationLevel String?
+  parsedData     Json?
+  isActive       Boolean   @default(true)
+  closingDate    DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   applications Application[]
   scorecards   Scorecard[]
+  documents    Document[]
 
   @@index([tenantId])
+  @@index([businessId])
   @@map("jobs")
 }
 
 // ─── Application ──────────────────────────────────────────────────────────────
 
 model Application {
-  id           String         @id @default(uuid())
-  tenantId     String
-  candidateId  String
-  jobId        String
-  stage        CandidateStage @default(SOURCED)
-  matchScore   Float?
-  scoreDetails Json?
+  id             String         @id @default(uuid())
+  businessId     String         @unique
+  tenantId       String
+  candidateId    String
+  jobId          String
+  stage          CandidateStage @default(SOURCED)
+  matchScore     Float?
+  scoreDetails   Json?
   recruiterNotes String?
-  isShortlisted Boolean       @default(false)
-  isInterview   Boolean       @default(false)
-  appliedAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  isShortlisted  Boolean        @default(false)
+  isInterview    Boolean        @default(false)
+  appliedAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate  Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job        Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
   activities Activity[]
 
   @@unique([candidateId, jobId])
   @@index([tenantId])
   @@index([jobId])
+  @@index([businessId])
   @@map("applications")
 }
 
 // ─── Lead ─────────────────────────────────────────────────────────────────────
 
 model Lead {
-  id              String     @id @default(uuid())
-  tenantId        String
-  companyId       String?
-  contactId       String?
-  firstName       String?
-  lastName        String?
-  email           String?
-  phone           String?
-  linkedinUrl     String?
-  title           String?
-  stage           LeadStage  @default(NEW)
-  score           Float?
-  scoreDetails    Json?
-  icpId           String?
-  painPoints      String[]   @default([])
-  notes           String?
-  sourceImportId  String?
-  sourceName      String?
-  rawData         Json?
-  isDuplicate     Boolean    @default(false)
-  isActive        Boolean    @default(true)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id             String    @id @default(uuid())
+  businessId     String    @unique
+  tenantId       String
+  companyId      String?
+  contactId      String?
+  firstName      String?
+  lastName       String?
+  email          String?
+  phone          String?
+  linkedinUrl    String?
+  title          String?
+  stage          LeadStage @default(NEW)
+  score          Float?
+  scoreDetails   Json?
+  icpId          String?
+  painPoints     String[]  @default([])
+  notes          String?
+  sourceImportId String?
+  sourceName     String?
+  rawData        Json?
+  isDuplicate    Boolean   @default(false)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  company      Company?      @relation(fields: [companyId], references: [id])
-  contact      Contact?      @relation(fields: [contactId], references: [id])
-  sourceImport SourceImport? @relation(fields: [sourceImportId], references: [id])
-  icp          IcpProfile?   @relation(fields: [icpId], references: [id])
-  activities   Activity[]
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company          Company?           @relation(fields: [companyId], references: [id])
+  contact          Contact?           @relation(fields: [contactId], references: [id])
+  sourceImport     SourceImport?      @relation(fields: [sourceImportId], references: [id])
+  icp              IcpProfile?        @relation(fields: [icpId], references: [id])
+  activities       Activity[]
   outreachMessages OutreachMessage[]
-  aiAnalyses   AiAnalysisResult[]
-  scorecards   Scorecard[]
+  aiAnalyses       AiAnalysisResult[]
+  scorecards       Scorecard[]
+  documents        Document[]
 
   @@index([tenantId])
   @@index([tenantId, email])
+  @@index([businessId])
   @@map("leads")
 }
 
 // ─── Company ──────────────────────────────────────────────────────────────────
 
 model Company {
-  id          String   @id @default(uuid())
-  tenantId    String
-  name        String
-  website     String?
-  industry    String?
-  size        String?
-  revenue     String?
-  countryCode String?
-  city        String?
-  description String?
-  linkedinUrl String?
-  techStack   String[] @default([])
-  painPoints  String[] @default([])
-  enrichedData Json?
-  deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String    @id @default(uuid())
+  businessId         String    @unique
+  tenantId           String
+  name               String
+  website            String?
+  domain             String?
+  registrationNumber String?
+  industry           String?
+  size               String?
+  revenue            String?
+  countryCode        String?
+  city               String?
+  description        String?
+  linkedinUrl        String?
+  techStack          String[]  @default([])
+  painPoints         String[]  @default([])
+  enrichedData       Json?
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contacts Contact[]
-  leads    Lead[]
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts   Contact[]
+  leads      Lead[]
   activities Activity[]
+  documents  Document[]
 
   @@index([tenantId])
+  @@index([businessId])
   @@map("companies")
 }
 
 // ─── Contact ──────────────────────────────────────────────────────────────────
 
 model Contact {
-  id          String   @id @default(uuid())
-  tenantId    String
-  companyId   String?
-  firstName   String
-  lastName    String
-  email       String?
-  phone       String?
-  title       String?
-  linkedinUrl String?
-  isDecisionMaker Boolean @default(false)
-  enrichedData Json?
-  deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(uuid())
+  businessId      String    @unique
+  tenantId        String
+  companyId       String?
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  title           String?
+  linkedinUrl     String?
+  isDecisionMaker Boolean   @default(false)
+  enrichedData    Json?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  company Company? @relation(fields: [companyId], references: [id])
-  leads   Lead[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company          Company?          @relation(fields: [companyId], references: [id])
+  leads            Lead[]
   outreachMessages OutreachMessage[]
+  documents        Document[]
 
   @@index([tenantId])
+  @@index([businessId])
   @@map("contacts")
 }
 
 // ─── ICP Profile ─────────────────────────────────────────────────────────────
 
 model IcpProfile {
-  id          String   @id @default(uuid())
-  tenantId    String
-  name        String
-  industries  String[] @default([])
-  companySizes String[] @default([])
-  countries   String[] @default([])
-  titleKeywords String[] @default([])
-  painPointKeywords String[] @default([])
-  techStackRequired String[] @default([])
-  description String?
-  isActive    Boolean  @default(true)
-  deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String    @id @default(uuid())
+  tenantId          String
+  name              String
+  industries        String[]  @default([])
+  companySizes      String[]  @default([])
+  countries         String[]  @default([])
+  titleKeywords     String[]  @default([])
+  painPointKeywords String[]  @default([])
+  techStackRequired String[]  @default([])
+  description       String?
+  isActive          Boolean   @default(true)
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   leads  Lead[]
@@ -531,22 +608,22 @@ model IcpProfile {
 // ─── Source Import ────────────────────────────────────────────────────────────
 
 model SourceImport {
-  id            String       @id @default(uuid())
-  tenantId      String
-  name          String
-  source        ImportSource
-  status        ImportStatus @default(PENDING)
-  totalRows     Int          @default(0)
-  successRows   Int          @default(0)
-  failedRows    Int          @default(0)
-  duplicateRows Int          @default(0)
+  id                String       @id @default(uuid())
+  tenantId          String
+  name              String
+  source            ImportSource
+  status            ImportStatus @default(PENDING)
+  totalRows         Int          @default(0)
+  successRows       Int          @default(0)
+  failedRows        Int          @default(0)
+  duplicateRows     Int          @default(0)
   mappingTemplateId String?
-  rawFileUrl    String?
-  errorReport   Json?
-  importType    String       @default("candidate")
-  importedById  String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  rawFileUrl        String?
+  errorReport       Json?
+  importType        String       @default("candidate")
+  importedById      String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   mappingTemplate MappingTemplate? @relation(fields: [mappingTemplateId], references: [id])
@@ -616,24 +693,25 @@ model OutreachSequence {
 }
 
 model OutreachMessage {
-  id             String         @id @default(uuid())
-  tenantId       String
-  sequenceId     String?
-  candidateId    String?
-  leadId         String?
-  contactId      String?
-  subject        String?
-  body           String
-  status         OutreachStatus @default(DRAFT)
-  channel        String         @default("email")
-  scheduledAt    DateTime?
-  sentAt         DateTime?
-  repliedAt      DateTime?
-  approvedById   String?
-  aiGenerated    Boolean        @default(true)
-  aiPromptUsed   String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id           String         @id @default(uuid())
+  businessId   String         @unique
+  tenantId     String
+  sequenceId   String?
+  candidateId  String?
+  leadId       String?
+  contactId    String?
+  subject      String?
+  body         String
+  status       OutreachStatus @default(DRAFT)
+  channel      String         @default("email")
+  scheduledAt  DateTime?
+  sentAt       DateTime?
+  repliedAt    DateTime?
+  approvedById String?
+  aiGenerated  Boolean        @default(true)
+  aiPromptUsed String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   sequence   OutreachSequence? @relation(fields: [sequenceId], references: [id])
   candidate  Candidate?        @relation(fields: [candidateId], references: [id])
@@ -642,16 +720,17 @@ model OutreachMessage {
   approvedBy User?             @relation(fields: [approvedById], references: [id])
 
   @@index([tenantId])
+  @@index([businessId])
   @@map("outreach_messages")
 }
 
 model SuppressionList {
-  id         String   @id @default(uuid())
-  tenantId   String
-  email      String?
-  phone      String?
-  reason     String?
-  addedAt    DateTime @default(now())
+  id       String   @id @default(uuid())
+  tenantId String
+  email    String?
+  phone    String?
+  reason   String?
+  addedAt  DateTime @default(now())
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -661,18 +740,19 @@ model SuppressionList {
 // ─── Activity / Timeline ──────────────────────────────────────────────────────
 
 model Activity {
-  id           String       @id @default(uuid())
-  tenantId     String
-  userId       String?
-  candidateId  String?
-  leadId       String?
-  companyId    String?
+  id            String       @id @default(uuid())
+  businessId    String       @unique
+  tenantId      String
+  userId        String?
+  candidateId   String?
+  leadId        String?
+  companyId     String?
   applicationId String?
-  type         ActivityType
-  title        String
-  description  String?
-  metadata     Json?
-  createdAt    DateTime     @default(now())
+  type          ActivityType
+  title         String
+  description   String?
+  metadata      Json?
+  createdAt     DateTime     @default(now())
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id])
   user        User?        @relation(fields: [userId], references: [id])
@@ -684,23 +764,24 @@ model Activity {
   @@index([tenantId])
   @@index([candidateId])
   @@index([leadId])
+  @@index([businessId])
   @@map("activities")
 }
 
 // ─── Scorecard ────────────────────────────────────────────────────────────────
 
 model Scorecard {
-  id           String   @id @default(uuid())
-  tenantId     String
-  candidateId  String?
-  leadId       String?
-  jobId        String?
-  score        Float
-  maxScore     Float    @default(100)
-  breakdown    Json
-  explanation  String?
-  aiGenerated  Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id          String   @id @default(uuid())
+  tenantId    String
+  candidateId String?
+  leadId      String?
+  jobId       String?
+  score       Float
+  maxScore    Float    @default(100)
+  breakdown   Json
+  explanation String?
+  aiGenerated Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   tenant    Tenant     @relation(fields: [tenantId], references: [id])
   candidate Candidate? @relation(fields: [candidateId], references: [id])
@@ -714,21 +795,21 @@ model Scorecard {
 // ─── AI Analysis Result ───────────────────────────────────────────────────────
 
 model AiAnalysisResult {
-  id           String        @id @default(uuid())
-  tenantId     String
-  serviceType  AiServiceType
-  candidateId  String?
-  leadId       String?
-  inputData    Json
-  outputData   Json
-  model        String
-  tokensUsed   Int           @default(0)
-  latencyMs    Int?
-  promptId     String?
-  createdAt    DateTime      @default(now())
+  id          String        @id @default(uuid())
+  tenantId    String
+  serviceType AiServiceType
+  candidateId String?
+  leadId      String?
+  inputData   Json
+  outputData  Json
+  model       String
+  tokensUsed  Int           @default(0)
+  latencyMs   Int?
+  promptId    String?
+  createdAt   DateTime      @default(now())
 
-  candidate Candidate?     @relation(fields: [candidateId], references: [id])
-  lead      Lead?          @relation(fields: [leadId], references: [id])
+  candidate Candidate?      @relation(fields: [candidateId], references: [id])
+  lead      Lead?           @relation(fields: [leadId], references: [id])
   prompt    PromptTemplate? @relation(fields: [promptId], references: [id])
 
   @@index([tenantId])
@@ -738,21 +819,21 @@ model AiAnalysisResult {
 // ─── AI Prompt Templates ──────────────────────────────────────────────────────
 
 model PromptTemplate {
-  id          String        @id @default(uuid())
-  tenantId    String?
-  serviceType AiServiceType
-  name        String
-  version     Int           @default(1)
-  prompt      String
+  id           String        @id @default(uuid())
+  tenantId     String?
+  serviceType  AiServiceType
+  name         String
+  version      Int           @default(1)
+  prompt       String
   systemPrompt String?
-  variables   String[]      @default([])
-  isActive    Boolean       @default(true)
-  isDefault   Boolean       @default(false)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  variables    String[]      @default([])
+  isActive     Boolean       @default(true)
+  isDefault    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  tenant     Tenant?            @relation(fields: [tenantId], references: [id])
-  aiResults  AiAnalysisResult[]
+  tenant    Tenant?            @relation(fields: [tenantId], references: [id])
+  aiResults AiAnalysisResult[]
 
   @@index([tenantId])
   @@index([serviceType])
@@ -781,6 +862,7 @@ model AiUsageLog {
 
 model WorkflowRun {
   id           String            @id @default(uuid())
+  businessId   String            @unique
   tenantId     String
   workflowType WorkflowType
   status       WorkflowRunStatus @default(QUEUED)
@@ -799,6 +881,7 @@ model WorkflowRun {
 
   @@index([tenantId])
   @@index([workflowType])
+  @@index([businessId])
   @@map("workflow_runs")
 }
 
@@ -827,6 +910,7 @@ model Integration {
 // ─── Billing & Subscriptions ──────────────────────────────────────────────────
 
 enum PlanTier {
+  FREE
   STARTER
   GROWTH
   PROFESSIONAL
@@ -850,24 +934,24 @@ enum InvoiceStatus {
 }
 
 model Plan {
-  id                String    @id @default(uuid())
-  name              String
-  tier              PlanTier
-  description       String?
-  monthlyPrice      Float
-  annualPrice       Float
-  currency          String    @default("USD")
-  maxUsers          Int       @default(5)
-  maxCandidates     Int       @default(500)
-  maxLeads          Int       @default(500)
-  maxAiCalls        Int       @default(100)
-  maxImports        Int       @default(10)
-  features          String[]  @default([])
-  isActive          Boolean   @default(true)
-  stripeMonthlyId   String?
-  stripeAnnualId    String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id              String   @id @default(uuid())
+  name            String
+  tier            PlanTier
+  description     String?
+  monthlyPrice    Float
+  annualPrice     Float
+  currency        String   @default("USD")
+  maxUsers        Int      @default(5)
+  maxCandidates   Int      @default(500)
+  maxLeads        Int      @default(500)
+  maxAiCalls      Int      @default(100)
+  maxImports      Int      @default(10)
+  features        String[] @default([])
+  isActive        Boolean  @default(true)
+  stripeMonthlyId String?
+  stripeAnnualId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   subscriptions Subscription[]
 
@@ -875,22 +959,22 @@ model Plan {
 }
 
 model Subscription {
-  id                   String             @id @default(uuid())
-  tenantId             String             @unique
-  planId               String
-  status               SubscriptionStatus @default(TRIALING)
-  billingCycle         String             @default("monthly")
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
-  trialEndsAt          DateTime?
-  cancelledAt          DateTime?
-  stripeSubId          String?
-  stripeCustomerId     String?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  id                 String             @id @default(uuid())
+  tenantId           String             @unique
+  planId             String
+  status             SubscriptionStatus @default(TRIALING)
+  billingCycle       String             @default("monthly")
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  trialEndsAt        DateTime?
+  cancelledAt        DateTime?
+  stripeSubId        String?
+  stripeCustomerId   String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  plan     Plan      @relation(fields: [planId], references: [id])
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan     Plan          @relation(fields: [planId], references: [id])
   invoices Invoice[]
   usages   UsageRecord[]
 
@@ -899,21 +983,21 @@ model Subscription {
 }
 
 model Invoice {
-  id             String        @id @default(uuid())
-  tenantId       String
-  subscriptionId String
-  invoiceNumber  String        @unique
-  status         InvoiceStatus @default(DRAFT)
-  amount         Float
-  tax            Float         @default(0)
-  total          Float
-  currency       String        @default("USD")
-  dueDate        DateTime?
-  paidAt         DateTime?
+  id              String        @id @default(uuid())
+  tenantId        String
+  subscriptionId  String
+  invoiceNumber   String        @unique
+  status          InvoiceStatus @default(DRAFT)
+  amount          Float
+  tax             Float         @default(0)
+  total           Float
+  currency        String        @default("USD")
+  dueDate         DateTime?
+  paidAt          DateTime?
   stripeInvoiceId String?
-  lineItems      Json          @default("[]")
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  lineItems       Json          @default("[]")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   subscription Subscription @relation(fields: [subscriptionId], references: [id])
 
@@ -937,6 +1021,60 @@ model UsageRecord {
   @@map("usage_records")
 }
 
+// ─── Document Storage ──────────────────────────────────────────────────────────
+
+model Document {
+  id              String       @id @default(uuid())
+  businessId      String       @unique
+  tenantId        String
+  type            DocumentType @default(OTHER)
+  status          UploadStatus @default(PENDING)
+
+  // File metadata
+  originalName    String
+  mimeType        String
+  fileSize        Int            // bytes
+  storageKey      String         // S3/MinIO object key
+  storageBucket   String         @default("documents")
+  checksum        String         // SHA-256 hash for dedup + integrity
+
+  // Parsed content
+  rawText         String?        // extracted text for search
+  parsedData      Json?          // structured parsed output
+  aiSummary       String?        // AI-generated summary
+
+  // Linked entities (polymorphic — at most one set)
+  candidateId     String?
+  leadId          String?
+  companyId       String?
+  contactId       String?
+  jobId           String?
+
+  // Audit
+  uploadedByUserId String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy  User       @relation(fields: [uploadedByUserId], references: [id])
+  candidate   Candidate? @relation(fields: [candidateId], references: [id])
+  lead        Lead?      @relation(fields: [leadId], references: [id])
+  company     Company?   @relation(fields: [companyId], references: [id])
+  contact     Contact?   @relation(fields: [contactId], references: [id])
+  job         Job?       @relation(fields: [jobId], references: [id])
+
+  @@index([tenantId])
+  @@index([businessId])
+  @@index([tenantId, type])
+  @@index([checksum])
+  @@index([candidateId])
+  @@index([leadId])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([jobId])
+  @@map("documents")
+}
+
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 
 model AuditLog {
@@ -958,4 +1096,49 @@ model AuditLog {
   @@index([tenantId])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+// ─── Tenant Invite ────────────────────────────────────────────────────────────
+
+model TenantInvite {
+  id               String       @id @default(uuid())
+  tenantId         String
+  email            String
+  fullName         String?
+  role             UserRole     @default(VIEWER)
+  token            String       @unique
+  status           InviteStatus @default(PENDING)
+  expiresAt        DateTime
+  invitedByUserId  String
+  acceptedByUserId String?
+  acceptedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedBy  User   @relation("InviteSender", fields: [invitedByUserId], references: [id])
+  acceptedBy User?  @relation("InviteAcceptor", fields: [acceptedByUserId], references: [id])
+
+  @@unique([tenantId, email, status])
+  @@index([tenantId])
+  @@index([token])
+  @@map("tenant_invites")
+}
+
+// ─── Tenant Onboarding ────────────────────────────────────────────────────────
+
+model TenantOnboarding {
+  id          String    @id @default(uuid())
+  tenantId    String    @unique
+  currentStep String    @default("company_details")
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("tenant_onboardings")
 }

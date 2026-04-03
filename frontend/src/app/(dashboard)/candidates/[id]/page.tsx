@@ -7,6 +7,7 @@ import { Zap, Mail, FileText, ChevronRight, AlertTriangle, X, Copy } from 'lucid
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
+import { BusinessIdBadge } from '@/components/layout/business-id-badge';
 
 const STAGE_BADGE: Record<string, string> = {
   SOURCED: 'badge-gray', SCREENED: 'badge-purple', INTERVIEWING: 'badge-blue',
@@ -114,7 +115,10 @@ export default function CandidateDetailPage() {
               {candidate.firstName?.[0]}{candidate.lastName?.[0]}
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{candidate.firstName} {candidate.lastName}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-900">{candidate.firstName} {candidate.lastName}</h1>
+                <BusinessIdBadge businessId={candidate.businessId} />
+              </div>
               <div className="text-gray-500">{candidate.currentTitle} {candidate.currentCompany ? `@ ${candidate.currentCompany}` : ''}</div>
               <div className="flex items-center gap-2 mt-2">
                 <span className={STAGE_BADGE[candidate.stage] ?? 'badge-gray'}>{candidate.stage}</span>

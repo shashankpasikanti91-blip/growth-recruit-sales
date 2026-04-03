@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LeadScoringService } from '../ai/services/lead-scoring.service';
+import { BusinessIdService } from '../billing/business-id.service';
+import { UsageService } from '../billing/usage.service';
+import { DuplicateDetectionService } from '../search/duplicate-detection.service';
 import { CreateLeadDto, UpdateLeadDto, UpdateLeadStageDto } from './dto/lead.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -10,15 +13,20 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly leadScoring: LeadScoringService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly businessIdService: BusinessIdService,
+    private readonly usageService: UsageService,
+    private readonly duplicateDetection: DuplicateDetectionService,
   ) {}
 
   async create(tenantId: string, dto: CreateLeadDto) {
-    if (dto.email) {
-      const existing = await this.prisma.lead.findFirst({
-        where: { tenantId, email: dto.email },
-      });
-      if (existing) throw new ConflictException('Lead with this email already exists');
-    }
+    // Enforce lead usage limit
+    await this.usageService.enforceAndIncrement(tenantId, 'lead');
+
+    // Check for duplicates
+    const dupeCheck = await this.duplicateDetection.checkLead(tenantId, {
+      email: dto.email, phone: dto.phone, linkedinUrl: dto.linkedinUrl,
+      firstName: dto.firstName, lastName: dto.lastName, companyId: dto.companyId,
+    });
 
     // Use firstName/lastName directly, or split fullName if provided
     let firstName = dto.firstName ?? '';
@@ -29,9 +37,12 @@ export class LeadsService {
       lastName = nameParts.slice(1).join(' ') || firstName;
     }
 
-    return this.prisma.lead.create({
+    const businessId = await this.businessIdService.generate('lead');
+
+    const lead = await this.prisma.lead.create({
       data: {
         tenantId,
+        businessId,
         firstName,
         lastName,
         email: dto.email,
@@ -41,8 +52,11 @@ export class LeadsService {
         linkedinUrl: dto.linkedinUrl,
         sourceName: dto.source ?? 'manual',
         stage: 'NEW',
+        isDuplicate: dupeCheck.isDuplicate,
       },
     });
+
+    return { ...lead, duplicateWarning: dupeCheck.isDuplicate ? dupeCheck.matches : undefined };
   }
 
   async findAll(
@@ -65,9 +79,11 @@ export class LeadsService {
 
     if (search) {
       where.OR = [
+        { businessId: { equals: search, mode: 'insensitive' } },
         { firstName: { contains: search, mode: 'insensitive' } },
         { lastName: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
         { title: { contains: search, mode: 'insensitive' } },
       ];
     }
@@ -136,6 +152,9 @@ export class LeadsService {
   }
 
   async scoreLead(tenantId: string, id: string) {
+    // Enforce AI usage limit
+    await this.usageService.enforceAndIncrement(tenantId, 'ai');
+
     const lead = await this.prisma.lead.findFirst({
       where: { id, tenantId },
       include: { company: true },
@@ -167,8 +186,9 @@ export class LeadsService {
 
   async addNote(tenantId: string, id: string, note: string) {
     await this.findOne(tenantId, id);
+    const businessId = await this.businessIdService.generate('activity');
     return this.prisma.activity.create({
-      data: { tenantId, leadId: id, type: 'NOTE', title: 'Note added', description: note },
+      data: { tenantId, businessId, leadId: id, type: 'NOTE', title: 'Note added', description: note },
     });
   }
 }

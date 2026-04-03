@@ -1,11 +1,15 @@
 import { Injectable, ConflictException, NotFoundException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessIdService } from '../billing/business-id.service';
 import { CreateUserDto, UpdateUserDto, ChangePasswordDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+  ) {}
 
   async create(tenantId: string, dto: CreateUserDto) {
     // Check tenant user limit
@@ -23,8 +27,14 @@ export class UsersService {
     if (existing) throw new ConflictException('Email already registered in this tenant');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
+    const businessId = await this.businessIdService.generate('user');
     const user = await this.prisma.user.create({
-      data: { tenantId, email: dto.email, passwordHash, firstName: dto.firstName, lastName: dto.lastName, role: dto.role },
+      data: {
+        tenantId, email: dto.email, passwordHash, businessId,
+        firstName: dto.firstName, lastName: dto.lastName,
+        fullName: `${dto.firstName} ${dto.lastName}`,
+        role: dto.role,
+      },
     });
 
     const { passwordHash: _, ...safe } = user;

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import { BusinessIdBadge } from '@/components/layout/business-id-badge';
 
 const STAGE_COLORS: Record<string, string> = {
   SOURCED: 'bg-gray-100 text-gray-700',
@@ -92,6 +93,7 @@ export default function JobDetailPage() {
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="text-xl font-bold text-gray-900">{job.title}</h1>
+                  <BusinessIdBadge businessId={job.businessId} />
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${job.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                     {job.isActive ? 'Open' : 'Closed'}
                   </span>

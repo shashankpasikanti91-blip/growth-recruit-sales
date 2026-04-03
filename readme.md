@@ -34,6 +34,7 @@
 | Backend | NestJS 10, Prisma 5, BullMQ |
 | Database | PostgreSQL |
 | Cache | Redis |
+| Object Storage | MinIO (S3-compatible) |
 | AI | OpenRouter (GPT-4o, Claude) |
 | Orchestration | n8n |
 | Deployment | Docker Compose, Nginx, Certbot |
@@ -45,12 +46,34 @@
 - **Jobs** — Post jobs, view applications, change stages, AI screen candidates
 - **Leads** — Sales pipeline with AI ICP scoring, stage management
 - **Companies & Contacts** — CRM for client organizations
+- **Document Vault** — Secure S3 document storage with AES-256 encryption, signed URL downloads, duplicate detection, and full audit trail
 - **Outreach** — AI-generated personalized emails with approval workflow
 - **AI Screen** — Resume parser, JD parser (PDF/DOCX upload), AI screening
 - **Visa Guide** — 16 visa types across 7 countries with 2025-2026 data + immigration links
 - **Imports** — CSV / Excel / manual data import with field mapping
 - **Analytics** — Recruitment funnel, sales metrics, AI usage tracking
 - **Billing** — Subscription plans with usage limits
+- **Google OAuth** — SSO with account linking and invite-based onboarding
+- **Team Management** — Invite users, assign roles, manage team from dashboard
+- **Onboarding Wizard** — Guided 5-step tenant setup flow
+
+### Security Features
+
+| Feature | Details |
+|---------|--------|
+| Encryption at rest | AES-256 server-side encryption for all documents in S3 storage |
+| Encryption in transit | TLS 1.3 with HSTS preload headers |
+| Tenant isolation | Database-level + API-level tenant scoping on every query |
+| Authentication | JWT + refresh token rotation, Google OAuth2 SSO |
+| Authorization | Role-based access control (RBAC) with 5 roles |
+| File validation | Strict MIME type allowlist + size limits + SHA-256 checksum |
+| Duplicate detection | Checksum-based duplicate file detection per tenant |
+| Signed URLs | Time-limited (15 min) pre-signed download URLs for documents |
+| Audit logging | Every mutation tracked with actor, timestamp, IP, and user-agent |
+| Security headers | Helmet.js + CSP + X-Frame-Options DENY + nosniff + strict referrer |
+| Rate limiting | 1000 req/min global throttle via NestJS Throttler |
+| Input validation | Whitelist-only DTO validation with class-validator |
+| Error sanitization | Global exception filter prevents raw DB error leakage |
 
 ---
 
@@ -199,6 +222,39 @@ Each country config contains:
 | `Mapping Template` | Reusable field mapping config |
 | `AI Analysis Result` | Score, explanation, structured output from AI |
 | `Scorecard` | Candidate or lead scoring with breakdown |
+| `Document` | Uploaded file (resume, proposal, contract) with S3 storage, checksum, and entity linking |
+
+---
+
+### 3.1. Document Storage Module
+
+> Secure, tenant-isolated document management with S3-compatible object storage.
+
+| Feature | Details |
+|---------|---------|
+| Storage backend | MinIO (S3-compatible), supports AWS S3 / Cloudflare R2 |
+| Encryption | AES-256 server-side encryption on all objects |
+| Document types | RESUME, LEAD_DOC, PROPOSAL, CONTRACT, COMPANY_DOC, OTHER |
+| Entity linking | Documents can be linked to Candidate, Lead, Company, Contact, or Job |
+| Duplicate detection | SHA-256 checksum dedup per tenant |
+| Access control | Tenant-scoped queries, signed URL downloads (15 min expiry) |
+| File validation | MIME type allowlist + configurable size limits (default 25 MB) |
+| Business IDs | `DOC-YYYYMM-000001` format |
+| Re-parsing | Extract text from PDF/DOCX for updated AI pipelines |
+| Audit | Upload, download, and deletion logged via audit system |
+
+**API Endpoints:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/documents/upload` | Upload document (multipart/form-data) |
+| `GET` | `/api/v1/documents` | List documents with filters (type, entity, search) |
+| `GET` | `/api/v1/documents/:id` | Get document details with linked entities |
+| `GET` | `/api/v1/documents/:id/download-url` | Get signed download URL |
+| `GET` | `/api/v1/documents/:id/download` | Backend proxy download |
+| `PATCH` | `/api/v1/documents/:id/link` | Link document to entity |
+| `POST` | `/api/v1/documents/:id/reparse` | Re-parse document text |
+| `DELETE` | `/api/v1/documents/:id` | Delete document |
 
 ---
 

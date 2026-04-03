@@ -17,6 +17,35 @@ export class LoginDto {
   tenantSlug?: string;
 }
 
+export class SignupDto {
+  @ApiProperty({ example: 'john@company.com' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: 'StrongP@ss123' })
+  @IsString()
+  @MinLength(8)
+  password: string;
+
+  @ApiProperty({ example: 'John' })
+  @IsString()
+  firstName: string;
+
+  @ApiProperty({ example: 'Doe' })
+  @IsString()
+  lastName: string;
+
+  @ApiProperty({ example: 'Acme Corp', required: false })
+  @IsOptional()
+  @IsString()
+  companyName?: string;
+
+  @ApiProperty({ required: false, description: 'Invite token for joining existing tenant' })
+  @IsOptional()
+  @IsString()
+  inviteToken?: string;
+}
+
 export class RefreshTokenDto {
   @ApiProperty()
   @IsString()

@@ -26,6 +26,10 @@ import { AuditModule } from './modules/audit/audit.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { HealthModule } from './modules/health/health.module';
 import { AppCacheModule } from './modules/cache/cache.module';
+import { SearchModule } from './modules/search/search.module';
+import { TeamModule } from './modules/team/team.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 import { DedupeProcessor } from './processors/dedupe.processor';
 import { EnrichmentProcessor } from './processors/enrichment.processor';
 import { OutreachProcessor } from './processors/outreach.processor';
@@ -37,13 +41,14 @@ import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
 import aiConfig from './config/ai.config';
 import redisConfig from './config/redis.config';
+import storageConfig from './config/storage.config';
 
 @Module({
   imports: [
     // Config
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, authConfig, aiConfig, redisConfig],
+      load: [appConfig, databaseConfig, authConfig, aiConfig, redisConfig, storageConfig],
       envFilePath: ['.env'],
     }),
 
@@ -103,6 +108,10 @@ import redisConfig from './config/redis.config';
     IntegrationsModule,
     BillingModule,
     HealthModule,
+    SearchModule,
+    TeamModule,
+    OnboardingModule,
+    DocumentsModule,
   ],
   providers: [
     // Background processors — registered at root level since they depend on cross-module services

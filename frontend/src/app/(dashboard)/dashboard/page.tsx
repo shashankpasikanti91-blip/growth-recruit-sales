@@ -1,8 +1,8 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { analyticsApi } from '@/lib/api-client';
+import { analyticsApi, tenantUsageApi } from '@/lib/api-client';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, Briefcase, UserPlus, TrendingUp, Zap, ArrowRight } from 'lucide-react';
+import { Users, Briefcase, UserPlus, TrendingUp, Zap, ArrowRight, Target, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 const STAGE_COLORS: Record<string, string> = {
@@ -54,6 +54,11 @@ export default function DashboardPage() {
   const { data: aiUsage } = useQuery({
     queryKey: ['analytics', 'ai-usage'],
     queryFn: () => analyticsApi.aiUsage(30),
+  });
+
+  const { data: tenantUsage } = useQuery({
+    queryKey: ['tenant-usage'],
+    queryFn: () => tenantUsageApi.get(),
   });
 
   const stageData = recruitment?.stageBreakdown?.map((s: any) => ({
@@ -118,6 +123,52 @@ export default function DashboardPage() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Plan Usage */}
+        {tenantUsage && (
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900">Plan Usage This Month</h2>
+              <Link href="/billing" className="text-xs text-brand-600 font-medium hover:underline">
+                Manage plan →
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {[
+                { label: 'Candidates', used: tenantUsage.candidates?.used ?? 0, limit: tenantUsage.candidates?.limit ?? 0, color: 'bg-blue-500', icon: UserPlus },
+                { label: 'Leads', used: tenantUsage.leads?.used ?? 0, limit: tenantUsage.leads?.limit ?? 0, color: 'bg-purple-500', icon: Target },
+                { label: 'AI Processing', used: tenantUsage.ai?.used ?? 0, limit: tenantUsage.ai?.limit ?? 0, color: 'bg-amber-500', icon: Zap },
+              ].map((meter) => {
+                const isUnlimited = meter.limit === -1 || meter.limit >= 999999;
+                const pct = isUnlimited ? 0 : meter.limit > 0 ? Math.min(100, Math.round((meter.used / meter.limit) * 100)) : 0;
+                const isWarning = !isUnlimited && pct >= 80;
+                const isCritical = !isUnlimited && pct >= 95;
+                return (
+                  <div key={meter.label}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-600">{meter.label}</span>
+                      <span className="text-xs text-gray-400">
+                        {meter.used.toLocaleString()} / {isUnlimited ? '∞' : meter.limit.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${isCritical ? 'bg-red-500' : isWarning ? 'bg-amber-500' : meter.color}`}
+                        style={{ width: isUnlimited ? '0%' : `${pct}%` }}
+                      />
+                    </div>
+                    {isCritical && (
+                      <div className="flex items-center gap-1 mt-1 text-xs text-red-500">
+                        <AlertCircle className="w-3 h-3" /> Usage limit almost reached —{' '}
+                        <Link href="/billing" className="underline font-medium">upgrade plan</Link>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Recruitment pipeline */}
         <div className="card">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Recruitment Pipeline</h2>

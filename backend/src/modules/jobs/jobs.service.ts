@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { JdParserService } from '../ai/services/jd-parser.service';
+import { BusinessIdService } from '../billing/business-id.service';
 
 @Injectable()
 export class JobsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jdParser: JdParserService,
+    private readonly businessIdService: BusinessIdService,
   ) {}
 
   async create(tenantId: string, createdById: string, dto: CreateJobDto) {
@@ -24,9 +26,11 @@ export class JobsService {
       }
     }
 
+    const businessId = await this.businessIdService.generate('job');
     return this.prisma.job.create({
       data: {
         tenantId,
+        businessId,
         title: dto.title,
         department: dto.department,
         location: dto.location,
@@ -55,6 +59,7 @@ export class JobsService {
 
     if (search) {
       where.OR = [
+        { businessId: { contains: search, mode: 'insensitive' } },
         { title: { contains: search, mode: 'insensitive' } },
         { department: { contains: search, mode: 'insensitive' } },
         { location: { contains: search, mode: 'insensitive' } },

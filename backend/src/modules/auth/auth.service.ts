@@ -1,10 +1,14 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LoginDto } from './dto/login.dto';
+import { LoginDto, SignupDto } from './dto/login.dto';
+import { GoogleProfile } from './strategies/google.strategy';
 import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
+import { BusinessIdService } from '../billing/business-id.service';
+import { getPlanConfig } from '../../config/plans.config';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +16,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly businessIdService: BusinessIdService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -110,6 +115,345 @@ export class AuthService {
       await this.prisma.refreshToken.deleteMany({ where: { userId } });
     }
     return { message: 'Logged out successfully' };
+  }
+
+  // ── Signup (Email) ─────────────────────────────────────────────────────────
+
+  async signup(dto: SignupDto) {
+    // Check if the user is signing up via an invite
+    let invite: any = null;
+    if (dto.inviteToken) {
+      invite = await this.prisma.tenantInvite.findUnique({
+        where: { token: dto.inviteToken },
+        include: { tenant: true },
+      });
+
+      if (!invite) throw new BadRequestException('Invalid invite token');
+      if (invite.status !== 'PENDING') throw new BadRequestException('This invite has already been used or revoked');
+      if (invite.expiresAt < new Date()) throw new BadRequestException('This invite has expired');
+      if (invite.email.toLowerCase() !== dto.email.toLowerCase()) {
+        throw new BadRequestException('Email does not match the invite');
+      }
+    }
+
+    const tenantId = invite?.tenantId;
+    const role = invite?.role ?? 'TENANT_ADMIN';
+
+    // If signing up without invite, create new tenant
+    if (!tenantId) {
+      // Check if email is already used
+      const existingUser = await this.prisma.user.findFirst({
+        where: { email: dto.email.toLowerCase() },
+      });
+      if (existingUser) throw new ConflictException('An account with this email already exists. Please log in instead.');
+
+      return this.createNewTenantWithUser({
+        email: dto.email.toLowerCase(),
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        passwordHash: await bcrypt.hash(dto.password, 12),
+        authProvider: 'EMAIL',
+        companyName: dto.companyName,
+      });
+    }
+
+    // Signing up with invite — join existing tenant
+    const existing = await this.prisma.user.findUnique({
+      where: { tenantId_email: { tenantId, email: dto.email.toLowerCase() } },
+    });
+    if (existing) throw new ConflictException('You already have an account in this workspace');
+
+    // Check tenant user limit
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const userCount = await this.prisma.user.count({ where: { tenantId, isActive: true } });
+    if (userCount >= (tenant?.maxUsers ?? 1)) {
+      throw new ForbiddenException('This workspace has reached its user limit');
+    }
+
+    const businessId = await this.businessIdService.generate('user');
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    const user = await this.prisma.user.create({
+      data: {
+        tenantId,
+        businessId,
+        email: dto.email.toLowerCase(),
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        fullName: `${dto.firstName} ${dto.lastName}`,
+        role: role as any,
+        authProvider: 'EMAIL',
+        invitedByUserId: invite.invitedByUserId,
+        invitedAt: invite.createdAt,
+      },
+    });
+
+    // Accept the invite
+    await this.prisma.tenantInvite.update({
+      where: { id: invite.id },
+      data: { status: 'ACCEPTED', acceptedByUserId: user.id, acceptedAt: new Date() },
+    });
+
+    const tokens = await this.generateTokens(user.id, user.email, user.tenantId, user.role);
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: this.sanitizeUser(user, invite.tenant),
+      isNewTenant: false,
+    };
+  }
+
+  // ── Google Auth ────────────────────────────────────────────────────────────
+
+  async handleGoogleAuth(profile: GoogleProfile, inviteToken?: string) {
+    const email = profile.email.toLowerCase();
+
+    // Case 1: invited user — check and consume the invite
+    if (inviteToken) {
+      return this.handleGoogleInviteAcceptance(profile, inviteToken);
+    }
+
+    // Case 2: existing user by googleId — log in
+    const userByGoogleId = await this.prisma.user.findFirst({
+      where: { googleId: profile.googleId, isActive: true },
+      include: { tenant: true },
+    });
+
+    if (userByGoogleId) {
+      if (!userByGoogleId.tenant.isActive) throw new UnauthorizedException('Tenant is inactive');
+      await this.prisma.user.update({
+        where: { id: userByGoogleId.id },
+        data: { lastLoginAt: new Date() },
+      });
+      const tokens = await this.generateTokens(userByGoogleId.id, userByGoogleId.email, userByGoogleId.tenantId, userByGoogleId.role);
+      return {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        user: this.sanitizeUser(userByGoogleId, userByGoogleId.tenant),
+        isNewTenant: false,
+      };
+    }
+
+    // Case 3: existing email user (same tenant) — link Google account
+    const existingUsers = await this.prisma.user.findMany({
+      where: { email, isActive: true },
+      include: { tenant: true },
+    });
+
+    if (existingUsers.length === 1) {
+      const user = existingUsers[0];
+      if (!user.tenant.isActive) throw new UnauthorizedException('Tenant is inactive');
+
+      // Safe account linking: update googleId
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { googleId: profile.googleId, authProvider: 'GOOGLE', lastLoginAt: new Date() },
+      });
+
+      const tokens = await this.generateTokens(user.id, user.email, user.tenantId, user.role);
+      return {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        user: this.sanitizeUser(user, user.tenant),
+        isNewTenant: false,
+      };
+    }
+
+    if (existingUsers.length > 1) {
+      // Multiple tenants with same email — don't auto-join
+      throw new BadRequestException(
+        'Multiple accounts exist with this email. Please log in with email/password and specify your workspace slug.',
+      );
+    }
+
+    // Case 4: Check for pending invite matching email
+    const pendingInvite = await this.prisma.tenantInvite.findFirst({
+      where: { email, status: 'PENDING', expiresAt: { gt: new Date() } },
+      include: { tenant: true },
+    });
+
+    if (pendingInvite) {
+      return this.handleGoogleInviteAcceptance(profile, pendingInvite.token);
+    }
+
+    // Case 5: Brand new user — create new tenant
+    return this.createNewTenantWithUser({
+      email,
+      firstName: profile.firstName || profile.fullName.split(' ')[0] || 'User',
+      lastName: profile.lastName || profile.fullName.split(' ').slice(1).join(' ') || '',
+      authProvider: 'GOOGLE',
+      googleId: profile.googleId,
+    });
+  }
+
+  private async handleGoogleInviteAcceptance(profile: GoogleProfile, inviteToken: string) {
+    const email = profile.email.toLowerCase();
+    const invite = await this.prisma.tenantInvite.findUnique({
+      where: { token: inviteToken },
+      include: { tenant: true },
+    });
+
+    if (!invite) throw new BadRequestException('Invalid invite token');
+    if (invite.status !== 'PENDING') throw new BadRequestException('This invite has already been used or revoked');
+    if (invite.expiresAt < new Date()) throw new BadRequestException('This invite has expired');
+    if (invite.email.toLowerCase() !== email) {
+      throw new BadRequestException('Google account email does not match the invite email');
+    }
+
+    // Check if user already exists in this tenant
+    const existing = await this.prisma.user.findUnique({
+      where: { tenantId_email: { tenantId: invite.tenantId, email } },
+    });
+    if (existing) {
+      // Link Google and accept invite
+      await this.prisma.user.update({
+        where: { id: existing.id },
+        data: { googleId: profile.googleId, authProvider: 'GOOGLE', lastLoginAt: new Date() },
+      });
+      await this.prisma.tenantInvite.update({
+        where: { id: invite.id },
+        data: { status: 'ACCEPTED', acceptedByUserId: existing.id, acceptedAt: new Date() },
+      });
+      const tokens = await this.generateTokens(existing.id, existing.email, existing.tenantId, existing.role);
+      return {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        user: this.sanitizeUser(existing, invite.tenant),
+        isNewTenant: false,
+      };
+    }
+
+    // Check tenant user limit
+    const userCount = await this.prisma.user.count({ where: { tenantId: invite.tenantId, isActive: true } });
+    if (userCount >= (invite.tenant.maxUsers ?? 1)) {
+      throw new ForbiddenException('This workspace has reached its user limit');
+    }
+
+    const businessId = await this.businessIdService.generate('user');
+
+    const user = await this.prisma.user.create({
+      data: {
+        tenantId: invite.tenantId,
+        businessId,
+        email,
+        firstName: profile.firstName || profile.fullName.split(' ')[0] || 'User',
+        lastName: profile.lastName || profile.fullName.split(' ').slice(1).join(' ') || '',
+        fullName: profile.fullName || `${profile.firstName} ${profile.lastName}`,
+        role: invite.role,
+        authProvider: 'GOOGLE',
+        googleId: profile.googleId,
+        invitedByUserId: invite.invitedByUserId,
+        invitedAt: invite.createdAt,
+        lastLoginAt: new Date(),
+      },
+    });
+
+    await this.prisma.tenantInvite.update({
+      where: { id: invite.id },
+      data: { status: 'ACCEPTED', acceptedByUserId: user.id, acceptedAt: new Date() },
+    });
+
+    const tokens = await this.generateTokens(user.id, user.email, user.tenantId, user.role);
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: this.sanitizeUser(user, invite.tenant),
+      isNewTenant: false,
+    };
+  }
+
+  // ── New Tenant Creation ────────────────────────────────────────────────────
+
+  private async createNewTenantWithUser(data: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    passwordHash?: string;
+    authProvider: 'EMAIL' | 'GOOGLE';
+    googleId?: string;
+    companyName?: string;
+  }) {
+    const slug = this.generateSlug(data.companyName || `${data.firstName}-${data.lastName}`);
+    const tenantBusinessId = await this.businessIdService.generate('tenant');
+    const userBusinessId = await this.businessIdService.generate('user');
+    const planConfig = getPlanConfig('FREE');
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: {
+          businessId: tenantBusinessId,
+          name: data.companyName || `${data.firstName}'s Workspace`,
+          slug,
+          plan: planConfig.tier,
+          maxUsers: planConfig.maxUsers,
+          maxCandidatesPerMonth: planConfig.maxCandidatesPerMonth,
+          maxLeadsPerMonth: planConfig.maxLeadsPerMonth,
+          maxAiUsagePerMonth: planConfig.maxAiUsagePerMonth,
+        },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          tenantId: tenant.id,
+          businessId: userBusinessId,
+          email: data.email,
+          passwordHash: data.passwordHash ?? null,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          fullName: `${data.firstName} ${data.lastName}`,
+          role: 'TENANT_ADMIN',
+          authProvider: data.authProvider,
+          googleId: data.googleId ?? null,
+          lastLoginAt: new Date(),
+        },
+      });
+
+      // Create onboarding record
+      await tx.tenantOnboarding.create({
+        data: { tenantId: tenant.id },
+      });
+
+      return { tenant, user };
+    });
+
+    const tokens = await this.generateTokens(
+      result.user.id, result.user.email, result.tenant.id, result.user.role,
+    );
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: this.sanitizeUser(result.user, result.tenant),
+      isNewTenant: true,
+    };
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  private sanitizeUser(user: any, tenant: any) {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      tenantId: user.tenantId,
+      tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug },
+    };
+  }
+
+  private generateSlug(name: string): string {
+    const base = name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 40);
+    // append random suffix for uniqueness
+    const suffix = crypto.randomBytes(3).toString('hex');
+    return `${base}-${suffix}`;
   }
 
   private async generateTokens(userId: string, email: string, tenantId: string, role: string) {

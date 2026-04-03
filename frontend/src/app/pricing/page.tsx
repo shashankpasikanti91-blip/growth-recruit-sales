@@ -3,19 +3,19 @@ import { Check, Zap, ArrowLeft, ArrowRight } from 'lucide-react';
 
 const PLANS = [
   {
-    id: 'starter',
-    name: 'Starter',
-    badge: 'Beta',
+    id: 'free',
+    name: 'Free',
+    badge: null,
     monthly: 0,
     annual: 0,
-    description: 'Get started free — explore the platform with limited usage.',
+    description: 'Try the platform with limited usage — no credit card required.',
     color: 'border-gray-200',
     highlight: false,
     features: [
-      '2 team members',
-      '100 candidates',
-      '50 leads',
-      '50 AI calls / month',
+      '1 team member',
+      '50 candidates / month',
+      '50 leads / month',
+      '20 AI processing credits / month',
       'CSV imports',
       'Basic analytics',
       'Email outreach',
@@ -24,45 +24,67 @@ const PLANS = [
     notIncluded: ['PDF/Word resume parsing', 'n8n workflows', 'Advanced analytics'],
   },
   {
-    id: 'growth',
-    name: 'Growth',
-    badge: 'Early Access',
-    monthly: 19,
-    annual: 15,
-    description: 'For small teams ready to supercharge their hiring pipeline.',
+    id: 'starter',
+    name: 'Starter',
+    badge: 'Popular',
+    monthly: 29,
+    annual: 23,
+    description: 'For individuals and small teams starting to scale their pipeline.',
     color: 'border-brand-500 ring-2 ring-brand-500',
     highlight: true,
     features: [
-      '5 team members',
-      '1,000 candidates',
-      '500 leads',
-      '500 AI calls / month',
-      'All file formats (PDF, Word, Excel, CSV)',
-      'Advanced analytics',
+      '3 team members',
+      '500 candidates / month',
+      '500 leads / month',
+      '200 AI processing credits / month',
+      'All file formats (PDF, Word, CSV)',
+      'Basic analytics',
       'n8n workflow automation',
       'Email support',
     ],
     notIncluded: ['Custom AI prompts', 'SSO / SAML'],
   },
   {
-    id: 'professional',
-    name: 'Pro',
-    badge: 'Early Access',
-    monthly: 49,
-    annual: 39,
-    description: 'Full-featured platform for growing recruitment & sales teams.',
+    id: 'growth',
+    name: 'Growth',
+    badge: null,
+    monthly: 69,
+    annual: 55,
+    description: 'For growing teams that need more capacity and advanced features.',
     color: 'border-blue-200',
     highlight: false,
     features: [
-      '15 team members',
-      '10,000 candidates',
-      '5,000 leads',
-      '2,000 AI calls / month',
+      '10 team members',
+      '2,000 candidates / month',
+      '2,000 leads / month',
+      '1,000 AI processing credits / month',
       'All file formats + bulk upload',
-      'Power BI-style analytics',
+      'Advanced analytics',
       'Custom AI prompts',
       '5 n8n workflow templates',
       'Priority support',
+    ],
+    notIncluded: ['SSO / SAML', 'Dedicated account manager'],
+  },
+  {
+    id: 'professional',
+    name: 'Professional',
+    badge: null,
+    monthly: 149,
+    annual: 119,
+    description: 'Full-featured platform for established recruitment & sales teams.',
+    color: 'border-purple-200',
+    highlight: false,
+    features: [
+      '25 team members',
+      '10,000 candidates / month',
+      '10,000 leads / month',
+      '5,000 AI processing credits / month',
+      'All file formats + API access',
+      'Power BI-style analytics',
+      'Custom AI prompts',
+      '10 n8n workflow templates',
+      'Phone + priority support',
     ],
     notIncluded: ['SSO / SAML', 'Dedicated account manager'],
   },
@@ -78,7 +100,7 @@ const PLANS = [
     features: [
       'Unlimited team members',
       'Unlimited candidates & leads',
-      'Unlimited AI calls',
+      'Unlimited AI processing',
       'All file formats + API',
       'Custom AI models (BYO key)',
       'SSO / SAML',
@@ -91,17 +113,18 @@ const PLANS = [
 ];
 
 const COMPARISON = [
-  { feature: 'Team members', starter: '2', growth: '5', professional: '15', enterprise: 'Unlimited' },
-  { feature: 'Candidates', starter: '100', growth: '1,000', professional: '10,000', enterprise: 'Unlimited' },
-  { feature: 'Leads', starter: '50', growth: '500', professional: '5,000', enterprise: 'Unlimited' },
-  { feature: 'AI calls/month', starter: '50', growth: '500', professional: '2,000', enterprise: 'Unlimited' },
-  { feature: 'CSV/Excel imports', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
-  { feature: 'PDF/Word resume parsing', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
-  { feature: 'n8n automation', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
-  { feature: 'Power BI analytics', starter: '—', growth: '—', professional: '✓', enterprise: '✓' },
-  { feature: 'Custom AI prompts', starter: '—', growth: '—', professional: '✓', enterprise: '✓' },
-  { feature: 'SSO / SAML', starter: '—', growth: '—', professional: '—', enterprise: '✓' },
-  { feature: 'SLA guarantee', starter: '—', growth: '—', professional: '—', enterprise: '✓' },
+  { feature: 'Team members', free: '1', starter: '3', growth: '10', professional: '25', enterprise: 'Unlimited' },
+  { feature: 'Candidates / month', free: '50', starter: '500', growth: '2,000', professional: '10,000', enterprise: 'Unlimited' },
+  { feature: 'Leads / month', free: '50', starter: '500', growth: '2,000', professional: '10,000', enterprise: 'Unlimited' },
+  { feature: 'AI processing / month', free: '20', starter: '200', growth: '1,000', professional: '5,000', enterprise: 'Unlimited' },
+  { feature: 'CSV/Excel imports', free: '✓', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'PDF/Word resume parsing', free: '—', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'n8n automation', free: '—', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'Advanced analytics', free: '—', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'Custom AI prompts', free: '—', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'API access', free: '—', starter: '—', growth: '—', professional: '✓', enterprise: '✓' },
+  { feature: 'SSO / SAML', free: '—', starter: '—', growth: '—', professional: '—', enterprise: '✓' },
+  { feature: 'SLA guarantee', free: '—', starter: '—', growth: '—', professional: '—', enterprise: '✓' },
 ];
 
 export default function PricingPage() {
@@ -141,7 +164,7 @@ export default function PricingPage() {
 
       {/* Pricing Cards */}
       <section className="pb-24 px-4">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-4 gap-5">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-5 gap-5">
           {PLANS.map((plan) => (
             <div key={plan.id} className={`relative rounded-2xl border-2 p-6 bg-white shadow-sm flex flex-col ${plan.color}`}>
               {plan.highlight && (
@@ -196,7 +219,7 @@ export default function PricingPage() {
                     : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                 }`}
               >
-                {plan.id === 'enterprise' ? 'Contact us' : plan.monthly === 0 ? 'Get started free' : 'Start free trial'}
+                {plan.id === 'enterprise' ? 'Contact us' : plan.monthly === 0 ? 'Get started free' : 'Start 14-day trial'}
               </Link>
             </div>
           ))}
@@ -210,7 +233,7 @@ export default function PricingPage() {
 
       {/* Comparison Table */}
       <section className="pb-24 px-4">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-10">Full feature comparison</h2>
           <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
             <table className="w-full text-sm">
@@ -228,7 +251,7 @@ export default function PricingPage() {
                 {COMPARISON.map((row, i) => (
                   <tr key={row.feature} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
                     <td className="py-2.5 px-4 text-gray-700 font-medium">{row.feature}</td>
-                    {(['starter', 'growth', 'professional', 'enterprise'] as const).map(k => (
+                    {(['free', 'starter', 'growth', 'professional', 'enterprise'] as const).map(k => (
                       <td key={k} className="py-2.5 px-4 text-center text-gray-600">
                         {row[k] === '✓' ? (
                           <Check className="w-4 h-4 text-green-500 mx-auto" />
@@ -256,8 +279,8 @@ export default function PricingPage() {
               { q: 'Can I switch plans anytime?', a: 'Yes — upgrade or downgrade at any time. Charges are prorated automatically.' },
               { q: 'What file formats are supported for imports?', a: 'CSV, Excel (.xlsx), PDF resumes, and Word documents (.docx) are all supported. The AI automatically extracts and maps candidate or lead data.' },
               { q: 'How does the AI resume screening work?', a: 'Upload a resume (any format) and select a job. Our AI compares the candidate against the job requirements and returns a score, decision, and detailed breakdown.' },
-              { q: 'What is an AI call?', a: 'An AI call is any request to the AI model — resume screening, lead scoring, JD parsing, or outreach generation. Each action uses one or more credits depending on complexity.' },
-              { q: 'Is there a free plan?', a: 'Yes! The Starter plan is completely free with limited usage. Paid plans include a 14-day trial. No credit card required.' },
+              { q: 'What is an AI processing credit?', a: 'An AI processing credit is consumed each time you use AI features — resume screening, lead scoring, JD parsing, or outreach generation. Each action uses one or more credits depending on complexity.' },
+              { q: 'Is there a free plan?', a: 'Yes! The Free plan gives you 50 candidates, 50 leads, and 20 AI processing credits per month — no credit card required. Upgrade anytime for more capacity.' },
               { q: 'Will prices go up?', a: 'Yes — these are early access launch prices. If you sign up now, your rate is locked in forever.' },
             ].map(faq => (
               <details key={faq.q} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm group">

@@ -5,6 +5,7 @@ import { leadsApi } from '@/lib/api-client';
 import { ArrowLeft, Zap, Mail, Phone, Globe, Building2, Clock } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { BusinessIdBadge } from '@/components/layout/business-id-badge';
 
 const STAGE_ACTIONS: Record<string, string> = {
   NEW: '🆕 New',
@@ -65,7 +66,10 @@ export default function LeadDetailPage() {
               {(lead.firstName ?? lead.fullName ?? '?').charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{`${lead.firstName ?? ''} ${lead.lastName ?? ''}`.trim() || lead.fullName || 'Unknown'}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-900">{`${lead.firstName ?? ''} ${lead.lastName ?? ''}`.trim() || lead.fullName || 'Unknown'}</h1>
+                <BusinessIdBadge businessId={lead.businessId} />
+              </div>
               {lead.title && <p className="text-gray-500 text-sm">{lead.title}</p>}
               {(lead.company?.name || lead.companyName) && (
                 <p className="text-gray-400 text-sm flex items-center gap-1">

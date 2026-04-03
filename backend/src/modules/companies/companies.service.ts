@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessIdService } from '../billing/business-id.service';
+import { DuplicateDetectionService } from '../search/duplicate-detection.service';
 import { IsString, IsOptional, IsUrl, IsInt } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -17,12 +19,21 @@ export class CreateCompanyDto {
 
 @Injectable()
 export class CompaniesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+    private readonly duplicateDetection: DuplicateDetectionService,
+  ) {}
 
   async create(tenantId: string, dto: CreateCompanyDto) {
-    return this.prisma.company.create({
-      data: { tenantId, ...dto },
+    const businessId = await this.businessIdService.generate('company');
+    const dupeCheck = await this.duplicateDetection.checkCompany(tenantId, {
+      name: dto.name, domain: dto.domain,
     });
+    const company = await this.prisma.company.create({
+      data: { tenantId, businessId, ...dto },
+    });
+    return { ...company, duplicateWarning: dupeCheck.isDuplicate ? dupeCheck.matches : undefined };
   }
 
   async findAll(tenantId: string, filters: { search?: string; industry?: string; page?: number; limit?: number }) {

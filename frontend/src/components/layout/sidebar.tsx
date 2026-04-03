@@ -29,6 +29,7 @@ import {
   Target,
   Phone,
   Sparkles,
+  FileText,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -68,6 +69,7 @@ const navConfig = (role: string) => {
     {
       group: 'Automations',
       items: [
+        { label: 'Documents', href: '/documents', icon: FileText },
         { label: 'Imports', href: '/imports', icon: Upload },
         { label: 'Workflows', href: '/workflows', icon: GitBranch },
         { label: 'Integrations', href: '/integrations', icon: Plug },

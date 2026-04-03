@@ -10,6 +10,7 @@ import { ResumeScreeningService } from '../ai/services/resume-screening.service'
 import { CreateApplicationDto, UpdateApplicationStageDto } from './dto/application.dto';
 import { CandidateStage } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { BusinessIdService } from '../billing/business-id.service';
 
 @Injectable()
 export class ApplicationsService {
@@ -18,6 +19,7 @@ export class ApplicationsService {
     private readonly aiService: AiService,
     private readonly resumeScreening: ResumeScreeningService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly businessIdService: BusinessIdService,
   ) {}
 
   async create(tenantId: string, createdById: string, dto: CreateApplicationDto) {
@@ -35,9 +37,11 @@ export class ApplicationsService {
     });
     if (existing) throw new ConflictException('Candidate already applied for this job');
 
+    const businessId = await this.businessIdService.generate('application');
     const application = await this.prisma.application.create({
       data: {
         tenantId,
+        businessId,
         candidateId: dto.candidateId,
         jobId: dto.jobId,
         stage: CandidateStage.SOURCED,

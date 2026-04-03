@@ -141,6 +141,7 @@ export default function LeadsPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">ID</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Title / Company</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Pipeline Stage</th>
@@ -154,12 +155,15 @@ export default function LeadsPage() {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {isLoading ? (
-              <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={8} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
             ) : allLeads.length === 0 ? (
-              <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400">No leads found</td></tr>
+              <tr><td colSpan={8} className="px-6 py-12 text-center text-gray-400">No leads found</td></tr>
             ) : (
               allLeads.map((lead: any) => (
                 <tr key={lead.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <span className="text-xs text-gray-400 font-mono">{lead.businessId ?? lead.id.slice(0, 8)}</span>
+                  </td>
                   <td className="px-6 py-4">
                     <Link href={`/leads/${lead.id}`} className="font-medium text-gray-900 hover:text-brand-600">
                       {lead.firstName} {lead.lastName}

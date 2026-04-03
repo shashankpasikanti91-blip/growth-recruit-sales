@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Zap, Users, Target, BarChart3, Upload, Mail, ArrowRight, Check, Star, Shield, Clock, TrendingUp, Linkedin, MapPin } from 'lucide-react';
+import { Zap, Users, Target, BarChart3, Upload, Mail, ArrowRight, Check, Star, Shield, Clock, TrendingUp, Linkedin, MapPin, Lock, FileText, Eye, Server } from 'lucide-react';
 
 export default function HomePage() {
   return (
@@ -15,6 +15,7 @@ export default function HomePage() {
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-600">
             <Link href="#features" className="hover:text-brand-600 transition-colors">Features</Link>
+            <Link href="#security" className="hover:text-brand-600 transition-colors">Security</Link>
             <Link href="#how-it-works" className="hover:text-brand-600 transition-colors">How it works</Link>
             <Link href="/pricing" className="hover:text-brand-600 transition-colors">Pricing</Link>
           </div>
@@ -93,6 +94,7 @@ export default function HomePage() {
               { icon: Zap, color: 'bg-yellow-100 text-yellow-600', title: 'n8n Workflow Engine', desc: 'Pre-built automation workflows for onboarding sequences, follow-ups, and integrations with your existing tools.', bullets: ['5 pre-built workflows', 'Webhook triggers', 'Slack / email alerts'] },
               { icon: Linkedin, color: 'bg-blue-100 text-blue-600', title: 'LinkedIn AI Writer', desc: 'Generate posts, connection requests, InMails, and profile content with one click. 6 content types, all AI-powered.', bullets: ['Posts & connection notes', 'Recruiter & sales InMails', 'Profile About rewrite'] },
               { icon: MapPin, color: 'bg-green-100 text-green-600', title: 'Google Maps Lead Finder', desc: 'Search any business type in any city and automatically import matching companies as qualified leads.', bullets: ['Business type search', 'Auto company creation', 'Duplicate detection'] },
+              { icon: FileText, color: 'bg-red-100 text-red-600', title: 'Secure Document Vault', desc: 'Upload resumes, proposals, and contracts with AES-256 encryption, tenant isolation, and full audit trail.', bullets: ['S3-encrypted storage', 'Signed URL downloads', 'Duplicate detection via checksum'] },
             ].map(f => {
               const Icon = f.icon;
               return (
@@ -160,6 +162,42 @@ export default function HomePage() {
             "We cut our time-to-hire by 60% in the first month. The AI screening is scarily accurate."
           </blockquote>
           <p className="text-gray-500 text-sm">Sarah Chen, Head of Talent · Nexus Ventures</p>
+        </div>
+      </section>
+
+      {/* ── Security & Compliance ── */}
+      <section id="security" className="py-24 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
+              <Shield className="w-3.5 h-3.5" /> Enterprise-Grade Security
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Your data is safe with us</h2>
+            <p className="text-gray-500 max-w-xl mx-auto">Resumes, lead details, and company documents contain sensitive information. We treat security as a first-class feature, not an afterthought.</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: Lock, color: 'bg-blue-100 text-blue-600', title: 'AES-256 Encryption at Rest', desc: 'All uploaded documents are encrypted with AES-256 server-side encryption in our S3-compatible object storage.' },
+              { icon: Shield, color: 'bg-green-100 text-green-600', title: 'Tenant Isolation', desc: 'Complete data separation per tenant. No cross-tenant access is architecturally possible — enforced at database and API level.' },
+              { icon: Eye, color: 'bg-purple-100 text-purple-600', title: 'Signed URL Downloads', desc: 'Document downloads use time-limited signed URLs (15 min expiry). No permanent public links. Backend proxy available for extra security.' },
+              { icon: FileText, color: 'bg-orange-100 text-orange-600', title: 'Full Audit Trail', desc: 'Every document upload, download, and deletion is logged with user identity, timestamp, and IP address for complete traceability.' },
+              { icon: Server, color: 'bg-red-100 text-red-600', title: 'HTTPS + HSTS', desc: 'All traffic encrypted in transit with TLS 1.3. HSTS headers enforced with preload. No plain HTTP access in production.' },
+              { icon: Lock, color: 'bg-yellow-100 text-yellow-600', title: 'File Validation', desc: 'Strict MIME type and file size validation. Only approved document types accepted. SHA-256 checksum for duplicate and integrity detection.' },
+              { icon: Shield, color: 'bg-pink-100 text-pink-600', title: 'RBAC + JWT Auth', desc: 'Role-based access control with JWT access tokens (15 min) and secure refresh token rotation. Google OAuth2 SSO support.' },
+              { icon: Eye, color: 'bg-cyan-100 text-cyan-600', title: 'Security Headers', desc: 'CSP, X-Frame-Options DENY, nosniff, strict referrer policy, and permission policy. Powered by Helmet.js with custom hardening.' },
+            ].map(f => {
+              const Icon = f.icon;
+              return (
+                <div key={f.title} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className={`w-10 h-10 rounded-xl ${f.color} flex items-center justify-center mb-4`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-sm mb-2">{f.title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{f.desc}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

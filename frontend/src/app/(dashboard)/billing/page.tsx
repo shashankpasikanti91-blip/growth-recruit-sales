@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { billingApi } from '@/lib/api-client';
+import { billingApi, tenantUsageApi } from '@/lib/api-client';
 import { Check, CreditCard, TrendingUp, Zap, Users, Target, AlertCircle, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow, format, differenceInDays } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -67,6 +67,7 @@ export default function BillingPage() {
   const { data: plans } = useQuery({ queryKey: ['billing-plans'], queryFn: billingApi.plans });
   const { data: sub } = useQuery({ queryKey: ['billing-subscription'], queryFn: billingApi.subscription });
   const { data: usage } = useQuery({ queryKey: ['billing-usage'], queryFn: billingApi.usage });
+  const { data: tenantUsage } = useQuery({ queryKey: ['tenant-usage'], queryFn: () => tenantUsageApi.get() });
   const { data: invoicesData } = useQuery({ queryKey: ['billing-invoices'], queryFn: () => billingApi.invoices(1) });
 
   const changePlanMutation = useMutation({
@@ -162,6 +163,37 @@ export default function BillingPage() {
             <UsageMeter label="AI Calls" used={usage.aiCalls?.used ?? 0} limit={usage.aiCalls?.limit ?? 0} icon={Zap} color="bg-amber-100 text-amber-600" />
             <UsageMeter label="Imports" used={usage.imports?.used ?? 0} limit={usage.imports?.limit ?? 0} icon={TrendingUp} color="bg-green-100 text-green-600" />
           </div>
+        </div>
+      )}
+
+      {/* Tenant plan usage from new endpoint */}
+      {tenantUsage && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-900">Monthly Plan Limits</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-400">
+                Plan: <span className="text-gray-700 font-bold">{tenantUsage.plan ?? 'N/A'}</span>
+              </span>
+              {tenantUsage.businessId && (
+                <span className="text-xs font-mono bg-gray-50 text-gray-500 px-2 py-0.5 rounded">
+                  {tenantUsage.businessId}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { label: 'Candidates', used: tenantUsage.candidates?.used ?? 0, limit: tenantUsage.candidates?.limit ?? 0, icon: Users, color: 'bg-blue-100 text-blue-600' },
+              { label: 'Leads', used: tenantUsage.leads?.used ?? 0, limit: tenantUsage.leads?.limit ?? 0, icon: Target, color: 'bg-purple-100 text-purple-600' },
+              { label: 'AI Processing', used: tenantUsage.ai?.used ?? 0, limit: tenantUsage.ai?.limit ?? 0, icon: Zap, color: 'bg-amber-100 text-amber-600' },
+            ].map((m) => (
+              <UsageMeter key={m.label} {...m} />
+            ))}
+          </div>
+          {tenantUsage.resetsAt && (
+            <p className="text-xs text-gray-400 mt-3">Usage resets on {new Date(tenantUsage.resetsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          )}
         </div>
       )}
 

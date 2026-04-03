@@ -20,6 +20,7 @@ import { UserRole } from '@prisma/client';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto, UpdateLeadDto, UpdateLeadStageDto } from './dto/lead.dto';
 import { LeadImportService, GoogleMapsImportDto, ApifyImportDto } from './lead-import.service';
+import { UsageGuard, UsageLimit } from '../billing/usage.guard';
 import { IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -27,7 +28,7 @@ class AddNoteDto { @ApiProperty() @IsString() note: string; }
 
 @ApiTags('Leads')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, UsageGuard)
 @Controller('leads')
 export class LeadsController {
   constructor(
@@ -38,6 +39,7 @@ export class LeadsController {
   @Post()
   @ApiOperation({ summary: 'Create lead' })
   @Roles(UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.SUPER_ADMIN)
+  @UsageLimit('lead')
   create(@CurrentUser('tenantId') tenantId: string, @Body() dto: CreateLeadDto) {
     return this.leadsService.create(tenantId, dto);
   }

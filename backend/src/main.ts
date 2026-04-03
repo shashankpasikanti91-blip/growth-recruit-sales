@@ -17,10 +17,32 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3001);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
-  // Security
-  app.use(helmet());
+  // Security headers
+  app.use(
+    helmet({
+      contentSecurityPolicy: nodeEnv === 'production' ? undefined : false,
+      crossOriginEmbedderPolicy: false,
+      hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    }),
+  );
   app.use(compression());
   app.use(morgan(nodeEnv === 'production' ? 'combined' : 'dev'));
+
+  // Disable X-Powered-By to prevent tech stack fingerprinting
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.disable('x-powered-by');
+
+  // Additional security headers for document/data protection
+  app.use((_req: any, res: any, next: any) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    if (nodeEnv === 'production') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
+    next();
+  });
 
   // CORS — production allows only the configured frontend; dev also allows localhost
   const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
@@ -31,6 +53,9 @@ async function bootstrap() {
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    maxAge: 86400,
   });
 
   // Global prefix & versioning
@@ -83,6 +108,7 @@ async function bootstrap() {
       .addTag('analytics', 'Analytics & Reporting')
       .addTag('integrations', 'Integration Registry')
       .addTag('countries', 'Country Configuration')
+      .addTag('documents', 'Document Storage')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);

@@ -6,8 +6,10 @@ import { LeadScoringService } from './services/lead-scoring.service';
 import { JdParserService } from './services/jd-parser.service';
 import { AiService } from './ai.service';
 import { AiController } from './ai.controller';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
+  imports: [BillingModule],
   providers: [
     AiProviderService,
     ResumeScreeningService,

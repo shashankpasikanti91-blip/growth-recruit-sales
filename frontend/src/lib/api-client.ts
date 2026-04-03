@@ -114,6 +114,19 @@ export const countriesApi = {
   visaRuleDetail: (code: string, visaType: string) =>
     api.get(`/countries/${code}/visa-rules/${visaType}`).then(r => r.data),
 };
+// ─── Search ──────────────────────────────────────────────────────────────────
+
+export const searchApi = {
+  global: (params: { q: string; types?: string; limit?: number; offset?: number }) =>
+    api.get('/search', { params }).then(r => r.data),
+};
+
+// ─── Tenant Usage ────────────────────────────────────────────────────────────
+
+export const tenantUsageApi = {
+  get: () => api.get('/billing/tenant/usage').then(r => r.data),
+};
+
 // ─── AI ───────────────────────────────────────────────────────────────────────
 
 export const aiApi = {
@@ -125,4 +138,28 @@ export const aiApi = {
     form.append('file', file);
     return api.post('/ai/parse-resume', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
   },
+};
+
+// ─── Documents ───────────────────────────────────────────────────────────────
+
+export const documentsApi = {
+  list: (params?: Record<string, any>) => api.get('/documents', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/documents/${id}`).then(r => r.data),
+  upload: (file: File, type: string, linkedEntity?: { candidateId?: string; leadId?: string; companyId?: string; contactId?: string; jobId?: string }) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('type', type);
+    if (linkedEntity?.candidateId) form.append('candidateId', linkedEntity.candidateId);
+    if (linkedEntity?.leadId) form.append('leadId', linkedEntity.leadId);
+    if (linkedEntity?.companyId) form.append('companyId', linkedEntity.companyId);
+    if (linkedEntity?.contactId) form.append('contactId', linkedEntity.contactId);
+    if (linkedEntity?.jobId) form.append('jobId', linkedEntity.jobId);
+    return api.post('/documents/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
+  },
+  getDownloadUrl: (id: string) => api.get(`/documents/${id}/download-url`).then(r => r.data),
+  download: (id: string) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
+  link: (id: string, data: { candidateId?: string; leadId?: string; companyId?: string; contactId?: string; jobId?: string }) =>
+    api.patch(`/documents/${id}/link`, data).then(r => r.data),
+  reparse: (id: string) => api.post(`/documents/${id}/reparse`).then(r => r.data),
+  delete: (id: string) => api.delete(`/documents/${id}`).then(r => r.data),
 };

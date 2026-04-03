@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { UsageService } from '../billing/usage.service';
 import { ResumeScreeningResult } from './types/resume-screening.types';
 
 @Injectable()
 export class AiService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usageService: UsageService,
+  ) {}
 
   async persistScreeningResult(
     tenantId: string,
@@ -14,6 +18,8 @@ export class AiService {
     tokensUsed: number,
     latencyMs: number,
   ) {
+    // Enforce AI usage limit
+    await this.usageService.enforceAndIncrement(tenantId, 'ai');
     // Save AI analysis result
     await this.prisma.aiAnalysisResult.create({
       data: {

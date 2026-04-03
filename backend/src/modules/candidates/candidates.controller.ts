@@ -6,16 +6,18 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UsageGuard, UsageLimit } from '../billing/usage.guard';
 
 @ApiTags('candidates')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, UsageGuard)
 @Controller({ path: 'candidates', version: '1' })
 export class CandidatesController {
   constructor(private readonly candidatesService: CandidatesService) {}
 
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER)
+  @UsageLimit('candidate')
   @ApiOperation({ summary: 'Create candidate manually' })
   create(@CurrentUser('tenantId') tenantId: string, @Body() dto: CreateCandidateDto) {
     return this.candidatesService.create(tenantId, dto);

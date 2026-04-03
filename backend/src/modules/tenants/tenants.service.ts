@@ -2,19 +2,35 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto/tenant.dto';
 import { TenantOnboardingService } from './tenant-onboarding.service';
+import { BusinessIdService } from '../billing/business-id.service';
+import { getPlanConfig } from '../../config/plans.config';
 
 @Injectable()
 export class TenantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly onboarding: TenantOnboardingService,
+    private readonly businessIdService: BusinessIdService,
   ) {}
 
   async create(dto: CreateTenantDto) {
     const existing = await this.prisma.tenant.findUnique({ where: { slug: dto.slug } });
     if (existing) throw new ConflictException(`Tenant slug "${dto.slug}" already exists`);
 
-    const tenant = await this.prisma.tenant.create({ data: dto });
+    const businessId = await this.businessIdService.generate('tenant');
+    const planConfig = getPlanConfig((dto as any).plan || 'FREE');
+
+    const tenant = await this.prisma.tenant.create({
+      data: {
+        ...dto,
+        businessId,
+        plan: planConfig.tier,
+        maxUsers: planConfig.maxUsers,
+        maxCandidatesPerMonth: planConfig.maxCandidatesPerMonth,
+        maxLeadsPerMonth: planConfig.maxLeadsPerMonth,
+        maxAiUsagePerMonth: planConfig.maxAiUsagePerMonth,
+      },
+    });
 
     // Idempotent onboarding: seed default data in background (don't fail tenant creation if seeding fails)
     this.onboarding.setup(tenant.id).catch(() => {}); 

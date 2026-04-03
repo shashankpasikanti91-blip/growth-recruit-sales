@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessIdService } from '../billing/business-id.service';
+import { UsageService } from '../billing/usage.service';
+import { DuplicateDetectionService } from '../search/duplicate-detection.service';
 import { IsString, IsOptional, IsArray, IsNumber, IsBoolean } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -28,23 +31,43 @@ export class CreateCandidateDto {
 
 @Injectable()
 export class CandidatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+    private readonly usageService: UsageService,
+    private readonly duplicateDetection: DuplicateDetectionService,
+  ) {}
 
   async create(tenantId: string, dto: CreateCandidateDto) {
+    // Enforce candidate usage limit
+    await this.usageService.enforceAndIncrement(tenantId, 'candidate');
+
+    const businessId = await this.businessIdService.generate('candidate');
     const { visaExpiry, source, resumeText, ...rest } = dto;
+
+    // Check for duplicates
+    const dupeCheck = await this.duplicateDetection.checkCandidate(tenantId, {
+      email: dto.email, phone: dto.phone, firstName: dto.firstName, lastName: dto.lastName, currentCompany: dto.currentCompany,
+    });
+
     const candidate = await this.prisma.candidate.create({
       data: {
         tenantId,
+        businessId,
         ...rest,
         sourceName: source || 'MANUAL',
         visaExpiry: visaExpiry ? new Date(visaExpiry) : undefined,
+        isDuplicate: dupeCheck.isDuplicate,
+        duplicateOfId: dupeCheck.matches[0]?.id,
       },
     });
 
     // If resume text was provided (from AI parser), store it as a Resume record
     if (resumeText) {
+      const resumeBusinessId = await this.businessIdService.generate('resume');
       await this.prisma.resume.create({
         data: {
+          businessId: resumeBusinessId,
           candidateId: candidate.id,
           fileName: 'parsed-resume.txt',
           fileUrl: '',
@@ -54,7 +77,7 @@ export class CandidatesService {
       });
     }
 
-    return candidate;
+    return { ...candidate, duplicateWarning: dupeCheck.isDuplicate ? dupeCheck.matches : undefined };
   }
 
   async findAll(tenantId: string, filters: { search?: string; skills?: string; stage?: string; page?: number; limit?: number }) {
@@ -63,11 +86,13 @@ export class CandidatesService {
     const where: any = { tenantId, isActive: true, isDuplicate: false };
     if (search) {
       where.OR = [
+        { businessId: { equals: search, mode: 'insensitive' } },
         { firstName: { contains: search, mode: 'insensitive' } },
         { lastName: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
         { currentTitle: { contains: search, mode: 'insensitive' } },
         { currentCompany: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
       ];
     }
     if (skills) {
@@ -121,8 +146,9 @@ export class CandidatesService {
 
   async addNote(tenantId: string, candidateId: string, userId: string, note: string) {
     await this.findOne(tenantId, candidateId);
+    const businessId = await this.businessIdService.generate('activity');
     return this.prisma.activity.create({
-      data: { tenantId, userId, candidateId, type: 'NOTE', title: 'Recruiter Note', description: note },
+      data: { tenantId, businessId, userId, candidateId, type: 'NOTE', title: 'Recruiter Note', description: note },
     });
   }
 }

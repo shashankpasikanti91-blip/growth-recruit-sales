@@ -70,11 +70,11 @@ export default function CandidatesPage() {
                 <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <button
-                      onClick={() => { navigator.clipboard.writeText(c.id); setCopiedId(c.id); setTimeout(() => setCopiedId(null), 2000); }}
+                      onClick={() => { navigator.clipboard.writeText(c.businessId ?? c.id); setCopiedId(c.id); setTimeout(() => setCopiedId(null), 2000); }}
                       className="flex items-center gap-1 text-xs text-gray-400 hover:text-brand-600 font-mono"
-                      title="Click to copy ID"
+                      title="Click to copy Business ID"
                     >
-                      {c.id.slice(0, 8)}…
+                      {c.businessId ?? c.id.slice(0, 8) + '…'}
                       {copiedId === c.id ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                     </button>
                   </td>
