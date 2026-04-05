@@ -164,3 +164,13 @@ export const documentsApi = {
   reparse: (id: string) => api.post(`/documents/${id}/reparse`).then(r => r.data),
   delete: (id: string) => api.delete(`/documents/${id}`).then(r => r.data),
 };
+
+// ─── Workflows ────────────────────────────────────────────────────────────────
+
+export const workflowsApi = {
+  list: (workflowType?: string) => api.get('/workflows/runs', { params: { workflowType } }).then(r => r.data),
+  stats: (days = 30) => api.get('/workflows/stats', { params: { days } }).then(r => r.data),
+  pause: (id: string, reason: string) => api.patch(`/workflows/${id}/pause`, { reason }).then(r => r.data),
+  resume: (id: string) => api.patch(`/workflows/${id}/resume`).then(r => r.data),
+  override: (id: string, overrideNote: string) => api.post(`/workflows/${id}/override`, { overrideNote }).then(r => r.data),
+};
