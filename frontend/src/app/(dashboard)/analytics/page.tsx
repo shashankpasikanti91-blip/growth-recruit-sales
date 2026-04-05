@@ -1,12 +1,12 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { analyticsApi } from '@/lib/api-client';
+import { analyticsApi, workflowsApi } from '@/lib/api-client';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Users, Target, Briefcase, Zap, BarChart2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Target, Briefcase, Zap, BarChart2, Pause } from 'lucide-react';
 
 const COLORS = {
   blue: '#2563EB', purple: '#7C3AED', green: '#059669', orange: '#D97706', slate: '#475569',
@@ -313,10 +313,65 @@ function AiTab({ days }: { days: number }) {
   );
 }
 
+function WorkflowsTab({ days }: { days: number }) {
+  const { data: d, isLoading } = useQuery({
+    queryKey: ['analytics-workflows', days],
+    queryFn: () => workflowsApi.stats(days),
+  });
+  if (isLoading) return <div className="text-center py-20 text-gray-400">Loading…</div>;
+  const byStatus: { name: string; value: number }[] = Object.entries(d?.byStatus ?? {}).map(([name, value]) => ({ name, value: value as number }));
+  const byType: { name: string; value: number }[] = Object.entries(d?.byType ?? {}).map(([name, value]) => ({ name, value: value as number }));
+  const statusColors: Record<string, string> = {
+    SUCCESS: '#059669', FAILED: '#EF4444', PAUSED: '#F59E0B', RUNNING: '#2563EB', QUEUED: '#6366F1', CANCELLED: '#9CA3AF', RETRYING: '#D97706',
+  };
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Total Runs" value={d?.total ?? 0} sub={`Past ${days} days`} color="blue" icon={BarChart2} />
+        <KpiCard label="Successful" value={d?.byStatus?.SUCCESS ?? 0} sub="Completed OK" color="green" icon={TrendingUp} />
+        <KpiCard label="Failed" value={d?.byStatus?.FAILED ?? 0} sub="Needs attention" color="orange" icon={TrendingDown} />
+        <KpiCard label="Paused" value={d?.paused ?? 0} sub="Awaiting review" color="purple" icon={Pause} />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ChartCard title="Runs by Status" subtitle="Distribution across all workflow run statuses">
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                {byStatus.map((entry, i) => (
+                  <Cell key={i} fill={statusColors[entry.name] ?? COLORS.slate} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: any) => [v, 'Runs']} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+        <ChartCard title="Runs by Workflow Type" subtitle="Which workflows ran most in this period">
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={byType} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} tickLine={false} width={76} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="value" name="Runs" fill={COLORS.blue} radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+      {(d?.avgDurationMs ?? 0) > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <p className="text-sm text-gray-500">Average Workflow Duration</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{((d?.avgDurationMs ?? 0) / 1000).toFixed(1)}s</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TABS = [
   { id: 'recruitment', label: 'Recruitment', icon: Users },
   { id: 'sales', label: 'Sales Pipeline', icon: Target },
   { id: 'ai', label: 'AI Usage', icon: Zap },
+  { id: 'workflows', label: 'Workflows', icon: Pause },
 ];
 
 export default function AnalyticsPage() {
@@ -350,6 +405,7 @@ export default function AnalyticsPage() {
       {tab === 'recruitment' && <RecruitmentTab days={days} />}
       {tab === 'sales' && <SalesTab days={days} />}
       {tab === 'ai' && <AiTab days={days} />}
+      {tab === 'workflows' && <WorkflowsTab days={days} />}
     </div>
   );
 }

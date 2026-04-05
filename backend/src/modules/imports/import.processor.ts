@@ -15,11 +15,19 @@ export class ImportProcessor {
 
   @Process('process-import')
   async handleImport(job: Job<{ importId: string; tenantId: string; retryFailed?: boolean }>) {
-    const { importId, tenantId, retryFailed } = job.data;
+    const { importId, retryFailed } = job.data;
     this.logger.log(`Processing import ${importId}`);
 
+    // SECURITY C7: Re-verify the import record from DB; do NOT trust tenantId from queue payload.
+    // An attacker who can enqueue jobs could otherwise forge a tenantId.
     const importRecord = await this.prisma.sourceImport.findUnique({ where: { id: importId } });
-    if (!importRecord) return;
+    if (!importRecord) {
+      this.logger.warn(`Import ${importId} not found — skipping`);
+      return;
+    }
+
+    // Use tenantId from the verified DB record, not from the queue payload
+    const tenantId = importRecord.tenantId;
 
     const query: any = { importId, status: retryFailed ? 'failed' : 'pending' };
     const rows = await this.prisma.importRow.findMany({ where: query, orderBy: { rowIndex: 'asc' } });

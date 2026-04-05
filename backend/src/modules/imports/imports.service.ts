@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessIdService } from '../billing/business-id.service';
 import { ImportSource } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import { parse as csvParse } from 'csv-parse/sync';
@@ -12,6 +13,7 @@ import mammoth from 'mammoth';
 export class ImportsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
     @InjectQueue('import-processing') private readonly importQueue: Queue,
   ) {}
 
@@ -22,8 +24,9 @@ export class ImportsService {
     mappingTemplateId?: string;
     importedById?: string;
   }) {
+    const businessId = await this.businessIdService.generate('sourceImport');
     return this.prisma.sourceImport.create({
-      data: { tenantId, ...data },
+      data: { tenantId, businessId, ...data },
     });
   }
 
@@ -90,8 +93,9 @@ export class ImportsService {
   }
 
   async processWebhookImport(tenantId: string, importType: 'candidate' | 'lead', payload: Record<string, any>[]) {
+    const businessId = await this.businessIdService.generate('sourceImport');
     const importRecord = await this.prisma.sourceImport.create({
-      data: { tenantId, name: `Webhook Import ${new Date().toISOString()}`, source: 'WEBHOOK', importType, totalRows: payload.length, status: 'PROCESSING' },
+      data: { tenantId, businessId, name: `Webhook Import ${new Date().toISOString()}`, source: 'WEBHOOK', importType, totalRows: payload.length, status: 'PROCESSING' },
     });
 
     await this.prisma.importRow.createMany({

@@ -91,6 +91,7 @@ enum WorkflowRunStatus {
   SUCCESS
   FAILED
   RETRYING
+  PAUSED
   CANCELLED
 }
 
@@ -609,6 +610,7 @@ model IcpProfile {
 
 model SourceImport {
   id                String       @id @default(uuid())
+  businessId        String?      @unique
   tenantId          String
   name              String
   source            ImportSource
@@ -861,26 +863,34 @@ model AiUsageLog {
 // ─── Workflow Run ─────────────────────────────────────────────────────────────
 
 model WorkflowRun {
-  id           String            @id @default(uuid())
-  businessId   String            @unique
-  tenantId     String
-  workflowType WorkflowType
-  status       WorkflowRunStatus @default(QUEUED)
-  triggeredBy  String?
-  n8nRunId     String?
-  inputData    Json?
-  outputData   Json?
-  errorMessage String?
-  retryCount   Int               @default(0)
-  startedAt    DateTime?
-  completedAt  DateTime?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id            String            @id @default(uuid())
+  businessId    String            @unique
+  tenantId      String
+  workflowType  WorkflowType
+  status        WorkflowRunStatus @default(QUEUED)
+  triggeredBy   String?
+  n8nRunId      String?
+  inputData     Json?
+  outputData    Json?
+  errorMessage  String?
+  retryCount    Int               @default(0)
+  isPaused      Boolean           @default(false)
+  pausedAt      DateTime?
+  resumedAt     DateTime?
+  pauseReason   String?
+  overrideNote  String?
+  overriddenBy  String?
+  overriddenAt  DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([workflowType])
+  @@index([status])
   @@index([businessId])
   @@map("workflow_runs")
 }

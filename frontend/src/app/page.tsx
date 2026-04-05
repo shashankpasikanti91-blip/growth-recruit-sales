@@ -42,8 +42,8 @@ export default function HomePage() {
             <span className="text-brand-200">Close More Deals.</span>
           </h1>
           <p className="text-lg md:text-xl text-brand-100 mb-10 max-w-2xl mx-auto leading-relaxed">
-            The unified AI platform that automates recruitment screening, lead scoring,
-            and sales outreach — so your team focuses on what matters.
+            The AI-powered Recruitment, CRM, and Workflow Automation platform that streamlines
+            screening, scoring, and outreach — using your own data, CSV imports, and authorised APIs.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
@@ -89,7 +89,7 @@ export default function HomePage() {
               { icon: Users, color: 'bg-blue-100 text-blue-600', title: 'AI Resume Screening', desc: 'Upload PDF, Word, or Excel. Our AI scores and ranks candidates against job requirements in seconds, not hours.', bullets: ['Multi-format file support', '6-step screening pipeline', 'Auto-stage candidates'] },
               { icon: Target, color: 'bg-purple-100 text-purple-600', title: 'Lead Scoring & CRM', desc: 'AI-powered ICP scoring for every lead. Identify your best prospects and prioritise your sales pipeline automatically.', bullets: ['Auto ICP score 0-100', 'Company intelligence', 'Activity timeline'] },
               { icon: Mail, color: 'bg-green-100 text-green-600', title: 'Outreach Automation', desc: 'Generate personalised emails for candidates and leads. Sequence-based campaigns via n8n integration.', bullets: ['AI-written messages', 'Multi-step sequences', 'Open/reply tracking'] },
-              { icon: Upload, color: 'bg-orange-100 text-orange-600', title: 'Smart Imports', desc: 'Import candidates or leads from CSV, Excel, PDF or Word. Plus Google Maps business search — find and import leads in seconds.', bullets: ['CSV, XLSX, PDF, DOCX', 'Google Maps lead finder', 'Apify dataset import'] },
+              { icon: Upload, color: 'bg-orange-100 text-orange-600', title: 'Smart Imports', desc: 'Import candidates or leads from CSV, Excel, PDF or Word. Map fields with a visual drag-and-drop editor. Duplicate detection prevents double entries.', bullets: ['CSV, XLSX, PDF, DOCX', 'Visual field mapping', 'Duplicate detection'] },
               { icon: BarChart3, color: 'bg-pink-100 text-pink-600', title: 'Real-Time Analytics', desc: 'Live dashboards for recruitment funnel, sales pipeline, and AI usage. All queries cached for instant load.', bullets: ['Conversion funnels', 'Period comparison', 'Redis-cached KPIs'] },
               { icon: Zap, color: 'bg-yellow-100 text-yellow-600', title: 'n8n Workflow Engine', desc: 'Pre-built automation workflows for onboarding sequences, follow-ups, and integrations with your existing tools.', bullets: ['5 pre-built workflows', 'Webhook triggers', 'Slack / email alerts'] },
               { icon: Linkedin, color: 'bg-blue-100 text-blue-600', title: 'LinkedIn AI Writer', desc: 'Generate posts, connection requests, InMails, and profile content with one click. 6 content types, all AI-powered.', bullets: ['Posts & connection notes', 'Recruiter & sales InMails', 'Profile About rewrite'] },

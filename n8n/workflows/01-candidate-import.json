@@ -1,32 +1,30 @@
 {
   "id": "01-candidate-import",
-  "name": "01 - Candidate Import (LinkedIn / Indeed)",
+  "name": "01 - Candidate Import (CSV / Webhook)",
   "active": true,
-  "description": "Scrapes candidate profiles from LinkedIn or Indeed via HTTP request or RSS, normalises the payload, and posts it to the backend webhook endpoint. Attach your own HTTP Request nodes authenticated with the relevant source.",
+  "description": "Accepts candidate records from an approved external source (e.g. a client-authorised HR system API, uploaded CSV webhook, or internal data feed), normalises the payload, and posts it to the backend webhook endpoint. IMPORTANT: This workflow does NOT scrape LinkedIn, Indeed, Naukri, JobStreet or any other job portal. Only use with data sources you have legal authorisation to access.",
   "nodes": [
     {
       "id": "n1",
-      "name": "Schedule Trigger",
-      "type": "n8n-nodes-base.scheduleTrigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
       "position": [240, 300],
       "parameters": {
-        "rule": { "interval": [{ "field": "hours", "hoursInterval": 6 }] }
+        "path": "candidate-import-source",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
       }
     },
     {
       "id": "n2",
-      "name": "Fetch LinkedIn Profiles",
-      "type": "n8n-nodes-base.httpRequest",
+      "name": "Validate Source Payload",
+      "type": "n8n-nodes-base.code",
       "position": [460, 300],
       "parameters": {
-        "method": "GET",
-        "url": "={{ $vars.LINKEDIN_SEARCH_URL }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [{ "name": "Authorization", "value": "Bearer {{ $vars.LINKEDIN_TOKEN }}" }]
-        }
+        "language": "javaScript",
+        "jsCode": "// Validate that the incoming payload has minimum required fields.\n// This workflow only processes data from pre-approved, authorised sources.\nconst items = $input.all();\nconst valid = [];\nconst invalid = [];\nfor (const item of items) {\n  const p = item.json;\n  if (!p.firstName && !p.first_name && !p.name) {\n    invalid.push({ ...item.json, _validationError: 'Missing name fields' });\n    continue;\n  }\n  valid.push(item);\n}\nif (invalid.length > 0) {\n  console.warn(`Skipped ${invalid.length} records with missing required fields`);\n}\nreturn valid;"
       }
     },
     {
@@ -36,7 +34,7 @@
       "position": [680, 300],
       "parameters": {
         "language": "javaScript",
-        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const p = item.json;\n  return {\n    json: {\n      firstName: p.firstName ?? p.first_name ?? '',\n      lastName: p.lastName ?? p.last_name ?? '',\n      email: p.email ?? null,\n      phone: p.phone ?? null,\n      currentTitle: p.headline ?? p.title ?? null,\n      currentCompany: p.company ?? null,\n      linkedinUrl: p.profileUrl ?? p.linkedin ?? null,\n      source: 'LINKEDIN',\n      rawData: p\n    }\n  };\n});"
+        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const p = item.json;\n  // Normalise field names from various source formats\n  const firstName = p.firstName ?? p.first_name ?? (p.name ?? '').split(' ')[0] ?? '';\n  const lastName = p.lastName ?? p.last_name ?? (p.name ?? '').split(' ').slice(1).join(' ') ?? '';\n  return {\n    json: {\n      firstName,\n      lastName,\n      email: p.email ?? p.emailAddress ?? null,\n      phone: p.phone ?? p.mobile ?? p.phoneNumber ?? null,\n      currentTitle: p.title ?? p.currentTitle ?? p.jobTitle ?? null,\n      currentCompany: p.company ?? p.currentCompany ?? p.employer ?? null,\n      skills: Array.isArray(p.skills) ? p.skills : (p.skills ? [p.skills] : []),\n      source: p._source ?? 'WEBHOOK',\n      sourceRef: p._sourceRef ?? null,\n      rawData: p\n    }\n  };\n});"
       }
     },
     {
@@ -65,15 +63,14 @@
     }
   ],
   "connections": {
-    "Schedule Trigger": { "main": [[{ "node": "Fetch LinkedIn Profiles", "type": "main", "index": 0 }]] },
-    "Fetch LinkedIn Profiles": { "main": [[{ "node": "Normalise Candidate", "type": "main", "index": 0 }]] },
+    "Webhook Trigger": { "main": [[{ "node": "Validate Source Payload", "type": "main", "index": 0 }]] },
+    "Validate Source Payload": { "main": [[{ "node": "Normalise Candidate", "type": "main", "index": 0 }]] },
     "Normalise Candidate": { "main": [[{ "node": "POST to Backend Webhook", "type": "main", "index": 0 }]] },
     "POST to Backend Webhook": { "main": [[{ "node": "Log Result", "type": "main", "index": 0 }]] }
   },
   "variables": {
     "BACKEND_URL": "http://backend:3001",
-    "N8N_WEBHOOK_SECRET": "REPLACE_ME",
-    "LINKEDIN_SEARCH_URL": "REPLACE_ME",
-    "LINKEDIN_TOKEN": "REPLACE_ME"
-  }
+    "N8N_WEBHOOK_SECRET": "REPLACE_ME"
+  },
+  "_notes": "AUTHORISED DATA SOURCES ONLY. Supported: client HR system APIs, uploaded CSVs via webhook, internal data migration feeds. NOT supported: LinkedIn scraping, Indeed scraping, or any unauthorised portal extraction."
 }

@@ -92,6 +92,7 @@ export const analyticsApi = {
   recruitment: (days = 30) => api.get('/analytics/recruitment', { params: { days } }).then(r => r.data),
   sales: (days = 30) => api.get('/analytics/sales', { params: { days } }).then(r => r.data),
   aiUsage: (days = 30) => api.get('/analytics/ai-usage', { params: { days } }).then(r => r.data),
+  workflows: (days = 30) => api.get('/analytics/workflows', { params: { days } }).then(r => r.data),
   dashboard: () => api.get('/analytics/dashboard').then(r => r.data),
 };
 

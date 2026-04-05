@@ -42,6 +42,7 @@ const ENTITY_MAP: Record<string, EntityConfig> = {
   workflowRun:     { prefix: 'WFR', table: 'workflow_runs',     column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
   outreachMessage: { prefix: 'OUT', table: 'outreach_messages', column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
   document:        { prefix: 'DOC', table: 'documents',          column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
+  sourceImport:    { prefix: 'IMP', table: 'source_imports',    column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
 };
 
 @Injectable()

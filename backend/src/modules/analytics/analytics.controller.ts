@@ -3,13 +3,17 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AnalyticsService } from './analytics.service';
+import { WorkflowsService } from '../workflows/workflows.service';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('analytics')
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(
+    private readonly analyticsService: AnalyticsService,
+    private readonly workflowsService: WorkflowsService,
+  ) {}
 
   @Get('recruitment')
   @ApiOperation({ summary: 'Recruitment funnel summary' })
@@ -39,6 +43,16 @@ export class AnalyticsController {
     @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number,
   ) {
     return this.analyticsService.getAiUsage(tenantId, days);
+  }
+
+  @Get('workflows')
+  @ApiOperation({ summary: 'Workflow automation statistics — success rate, failures, paused runs' })
+  @ApiQuery({ name: 'days', required: false, type: Number })
+  getWorkflowStats(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number,
+  ) {
+    return this.workflowsService.getStats(tenantId, days);
   }
 
   @Get('dashboard')
