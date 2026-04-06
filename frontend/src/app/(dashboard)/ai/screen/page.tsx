@@ -135,11 +135,49 @@ function AiScreenContent() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Zap className="w-6 h-6 text-purple-500" /> AI Resume Screening
+          <Zap className="w-6 h-6 text-purple-500" /> Candidate Match Analysis
         </h1>
         <p className="text-gray-500 mt-1">
           Multi-industry screening — Technology, Executive, Business, Finance, Operations, Blue-Collar
         </p>
+      </div>
+
+      {/* Score explanation panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm">
+          <div className="font-semibold text-blue-800 mb-1 flex items-center gap-1">
+            <Award className="w-4 h-4" /> Match Score (Recruitment)
+          </div>
+          <p className="text-blue-700 text-xs leading-relaxed">
+            Measures how well a <strong>candidate</strong> fits a specific job role (0–100).<br />
+            <span className="text-green-700 font-medium">75+</span> = Shortlisted &nbsp;·&nbsp;
+            <span className="text-amber-700 font-medium">55–74</span> = KIV &nbsp;·&nbsp;
+            <span className="text-red-600 font-medium">&lt;55</span> = Rejected
+          </p>
+          <div className="mt-2 text-xs text-blue-600 space-y-0.5">
+            <div>• Skill Match <span className="text-blue-400">(35%)</span></div>
+            <div>• Experience Relevance <span className="text-blue-400">(30%)</span></div>
+            <div>• Role Alignment <span className="text-blue-400">(20%)</span></div>
+            <div>• Stability <span className="text-blue-400">(15%)</span></div>
+          </div>
+        </div>
+        <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-sm">
+          <div className="font-semibold text-purple-800 mb-1 flex items-center gap-1">
+            <Target className="w-4 h-4" /> ICP Fit Score (Sales / Leads)
+          </div>
+          <p className="text-purple-700 text-xs leading-relaxed">
+            Measures how well a <strong>prospect</strong> matches your Ideal Customer Profile (0–100).<br />
+            <span className="text-green-700 font-medium">70+</span> = Strong fit &nbsp;·&nbsp;
+            <span className="text-amber-700 font-medium">50–69</span> = Moderate &nbsp;·&nbsp;
+            <span className="text-red-600 font-medium">&lt;50</span> = Low priority
+          </p>
+          <div className="mt-2 text-xs text-purple-600 space-y-0.5">
+            <div>• Industry Fit <span className="text-purple-400">(30%)</span></div>
+            <div>• Company Size Fit <span className="text-purple-400">(25%)</span></div>
+            <div>• Title Relevance <span className="text-purple-400">(25%)</span></div>
+            <div>• Intent Signals <span className="text-purple-400">(20%)</span></div>
+          </div>
+        </div>
       </div>
 
       {/* Two-column: Resume + JD */}

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { outreachApi } from '@/lib/api-client';
+import { outreachApi, candidatesApi, leadsApi, jobsApi } from '@/lib/api-client';
 import { Mail, Send, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -13,10 +13,27 @@ const STATUS_BADGE: Record<string, string> = {
 
 function GenerateForm() {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ targetType: 'CANDIDATE', targetId: '', channel: 'EMAIL', sequenceSteps: 1, jobId: '' });
+  const [form, setForm] = useState({ targetType: 'CANDIDATE', targetId: '', channel: 'EMAIL', sequenceSteps: 1, jobId: '', tone: 'Professional', purpose: 'Introduction' });
+
+  const { data: candidatesData } = useQuery({
+    queryKey: ['outreach-candidates'],
+    queryFn: () => candidatesApi.list({ limit: 100 }),
+  });
+  const { data: leadsData } = useQuery({
+    queryKey: ['outreach-leads'],
+    queryFn: () => leadsApi.list({ limit: 100 }),
+  });
+  const { data: jobsData } = useQuery({
+    queryKey: ['outreach-jobs'],
+    queryFn: () => jobsApi.list({ limit: 100 }),
+  });
+
+  const candidates: any[] = candidatesData?.data ?? [];
+  const leads: any[] = leadsData?.data ?? [];
+  const jobs: any[] = jobsData?.data ?? [];
 
   const mutation = useMutation({
-    mutationFn: () => outreachApi.generate(form),
+    mutationFn: () => outreachApi.generate({ ...form, metadata: { tone: form.tone, purpose: form.purpose } }),
     onSuccess: () => { toast.success('Outreach generated!'); queryClient.invalidateQueries({ queryKey: ['outreach-messages'] }); },
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Generation failed'),
   });
@@ -27,7 +44,7 @@ function GenerateForm() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Target Type</label>
-          <select className="input" value={form.targetType} onChange={e => setForm(f => ({ ...f, targetType: e.target.value }))}>
+          <select className="input" value={form.targetType} onChange={e => setForm(f => ({ ...f, targetType: e.target.value, targetId: '' }))}>
             <option value="CANDIDATE">Candidate</option>
             <option value="LEAD">Lead</option>
           </select>
@@ -42,15 +59,62 @@ function GenerateForm() {
         </div>
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">{form.targetType} ID</label>
-        <input className="input" placeholder="UUID" value={form.targetId} onChange={e => setForm(f => ({ ...f, targetId: e.target.value }))} />
+        <label className="block text-xs font-medium text-gray-700 mb-1">
+          {form.targetType === 'CANDIDATE' ? 'Select Candidate' : 'Select Lead'}
+        </label>
+        {form.targetType === 'CANDIDATE' ? (
+          <select className="input" value={form.targetId} onChange={e => setForm(f => ({ ...f, targetId: e.target.value }))}>
+            <option value="">— Choose a candidate —</option>
+            {candidates.map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {c.firstName} {c.lastName}{c.currentTitle ? ` — ${c.currentTitle}` : ''}{c.currentCompany ? ` @ ${c.currentCompany}` : ''}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <select className="input" value={form.targetId} onChange={e => setForm(f => ({ ...f, targetId: e.target.value }))}>
+            <option value="">— Choose a lead —</option>
+            {leads.map((l: any) => (
+              <option key={l.id} value={l.id}>
+                {l.firstName} {l.lastName}{l.title ? ` — ${l.title}` : ''}{l.company?.name ? ` @ ${l.company.name}` : ''}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       {form.targetType === 'CANDIDATE' && (
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Job ID (optional)</label>
-          <input className="input" placeholder="UUID of job for context" value={form.jobId} onChange={e => setForm(f => ({ ...f, jobId: e.target.value }))} />
+          <label className="block text-xs font-medium text-gray-700 mb-1">Job Context (optional)</label>
+          <select className="input" value={form.jobId} onChange={e => setForm(f => ({ ...f, jobId: e.target.value }))}>
+            <option value="">— No specific job —</option>
+            {jobs.map((j: any) => (
+              <option key={j.id} value={j.id}>
+                {j.title}{j.location ? ` · ${j.location}` : ''}
+              </option>
+            ))}
+          </select>
         </div>
       )}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Tone</label>
+          <select className="input" value={form.tone} onChange={e => setForm(f => ({ ...f, tone: e.target.value }))}>
+            <option value="Professional">Professional</option>
+            <option value="Warm">Warm</option>
+            <option value="Bold">Bold</option>
+            <option value="Casual">Casual</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Purpose</label>
+          <select className="input" value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))}>
+            <option value="Introduction">Introduction</option>
+            <option value="Follow-up">Follow-up</option>
+            <option value="Re-engagement">Re-engagement</option>
+            <option value="Proposal">Proposal</option>
+          </select>
+        </div>
+      </div>
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-1">Sequence Steps (1 = single message)</label>
         <input type="number" min={1} max={5} className="input w-24" value={form.sequenceSteps} onChange={e => setForm(f => ({ ...f, sequenceSteps: Number(e.target.value) }))} />

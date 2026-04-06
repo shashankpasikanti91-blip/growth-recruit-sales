@@ -53,11 +53,11 @@ const navConfig = (role: string) => {
         { label: 'Candidates', href: '/candidates', icon: UserPlus },
         { label: 'Jobs', href: '/jobs', icon: Briefcase },
         { label: 'Applications', href: '/applications', icon: ClipboardList },
-        { label: 'AI Screening', href: '/ai/screen', icon: Sparkles },
+        { label: 'Candidate Match Analysis', href: '/ai/screen', icon: Sparkles },
       ],
     },
     {
-      group: 'Sales',
+      group: 'Growth',
       items: [
         { label: 'Leads', href: '/leads', icon: Target },
         { label: 'Companies', href: '/companies', icon: Building2 },

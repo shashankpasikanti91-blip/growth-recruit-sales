@@ -127,7 +127,7 @@ export default function DashboardPage() {
         {tenantUsage && (
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Plan Usage This Month</h2>
+              <h2 className="text-base font-semibold text-gray-900">Usage &amp; Limits</h2>
               <Link href="/billing" className="text-xs text-brand-600 font-medium hover:underline">
                 Manage plan →
               </Link>

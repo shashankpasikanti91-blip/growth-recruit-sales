@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
@@ -9,14 +9,18 @@ import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 import { BusinessIdService } from '../billing/business-id.service';
 import { getPlanConfig } from '../../config/plans.config';
+import { TenantOnboardingService } from '../tenants/tenant-onboarding.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly businessIdService: BusinessIdService,
+    private readonly tenantOnboarding: TenantOnboardingService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -380,6 +384,11 @@ export class AuthService {
     const userBusinessId = await this.businessIdService.generate('user');
     const planConfig = getPlanConfig('FREE');
 
+    // Look up the starter plan outside the transaction (read-only, safe)
+    const starterPlan = await this.prisma.plan.findFirst({
+      where: { tier: 'STARTER' },
+    });
+
     const result = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
@@ -415,7 +424,31 @@ export class AuthService {
         data: { tenantId: tenant.id },
       });
 
+      // Auto-create a Starter plan subscription (14-day trial) so Usage & Limits is never 0/0
+      if (starterPlan) {
+        const now = new Date();
+        const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+        await tx.subscription.create({
+          data: {
+            tenantId: tenant.id,
+            planId: starterPlan.id,
+            status: 'TRIALING',
+            billingCycle: 'monthly',
+            currentPeriodStart: now,
+            currentPeriodEnd: periodEnd,
+            trialEndsAt: trialEnd,
+          },
+        });
+      }
+
       return { tenant, user };
+    });
+
+    // Run tenant onboarding asynchronously — seeds ICP, mapping templates, prompt templates
+    // Fire-and-forget: don't block signup if seeding fails
+    this.tenantOnboarding.setup(result.tenant.id).catch((err) => {
+      this.logger.warn(`Onboarding setup failed for tenant ${result.tenant.id}: ${err.message}`);
     });
 
     const tokens = await this.generateTokens(

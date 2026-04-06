@@ -63,7 +63,7 @@ export default function LeadsPage() {
   const scoreMutation = useMutation({
     mutationFn: (id: string) => leadsApi.score(id),
     onSuccess: (result: any) =>
-      toast.success(`ICP Score: ${result.score}/100 — ${result.recommendation}`, { duration: 5000 }),
+      toast.success(`ICP Fit Score: ${result.score ?? result.icpFitScore ?? 0}/100 — ${result.nextBestAction ?? result.recommendation ?? 'Score saved'}`, { duration: 5000 }),
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'AI scoring failed'),
   });
 
@@ -74,22 +74,23 @@ export default function LeadsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
-          <p className="text-gray-500 mt-1">{data?.meta?.total ?? 0} total leads</p>
+          <p className="text-gray-500 mt-1">Your client acquisition pipeline. Score, qualify, and convert sales leads.</p>
         </div>
         <Link href="/leads/new" className="btn-primary">
           <Users className="w-4 h-4" /> Add Lead
         </Link>
       </div>
 
-      {/* AI Score explanation banner */}
+      {/* ICP Fit Score explanation banner */}
       <div className="flex items-start gap-3 bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-sm text-purple-800">
         <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-purple-500" />
         <div>
-          <span className="font-semibold">AI Score</span> — Each lead gets an ICP (Ideal Customer Profile) score 0–100.{' '}
+          <span className="font-semibold">ICP Fit Score</span> — Each lead is scored 0–100 against your Ideal Customer Profile based on company size, industry, title seniority, and engagement signals.{' '}
           <strong>70+</strong> = strong fit &nbsp;·&nbsp; <strong>50–69</strong> = moderate &nbsp;·&nbsp; <strong>below 50</strong> = low priority.
-          Click <span className="font-semibold">Run AI Score</span> to generate or refresh.
-          Stages update automatically via n8n (email sent → Contacted, meeting booked → Qualified, deal closed → Won)
-          or update manually using the dropdown.
+          Click <span className="font-semibold">Run ICP Score</span> to generate or refresh.
+          <span className="block mt-1 text-xs text-purple-600">
+            Note: ICP Fit Score measures client/prospect fit. This is different from Match Score on the Recruitment side, which measures candidate-to-job fit.
+          </span>
         </div>
       </div>
 
@@ -146,7 +147,9 @@ export default function LeadsPage() {
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Title / Company</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Pipeline Stage</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                <span className="flex items-center gap-1">AI Score <Info className="w-3 h-3 text-gray-400" /></span>
+                <span className="flex items-center gap-1" title="ICP Fit Score — how closely this lead matches your Ideal Customer Profile (0–100). Higher = better prospect.">
+                  ICP Fit Score <Info className="w-3 h-3 text-gray-400" />
+                </span>
               </th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Source</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Added</th>
@@ -207,10 +210,10 @@ export default function LeadsPage() {
                     <button
                       onClick={() => scoreMutation.mutate(lead.id)}
                       disabled={scoreMutation.isPending}
-                      title="Score this lead's ICP fit using AI"
+                      title="Score this lead's ICP Fit using AI — measures how well this prospect matches your Ideal Customer Profile"
                       className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium whitespace-nowrap"
                     >
-                      <Zap className="w-3 h-3" /> Run AI Score
+                      <Zap className="w-3 h-3" /> Run ICP Score
                     </button>
                   </td>
                 </tr>

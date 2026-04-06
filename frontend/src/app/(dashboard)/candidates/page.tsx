@@ -56,7 +56,7 @@ export default function CandidatesPage() {
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Title / Company</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Applications</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider" title="Match Score — candidate fit for a specific role (0–100). Analyzes skill match, experience relevance, role alignment, and stability. Different from ICP Fit Score used for leads.">Match Score</th>
               <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Added</th>
             </tr>
           </thead>
@@ -82,11 +82,11 @@ export default function CandidatesPage() {
                     <Link href={`/candidates/${c.id}`} className="font-medium text-gray-900 hover:text-brand-600">
                       {c.firstName} {c.lastName}
                     </Link>
-                    <div className="text-xs text-gray-400">{c.email}</div>
+                    <div className="text-xs text-gray-400">{c.email ?? '—'}</div>
                   </td>
                   <td className="px-6 py-4 text-gray-600">
-                    <div>{c.currentTitle}</div>
-                    <div className="text-xs text-gray-400">{c.currentCompany}</div>
+                    <div>{c.currentTitle ?? '—'}</div>
+                    <div className="text-xs text-gray-400">{c.currentCompany ?? '—'}</div>
                   </td>
                   <td className="px-6 py-4">
                     <Link href={`/candidates/${c.id}`} className="flex items-center gap-1 text-sm text-gray-600 hover:text-brand-600">
@@ -96,13 +96,16 @@ export default function CandidatesPage() {
                   </td>
                   <td className="px-6 py-4">
                     {c.scorecards?.[0]?.score != null ? (
-                      <span className={`font-semibold ${c.scorecards[0].score >= 70 ? 'text-green-600' : c.scorecards[0].score >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
-                        {c.scorecards[0].score}
-                      </span>
+                      <div>
+                        <span className={`font-semibold ${c.scorecards[0].score >= 75 ? 'text-green-600' : c.scorecards[0].score >= 55 ? 'text-amber-600' : 'text-red-500'}`}>
+                          {c.scorecards[0].score}<span className="text-xs font-normal text-gray-400">/100</span>
+                        </span>
+                        <div className="text-xs text-gray-400">{c.scorecards[0].score >= 75 ? 'Shortlisted' : c.scorecards[0].score >= 55 ? 'KIV' : 'Rejected'}</div>
+                      </div>
                     ) : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-6 py-4 text-gray-400 text-xs">
-                    {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                    {c.createdAt ? formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }) : '—'}
                   </td>
                 </tr>
               ))
