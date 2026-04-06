@@ -168,9 +168,28 @@ export const documentsApi = {
 // ─── Workflows ────────────────────────────────────────────────────────────────
 
 export const workflowsApi = {
-  list: (workflowType?: string) => api.get('/workflows/runs', { params: { workflowType } }).then(r => r.data),
+  list: (params?: Record<string, any>) => api.get('/workflows/runs', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/workflows/runs/${id}`).then(r => r.data),
   stats: (days = 30) => api.get('/workflows/stats', { params: { days } }).then(r => r.data),
-  pause: (id: string, reason: string) => api.patch(`/workflows/${id}/pause`, { reason }).then(r => r.data),
-  resume: (id: string) => api.patch(`/workflows/${id}/resume`).then(r => r.data),
-  override: (id: string, overrideNote: string) => api.post(`/workflows/${id}/override`, { overrideNote }).then(r => r.data),
+  pause: (id: string, reason: string) => api.patch(`/workflows/runs/${id}/pause`, { reason }).then(r => r.data),
+  resume: (id: string) => api.patch(`/workflows/runs/${id}/resume`).then(r => r.data),
+  retry: (id: string) => api.patch(`/workflows/runs/${id}/retry`).then(r => r.data),
+  cancel: (id: string, reason?: string) => api.patch(`/workflows/runs/${id}/cancel`, { reason }).then(r => r.data),
+  override: (id: string, note: string, forceStatus?: string) =>
+    api.post(`/workflows/runs/${id}/override`, { note, forceStatus }).then(r => r.data),
+};
+
+// ─── Audit ────────────────────────────────────────────────────────────────────
+
+export const auditApi = {
+  list: (params?: {
+    entityType?: string;
+    userId?: string;
+    action?: string;
+    entityId?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  }) => api.get('/audit', { params }).then(r => r.data),
 };

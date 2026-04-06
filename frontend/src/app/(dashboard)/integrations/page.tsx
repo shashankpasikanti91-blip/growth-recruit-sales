@@ -1,5 +1,5 @@
 'use client';
-import { ExternalLink, CheckCircle, XCircle, Settings, Zap, Globe, Database, Mail } from 'lucide-react';
+import { ExternalLink, CheckCircle, XCircle, Settings, Zap, Globe, Database, Mail, Info, ShieldCheck } from 'lucide-react';
 
 type Integration = {
   id: string;
@@ -14,7 +14,7 @@ const INTEGRATIONS: Integration[] = [
   {
     id: 'n8n',
     name: 'n8n Automation',
-    description: 'Visual workflow automation for imports, screening, and outreach sequences.',
+    description: 'Visual workflow automation for imports, screening, and outreach sequences. Uses approved internal webhooks — no external scraping.',
     icon: Zap,
     status: 'connected',
     configUrl: process.env.NEXT_PUBLIC_N8N_URL,
@@ -22,38 +22,30 @@ const INTEGRATIONS: Integration[] = [
   {
     id: 'openrouter',
     name: 'OpenRouter / OpenAI',
-    description: 'AI provider for resume screening, lead scoring, and outreach generation.',
+    description: 'AI provider for resume screening, lead scoring, and outreach generation. Requires a valid API key from your OpenRouter account.',
     icon: Database,
     status: 'connected',
   },
   {
     id: 'smtp',
     name: 'SMTP Email',
-    description: 'Send outreach emails directly via your configured SMTP server.',
+    description: 'Send outreach emails directly via your configured SMTP server. Requires client-owned credentials.',
     icon: Mail,
     status: 'not_connected',
   },
   {
     id: 'google-maps',
-    name: 'Google Maps Places',
-    description: 'Discover local businesses and import them as sales leads automatically.',
+    name: 'Google Maps Places API',
+    description: 'Discover local businesses and import them as sales leads via the official Google Maps Places API. Requires a valid API key from your Google Cloud account.',
     icon: Globe,
     status: 'coming_soon',
   },
   {
-    id: 'apify',
-    name: 'Apify Web Scraping',
-    description: 'Scrape and enrich lead data from public web sources via Apify actors.',
-    icon: Globe,
+    id: 'approved-api',
+    name: 'Approved Data APIs',
+    description: 'Connect custom approved APIs provided by your organisation or third-party data providers. All integrations require explicit client authorisation.',
+    icon: ShieldCheck,
     status: 'coming_soon',
-  },
-  {
-    id: 'linkedin',
-    name: 'LinkedIn AI Assistant',
-    description: 'AI-powered content generation for LinkedIn posts and connection messages.',
-    icon: Globe,
-    status: 'connected',
-    configUrl: '/linkedin',
   },
 ];
 
@@ -68,7 +60,20 @@ export default function IntegrationsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
-        <p className="text-gray-500 text-sm mt-1">Manage connected services and tools</p>
+        <p className="text-gray-500 text-sm mt-1">Manage connected services and approved data sources</p>
+      </div>
+
+      {/* Safety notice */}
+      <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+        <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+        <div className="text-sm text-blue-700">
+          <p className="font-semibold mb-0.5">Approved API Policy</p>
+          <p className="text-blue-600 text-xs">
+            All integrations require approved API access from the client or third-party provider.
+            This platform does not scrape job portals or social networks.
+            Supported sources: manual entry, file uploads (CSV/Excel), resumes, internal data sync, and approved APIs.
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

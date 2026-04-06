@@ -6,7 +6,7 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Users, Target, Briefcase, Zap, BarChart2, Pause } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Target, Briefcase, Zap, BarChart2, Pause, GitBranch } from 'lucide-react';
 
 const COLORS = {
   blue: '#2563EB', purple: '#7C3AED', green: '#059669', orange: '#D97706', slate: '#475569',
@@ -318,50 +318,106 @@ function WorkflowsTab({ days }: { days: number }) {
     queryKey: ['analytics-workflows', days],
     queryFn: () => workflowsApi.stats(days),
   });
+
   if (isLoading) return <div className="text-center py-20 text-gray-400">Loading…</div>;
-  const byStatus: { name: string; value: number }[] = Object.entries(d?.byStatus ?? {}).map(([name, value]) => ({ name, value: value as number }));
-  const byType: { name: string; value: number }[] = Object.entries(d?.byType ?? {}).map(([name, value]) => ({ name, value: value as number }));
+
+  const summary = d?.summary ?? {};
+  const total: number = summary.total ?? 0;
+
+  // Build status chart data from summary fields
   const statusColors: Record<string, string> = {
-    SUCCESS: '#059669', FAILED: '#EF4444', PAUSED: '#F59E0B', RUNNING: '#2563EB', QUEUED: '#6366F1', CANCELLED: '#9CA3AF', RETRYING: '#D97706',
+    SUCCESS: '#059669', FAILED: '#EF4444', PAUSED: '#F59E0B',
+    RUNNING: '#2563EB', QUEUED: '#6366F1', CANCELLED: '#9CA3AF', RETRYING: '#D97706',
   };
+  const byStatus = ['SUCCESS', 'FAILED', 'PAUSED', 'RUNNING', 'QUEUED', 'CANCELLED', 'RETRYING']
+    .map(s => ({ name: s, value: summary[s.toLowerCase()] ?? 0 }))
+    .filter(x => x.value > 0);
+
+  // byType uses d.byType[].{type, count}
+  const byType = (d?.byType ?? []).map((t: { type: string; count: number }) => ({
+    name: t.type?.replace(/_/g, ' ') ?? t.type,
+    value: t.count,
+  }));
+
+  const successRate = summary.successRate ?? 0;
+  const avgDurationMs = summary.avgDurationMs;
+
+  if (total === 0) {
+    return (
+      <div className="text-center py-20 text-gray-400">
+        <GitBranch className="w-12 h-12 mx-auto mb-3 opacity-20" />
+        <p className="font-semibold">No workflow data available</p>
+        <p className="text-sm mt-1">Workflow runs will appear here once automations execute in the past {days} days</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total Runs" value={d?.total ?? 0} sub={`Past ${days} days`} color="blue" icon={BarChart2} />
-        <KpiCard label="Successful" value={d?.byStatus?.SUCCESS ?? 0} sub="Completed OK" color="green" icon={TrendingUp} />
-        <KpiCard label="Failed" value={d?.byStatus?.FAILED ?? 0} sub="Needs attention" color="orange" icon={TrendingDown} />
-        <KpiCard label="Paused" value={d?.paused ?? 0} sub="Awaiting review" color="purple" icon={Pause} />
+        <KpiCard label="Total Runs" value={total} sub={`Past ${days} days`} color="blue" icon={BarChart2} />
+        <KpiCard label="Successful" value={summary.success ?? 0} sub={`${successRate}% success rate`} color="green" icon={TrendingUp} />
+        <KpiCard label="Failed" value={summary.failed ?? 0} sub="Review required" color="orange" icon={TrendingDown} />
+        <KpiCard label="Currently Paused" value={summary.currentlyPaused ?? 0} sub="Awaiting action" color="purple" icon={Pause} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ChartCard title="Runs by Status" subtitle="Distribution across all workflow run statuses">
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie data={byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
-                {byStatus.map((entry, i) => (
-                  <Cell key={i} fill={statusColors[entry.name] ?? COLORS.slate} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(v: any) => [v, 'Runs']} />
-            </PieChart>
-          </ResponsiveContainer>
+          {byStatus.length === 0 ? (
+            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No status data available</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
+                  {byStatus.map((entry, i) => (
+                    <Cell key={i} fill={statusColors[entry.name] ?? COLORS.slate} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: any, name) => [v, name]} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
         <ChartCard title="Runs by Workflow Type" subtitle="Which workflows ran most in this period">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={byType} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} tickLine={false} width={76} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" name="Runs" fill={COLORS.blue} radius={[0, 3, 3, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {byType.length === 0 ? (
+            <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No type data available</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={byType} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 120 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} tickLine={false} width={116} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="value" name="Runs" fill={COLORS.blue} radius={[0, 3, 3, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
       </div>
-      {(d?.avgDurationMs ?? 0) > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
-          <p className="text-sm text-gray-500">Average Workflow Duration</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{((d?.avgDurationMs ?? 0) / 1000).toFixed(1)}s</p>
+      {avgDurationMs != null && avgDurationMs > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
+          <div>
+            <p className="text-xs text-gray-400">Avg Workflow Duration</p>
+            <p className="text-2xl font-bold text-gray-900">{(avgDurationMs / 1000).toFixed(1)}s</p>
+          </div>
+          <div className="ml-8">
+            <p className="text-xs text-gray-400">Success Rate</p>
+            <p className={`text-2xl font-bold ${successRate >= 80 ? 'text-green-600' : successRate >= 50 ? 'text-amber-600' : 'text-red-500'}`}>{successRate}%</p>
+          </div>
         </div>
+      )}
+      {(d?.recentFailures ?? []).length > 0 && (
+        <ChartCard title="Recent Failures" subtitle="Last 5 failed workflow runs">
+          <div className="space-y-2">
+            {d.recentFailures.map((f: any) => (
+              <div key={f.id} className="flex items-start gap-3 bg-red-50 rounded-lg px-3 py-2">
+                <span className="font-mono text-xs text-gray-500 shrink-0">{f.businessId ?? f.id.slice(0, 8)}</span>
+                <span className="text-xs text-gray-600">{f.workflowType?.replace(/_/g, ' ')}</span>
+                <span className="text-xs text-red-600 ml-auto shrink-0">{f.errorMessage?.slice(0, 80) ?? 'Unknown error'}</span>
+              </div>
+            ))}
+          </div>
+        </ChartCard>
       )}
     </div>
   );

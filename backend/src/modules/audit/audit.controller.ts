@@ -16,18 +16,26 @@ export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get audit log entries' })
+  @ApiOperation({ summary: 'Get audit log entries with filters' })
   @ApiQuery({ name: 'entityType', required: false })
   @ApiQuery({ name: 'userId', required: false })
+  @ApiQuery({ name: 'action', required: false })
+  @ApiQuery({ name: 'entityId', required: false })
+  @ApiQuery({ name: 'from', required: false, description: 'ISO date string' })
+  @ApiQuery({ name: 'to', required: false, description: 'ISO date string' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(
     @CurrentUser('tenantId') tenantId: string,
     @Query('entityType') entityType?: string,
     @Query('userId') userId?: string,
+    @Query('action') action?: string,
+    @Query('entityId') entityId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
   ) {
-    return this.auditService.findAll(tenantId, { entityType, userId, page, limit });
+    return this.auditService.findAll(tenantId, { entityType, userId, action, entityId, from, to, page, limit });
   }
 }

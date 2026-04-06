@@ -30,24 +30,43 @@ export class AuditService {
     });
   }
 
-  async findAll(tenantId: string, filters: { entityType?: string; userId?: string; page?: number; limit?: number }) {
-    const { entityType, userId, page = 1, limit = 50 } = filters;
+  async findAll(
+    tenantId: string,
+    filters: {
+      entityType?: string;
+      userId?: string;
+      action?: string;
+      entityId?: string;
+      from?: string;
+      to?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const { entityType, userId, action, entityId, from, to, page = 1, limit = 50 } = filters;
     const where: any = { tenantId };
     if (entityType) where.entityType = entityType;
     if (userId) where.userId = userId;
+    if (action) where.action = action;
+    if (entityId) where.entityId = entityId;
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from);
+      if (to) where.createdAt.lte = new Date(to);
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
         skip: (page - 1) * limit,
-        take: limit,
+        take: Math.min(limit, 200),
         orderBy: { createdAt: 'desc' },
         include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
       }),
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return { data, meta: { total, page, limit } };
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
   // ─── Auto-log application stage changes via events ──────────────────────────

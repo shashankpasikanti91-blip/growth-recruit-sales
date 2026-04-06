@@ -24,12 +24,12 @@ import {
   Plug,
   AlertTriangle,
   UserCog,
-  Linkedin,
   BookOpen,
   Target,
   Phone,
   Sparkles,
   FileText,
+  Shield,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -54,7 +54,6 @@ const navConfig = (role: string) => {
         { label: 'Jobs', href: '/jobs', icon: Briefcase },
         { label: 'Applications', href: '/applications', icon: ClipboardList },
         { label: 'AI Screening', href: '/ai/screen', icon: Sparkles },
-        { label: 'Resume Imports', href: '/imports?type=resume', icon: Upload },
       ],
     },
     {
@@ -67,24 +66,21 @@ const navConfig = (role: string) => {
       ],
     },
     {
-      group: 'Automations',
+      group: 'Operations',
       items: [
         { label: 'Documents', href: '/documents', icon: FileText },
         { label: 'Imports', href: '/imports', icon: Upload },
         { label: 'Workflows', href: '/workflows', icon: GitBranch },
         { label: 'Integrations', href: '/integrations', icon: Plug },
-        { label: 'Error Logs', href: '/errors', icon: AlertTriangle },
       ],
     },
     {
       item: { label: 'Analytics', href: '/analytics', icon: BarChart3 },
     },
     {
-      item: { label: 'LinkedIn AI', href: '/linkedin', icon: Linkedin },
-    },
-    {
       group: 'Settings',
       items: [
+        ...(isAdmin ? [{ label: 'Audit Logs', href: '/audit', icon: Shield }] : []),
         ...(isAdmin ? [{ label: 'Billing', href: '/billing', icon: CreditCard }] : []),
         { label: 'Settings', href: '/settings', icon: Settings },
         ...(isAdmin ? [{ label: 'Users & Roles', href: '/users', icon: UserCog }] : []),
