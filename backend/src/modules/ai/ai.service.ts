@@ -42,8 +42,8 @@ export class AiService {
         jobId,
         score: result.score,
         maxScore: 100,
-        breakdown: result.match_analysis as any,
-        explanation: result.summary,
+        breakdown: result.evaluation as any,
+        explanation: result.evaluation?.justification ?? '',
         aiGenerated: true,
       },
     });
@@ -63,7 +63,7 @@ export class AiService {
         data: {
           stage: newStage as any,
           matchScore: result.score,
-          scoreDetails: result.match_analysis as any,
+          scoreDetails: result.evaluation as any,
           isShortlisted: result.decision === 'Shortlisted',
           isInterview: false,
         },

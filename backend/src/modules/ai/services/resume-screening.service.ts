@@ -11,7 +11,7 @@ export class ResumeScreeningService {
   async screen(input: ResumeScreeningInput): Promise<{ result: ResumeScreeningResult; tokensUsed: number; latencyMs: number }> {
     const prompt = this.buildPrompt(input.jobDescription, input.resumeText);
 
-    const systemPrompt = `You are an expert Sr recruiter with experience hiring across:
+    const systemPrompt = `You are an expert recruiter with experience hiring across:
 - Technology & Software roles
 - Executive leadership roles (CEO, COO, CTO, CFO)
 - Business roles (Business Analyst, Business Development, Sales)
@@ -25,12 +25,12 @@ CRITICAL RULES:
 - Do NOT assume or infer missing information
 - Do NOT hallucinate skills, experience, or reasons
 - If a detail is not found, return "Not Found"
-- Return ONLY valid JSON with no extra text, markdown, or explanation`;
+- Respond ONLY with valid JSON — no markdown, no explanations, no extra text`;
 
     const { data, meta } = await this.aiProvider.completeJson<ResumeScreeningResult>(prompt, {
       systemPrompt,
       temperature: 0.1,
-      maxTokens: 2500,
+      maxTokens: 3000,
     });
 
     return {
@@ -57,28 +57,29 @@ IMPORTANT RULES:
 - If a detail is not found, return "Not Found"
 
 --------------------------------------------------
-STEP 1: EXTRACT CANDIDATE PROFILE
+EXTRACT THE FOLLOWING DETAILS FROM THE RESUME:
 --------------------------------------------------
-Extract the following from the resume:
-- Full Name
-- Email ID
-- Contact Number
-- Current Role
-- Current Company (or Most Recent Employer)
-- Total Experience (years)
-- Relevant Experience (years aligned to JD)
-- Key Skills (top 10)
-- Current Location
-- Notice Period (if available)
-- Nationality (if mentioned or inferable from name/location/education)
-- Visa Type (if mentioned — e.g. EP, DP, S Pass, H-1B, 482, PR, Citizen)
-- Visa Expiry (if mentioned)
-- Is Foreigner (true if candidate appears to be a foreigner in the job's country based on nationality vs location)
+- Full Name         → "name"
+- Email ID          → "email"
+- Contact Number    → "contact_number"
+- Current Company (or Most Recent Employer) → "current_company"
+- Current Role      → candidate_profile.current_role
+- Total Experience  → candidate_profile.total_experience_years
+- Relevant Exp      → candidate_profile.relevant_experience_years
+- Key Skills (top 10) → candidate_profile.key_skills
+- Current Location  → candidate_profile.current_location
+- Notice Period     → candidate_profile.notice_period
+- Nationality       → candidate_profile.nationality
+- Visa Type (if mentioned) → candidate_profile.visa_type
+- Visa Expiry       → candidate_profile.visa_expiry
+- Is Foreigner      → candidate_profile.is_foreigner (true if candidate appears to be a foreigner in the job's country)
 
 --------------------------------------------------
-STEP 2: IDENTIFY ROLE CATEGORY
+ROLE-AWARE SCREENING LOGIC (CRITICAL):
 --------------------------------------------------
-Classify the JD role into ONE of the following:
+
+1) IDENTIFY ROLE CATEGORY FROM JOB DESCRIPTION
+Classify the role into ONE of the following (return as "role_category"):
 - Executive / Leadership (CEO, COO, CFO, Director, VP)
 - Technical / IT / Engineering
 - Business / Sales / BA / BD
@@ -89,90 +90,141 @@ Classify the JD role into ONE of the following:
 Apply evaluation criteria based on this classification.
 
 --------------------------------------------------
-STEP 3: ROLE-AWARE SCREENING ANALYSIS
+2) CURRENT EXPERIENCE PRIORITY (ALL ROLES)
 --------------------------------------------------
-
-3A) CURRENT EXPERIENCE PRIORITY (ALL ROLES):
 - Give highest priority to skills, responsibilities, and domain used in the CURRENT or MOST RECENT role
-- If the candidate has not worked in the JD-related role/domain in the last 8 months:
+- If the candidate has not worked in the JD-related role/domain in the last 8 months or more:
   - Treat the experience as historical
   - Reduce suitability score accordingly
 
-3B) PREVIOUS EXPERIENCE VALIDATION:
+--------------------------------------------------
+3) PREVIOUS EXPERIENCE VALIDATION
+--------------------------------------------------
 
-For Technical Roles:
+A) For Technical Roles:
 - Previous experience counts ONLY if it is recent and continuous
-- If candidate switched technology/domain for more than 8 months: mark core JD skills as NOT CURRENT
+- If candidate switched technology/domain for more than 8 months:
+  - Mark core JD skills as NOT CURRENT
 
-For Executive / Leadership Roles:
-- Prior leadership roles ARE valid even if not current, but must match company size, scope, and function
-- Individual contributor roles do NOT substitute leadership experience
+B) For Executive / Leadership Roles:
+- Prior leadership roles ARE valid even if not current, but:
+  - Must match company size, scope, and function
+  - Individual contributor roles do NOT substitute leadership experience
 
-For Business / Sales / BA / BD Roles:
-- Prior experience is valid if same function (BA ≠ BD ≠ Sales) and similar industry/market
+C) For Business / Sales / BA / BD Roles:
+- Prior experience is valid if:
+  - Same function (BA ≠ BD ≠ Sales)
+  - Similar industry or market
 - Tool changes are acceptable; role-function change is not
 
-For Finance / Accounts Roles:
+D) For Finance / Accounts Roles:
 - Current hands-on accounting or finance work is preferred
 - Long gaps or role switches reduce suitability
 
-For Blue-Collar / Operations Roles:
+E) For Blue-Collar / Operations Roles:
 - Practical hands-on experience matters more than tools or titles
 - Recent physical/work-site experience is prioritized
 
-3C) EXPERIENCE DURATION MATCHING:
+--------------------------------------------------
+4) EXPERIENCE DURATION MATCHING
+--------------------------------------------------
+
 - Compare JD-required years vs ACTUAL relevant years
 - Count only years where the candidate was actively working in the JD-related role
 - Do NOT count unrelated roles toward required experience
 
-3D) ROLE CHANGE & RECENCY RULE:
+Example:
+JD: Finance Manager – 8 years
+Resume:
+- Accountant (2015–2020)
+- Business Analyst (2021–Present)
+→ Relevant experience = 5 years (NOT 8)
+
+--------------------------------------------------
+5) ROLE CHANGE & RECENCY RULE
+--------------------------------------------------
+
 - Role change < 6 months → previous role still relevant
-- Role change 6-8 months → medium risk
+- Role change 6–8 months → medium risk
 - Role change > 8 months → previous role considered outdated
 
-3E) CAREER GAP ANALYSIS:
+--------------------------------------------------
+6) CAREER GAP ANALYSIS (ALL ROLES)
+--------------------------------------------------
+
 - Identify gaps using provided dates
 - Do NOT assume reasons for gaps
 - If no reason is mentioned → "Reason not provided"
-- Gap Risk: ≤1 year = Low, 1-3 years = Medium, 3-4 years = High, >4 years = Very High
-- Mention gap impact clearly in justification
+
+Gap Risk Levels:
+- ≤ 1 year → Low risk
+- 1–3 years → Medium risk
+- 3–4 years → High risk
+- > 4 years → Very high risk (likely rejection)
+
+Mention gap impact clearly in justification.
 
 --------------------------------------------------
-STEP 4: SCORING
+7) SCORING RULES
 --------------------------------------------------
 
-Score between 0-100 using realistic recruiter judgment based on role type:
-- Skill Match (35%)
-- Relevant Experience & Recency (30%)
-- Role & Seniority Alignment (20%)
-- Stability & Consistency (15%)
+Score between 0–100 based on weighted criteria:
+- Skill Match             35%  → score_breakdown.skill_match  (0–35)
+- Relevant Experience     30%  → score_breakdown.experience_relevance (0–30)
+- Role & Seniority Match  20%  → score_breakdown.role_alignment (0–20)
+- Stability & Consistency 15%  → score_breakdown.stability (0–15)
 
 Score Interpretation:
 - 75+  → Strong fit
-- 60-74 → Moderate fit
+- 60–74 → Moderate fit
 - < 60  → Weak fit
 
 --------------------------------------------------
-STEP 5: FINAL DECISION
+8) FINAL DECISION RULE
 --------------------------------------------------
 
-If score >= 70 → Decision = "Shortlisted"
-If score 55-69 → Decision = "KIV"
-If score < 55  → Decision = "Rejected"
+If score >= 70  → decision = "Shortlisted"
+If score 55–69  → decision = "KIV"
+If score < 55   → decision = "Rejected"
 
 --------------------------------------------------
-STEP 6: OUTPUT FORMAT (STRICT JSON)
+OUTPUT FORMAT (STRICT – JSON ONLY):
 --------------------------------------------------
 
-Return ONLY this valid JSON structure:
+Respond ONLY with valid JSON. No explanations, markdown, or extra text.
+Do NOT change field names.
 
 {
+  "name": "",
+  "email": "",
+  "contact_number": "",
+  "current_company": "",
+  "role_category": "",
+  "score": 0,
+  "decision": "",
+  "evaluation": {
+    "candidate_strengths": [],
+    "candidate_weaknesses": [],
+    "high_match_skills": [],
+    "medium_match_skills": [],
+    "low_or_missing_match_skills": [],
+    "career_gaps": [],
+    "red_flags": [],
+    "risk_level": "",
+    "risk_explanation": "",
+    "reward_level": "",
+    "reward_explanation": "",
+    "overall_fit_rating": 0,
+    "score_breakdown": {
+      "skill_match": 0,
+      "experience_relevance": 0,
+      "role_alignment": 0,
+      "stability": 0
+    },
+    "justification": ""
+  },
   "candidate_profile": {
-    "full_name": "",
-    "email": "",
-    "contact_number": "",
     "current_role": "",
-    "current_company": "",
     "total_experience_years": "",
     "relevant_experience_years": "",
     "key_skills": [],
@@ -182,39 +234,8 @@ Return ONLY this valid JSON structure:
     "visa_type": "",
     "visa_expiry": "",
     "is_foreigner": false
-  },
-  "role_category": "",
-  "match_analysis": {
-    "skill_match": {
-      "matched_skills": [],
-      "missing_skills": []
-    },
-    "experience_relevance": "",
-    "experience_recency": "",
-    "role_alignment": "",
-    "seniority_match": "",
-    "stability": "",
-    "career_gaps": [],
-    "red_flags": []
-  },
-  "score": 0,
-  "score_breakdown": {
-    "skill_match": 0,
-    "experience_relevance": 0,
-    "role_alignment": 0,
-    "stability": 0
-  },
-  "decision": "",
-  "summary": ""
+  }
 }
-
---------------------------------------------------
-STEP 7: SUMMARY RULE
---------------------------------------------------
-Write a 2-3 line recruiter-style summary:
-- Why this candidate is suitable or not
-- Mention key strengths and concerns
-- Keep it sharp and decision-focused
 
 --------------------------------------------------
 JOB DESCRIPTION:

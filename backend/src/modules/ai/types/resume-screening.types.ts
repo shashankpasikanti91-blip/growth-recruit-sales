@@ -1,17 +1,13 @@
-// Resume Screening AI Service
-// Implements the strict evidence-based screening prompt defined in README.md
+// Resume Screening AI Service — Multi-industry prompt (all role types)
 
 export interface ResumeScreeningInput {
   jobDescription: string;
   resumeText: string;
 }
 
+// Rich candidate extraction
 export interface CandidateProfile {
-  full_name: string;
-  email: string;
-  contact_number: string;
   current_role: string;
-  current_company: string;
   total_experience_years: string;
   relevant_experience_years: string;
   key_skills: string[];
@@ -23,35 +19,42 @@ export interface CandidateProfile {
   is_foreigner: boolean;
 }
 
-export interface SkillMatch {
-  matched_skills: string[];
-  missing_skills: string[];
-}
-
+// Weighted scoring
 export interface ScoreBreakdown {
-  skill_match: number;
-  experience_relevance: number;
-  role_alignment: number;
-  stability: number;
+  skill_match: number;        // /35
+  experience_relevance: number; // /30
+  role_alignment: number;     // /20
+  stability: number;          // /15
 }
 
-export interface MatchAnalysis {
-  skill_match: SkillMatch;
-  experience_relevance: string;
-  experience_recency: string;
-  role_alignment: string;
-  seniority_match: string;
-  stability: string;
+// User-specified evaluation block
+export interface Evaluation {
+  candidate_strengths: string[];
+  candidate_weaknesses: string[];
+  high_match_skills: string[];
+  medium_match_skills: string[];
+  low_or_missing_match_skills: string[];
   career_gaps: string[];
   red_flags: string[];
+  risk_level: string;
+  risk_explanation: string;
+  reward_level: string;
+  reward_explanation: string;
+  overall_fit_rating: number;
+  score_breakdown: ScoreBreakdown;
+  justification: string;
 }
 
 export interface ResumeScreeningResult {
-  candidate_profile: CandidateProfile;
+  // Top-level quick-access fields
+  name: string;
+  email: string;
+  contact_number: string;
+  current_company: string;
   role_category: string;
-  match_analysis: MatchAnalysis;
   score: number;
-  score_breakdown: ScoreBreakdown;
   decision: 'Shortlisted' | 'KIV' | 'Rejected';
-  summary: string;
+  evaluation: Evaluation;
+  // Rich extraction
+  candidate_profile: CandidateProfile;
 }
