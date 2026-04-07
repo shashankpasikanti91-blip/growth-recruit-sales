@@ -193,3 +193,14 @@ export const auditApi = {
     limit?: number;
   }) => api.get('/audit', { params }).then(r => r.data),
 };
+
+// ─── Owner (SUPER_ADMIN only) ─────────────────────────────────────────────────
+
+export const ownerApi = {
+  overview: () => api.get('/owner/overview').then(r => r.data),
+  tenants: (params?: { page?: number; limit?: number; search?: string }) =>
+    api.get('/owner/tenants', { params }).then(r => r.data),
+  subscriptions: () => api.get('/owner/subscriptions').then(r => r.data),
+  signups: (days?: number) => api.get('/owner/signups', { params: { days } }).then(r => r.data),
+  aiUsage: (days?: number) => api.get('/owner/ai-usage', { params: { days } }).then(r => r.data),
+};

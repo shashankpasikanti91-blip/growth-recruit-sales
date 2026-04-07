@@ -30,6 +30,7 @@ import { SearchModule } from './modules/search/search.module';
 import { TeamModule } from './modules/team/team.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DedupeProcessor } from './processors/dedupe.processor';
 import { EnrichmentProcessor } from './processors/enrichment.processor';
 import { OutreachProcessor } from './processors/outreach.processor';
@@ -113,6 +114,7 @@ import storageConfig from './config/storage.config';
     TeamModule,
     OnboardingModule,
     DocumentsModule,
+    NotificationsModule,
   ],
   providers: [
     // Background processors — registered at root level since they depend on cross-module services

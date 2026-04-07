@@ -10,6 +10,7 @@ import * as crypto from 'crypto';
 import { BusinessIdService } from '../billing/business-id.service';
 import { getPlanConfig } from '../../config/plans.config';
 import { TenantOnboardingService } from '../tenants/tenant-onboarding.service';
+import { OwnerNotificationService } from '../notifications/owner-notification.service';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly businessIdService: BusinessIdService,
     private readonly tenantOnboarding: TenantOnboardingService,
+    private readonly ownerNotify: OwnerNotificationService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -451,6 +453,18 @@ export class AuthService {
     // Fire-and-forget: don't block signup if seeding fails
     this.tenantOnboarding.setup(result.tenant.id).catch((err) => {
       this.logger.warn(`Onboarding setup failed for tenant ${result.tenant.id}: ${err.message}`);
+    });
+
+    // Notify owner (Telegram + email) — fire-and-forget
+    this.ownerNotify.notifyNewSignup({
+      tenantName: result.tenant.name,
+      email: result.user.email,
+      firstName: result.user.firstName,
+      lastName: result.user.lastName,
+      plan: planConfig.tier,
+      signupAt: new Date(),
+    }).catch((err) => {
+      this.logger.warn(`Owner notification failed: ${err.message}`);
     });
 
     const tokens = await this.generateTokens(

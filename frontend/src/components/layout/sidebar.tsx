@@ -30,6 +30,7 @@ import {
   Sparkles,
   FileText,
   Shield,
+  Lock,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -87,6 +88,10 @@ const navConfig = (role: string) => {
         { label: 'Visa Guide', href: '/visa-guide', icon: Globe },
       ],
     },
+    ...(isSuperAdmin ? [{
+      group: 'Owner',
+      items: [{ label: 'Owner Control Panel', href: '/owner', icon: Lock }],
+    }] : []),
   ];
 };
 
