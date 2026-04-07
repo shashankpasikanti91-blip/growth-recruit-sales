@@ -382,12 +382,14 @@ export class AuthService {
     const slug = this.generateSlug(data.companyName || `${data.firstName}-${data.lastName}`);
     const tenantBusinessId = await this.businessIdService.generate('tenant');
     const userBusinessId = await this.businessIdService.generate('user');
-    const planConfig = getPlanConfig('FREE');
 
     // Look up the starter plan outside the transaction (read-only, safe)
     const starterPlan = await this.prisma.plan.findFirst({
       where: { tier: 'STARTER' },
     });
+
+    // Use STARTER config when plan exists, otherwise fall back to FREE
+    const planConfig = getPlanConfig(starterPlan ? 'STARTER' : 'FREE');
 
     const result = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
