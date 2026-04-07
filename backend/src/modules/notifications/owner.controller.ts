@@ -86,7 +86,7 @@ export class OwnerController {
           : undefined,
         include: {
           _count: { select: { users: { where: { isActive: true } }, candidates: { where: { isActive: true } }, leads: { where: { isActive: true } } } },
-          subscriptions: { include: { plan: true }, orderBy: { createdAt: 'desc' }, take: 1 },
+          subscription: { include: { plan: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -110,12 +110,12 @@ export class OwnerController {
         users: t._count.users,
         candidates: t._count.candidates,
         leads: t._count.leads,
-        subscription: t.subscriptions[0]
+        subscription: t.subscription
           ? {
-              status: t.subscriptions[0].status,
-              planName: (t.subscriptions[0] as any).plan?.name ?? '—',
-              trialEndsAt: t.subscriptions[0].trialEndsAt,
-              currentPeriodEnd: t.subscriptions[0].currentPeriodEnd,
+              status: t.subscription.status,
+              planName: (t.subscription as any).plan?.name ?? '—',
+              trialEndsAt: t.subscription.trialEndsAt,
+              currentPeriodEnd: t.subscription.currentPeriodEnd,
             }
           : null,
       })),
@@ -184,7 +184,7 @@ export class OwnerController {
           select: { email: true, firstName: true, lastName: true, createdAt: true },
           take: 1,
         },
-        subscriptions: { include: { plan: true }, take: 1, orderBy: { createdAt: 'desc' } },
+        subscription: { include: { plan: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -195,8 +195,8 @@ export class OwnerController {
       plan: t.plan,
       createdAt: t.createdAt,
       admin: t.users[0] ?? null,
-      subscription: t.subscriptions[0]
-        ? { status: t.subscriptions[0].status, planName: (t.subscriptions[0] as any).plan?.name }
+      subscription: t.subscription
+        ? { status: t.subscription.status, planName: (t.subscription as any).plan?.name }
         : null,
     }));
   }
