@@ -212,7 +212,7 @@ export class OwnerController {
 
     const logs = await this.prisma.aiUsageLog.findMany({
       where: { createdAt: { gte: since } },
-      select: { tenantId: true, action: true, tokensUsed: true, createdAt: true },
+      select: { tenantId: true, serviceType: true, tokensInput: true, tokensOutput: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
       take: 1000,
     });
@@ -220,18 +220,18 @@ export class OwnerController {
     const byTenant = logs.reduce<Record<string, { calls: number; tokens: number }>>((acc, l) => {
       if (!acc[l.tenantId]) acc[l.tenantId] = { calls: 0, tokens: 0 };
       acc[l.tenantId].calls += 1;
-      acc[l.tenantId].tokens += l.tokensUsed ?? 0;
+      acc[l.tenantId].tokens += (l.tokensInput ?? 0) + (l.tokensOutput ?? 0);
       return acc;
     }, {});
 
     const byAction = logs.reduce<Record<string, number>>((acc, l) => {
-      acc[l.action] = (acc[l.action] ?? 0) + 1;
+      acc[l.serviceType] = (acc[l.serviceType] ?? 0) + 1;
       return acc;
     }, {});
 
     return {
       totalCalls: logs.length,
-      totalTokens: logs.reduce((s, l) => s + (l.tokensUsed ?? 0), 0),
+      totalTokens: logs.reduce((s, l) => s + (l.tokensInput ?? 0) + (l.tokensOutput ?? 0), 0),
       byAction,
       topTenants: Object.entries(byTenant)
         .sort((a, b) => b[1].calls - a[1].calls)
