@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { Settings, Key, User, Building2, ShieldCheck, ExternalLink, Info } from 'lucide-react';
+import { Settings, Key, User, Building2, ShieldCheck, ExternalLink, Info, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const PROVIDERS = ['LINKEDIN','INDEED','APOLLO','HUNTER','CLEARBIT','SMTP','SLACK','WEBHOOK'];
@@ -156,10 +156,207 @@ function IntegrationsTab() {
 }
 
 function ProfileTab() {
+  const queryClient = useQueryClient();
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+
+  // Fetch current user profile
+  const { data: profileData, isLoading: profileLoading } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.get('/users/me').then(r => r.data),
+  });
+
+  const profile = profileData?.data ?? profileData;
+
+  // Profile form state
+  const [profileForm, setProfileForm] = useState({ firstName: '', lastName: '', phone: '', jobTitle: '' });
+  const [profileDirty, setProfileDirty] = useState(false);
+
+  // When profile loads, populate form
+  const prevProfile = profile;
+  if (profile && !profileDirty && (
+    profileForm.firstName === '' && profileForm.lastName === ''
+  )) {
+    setProfileForm({
+      firstName: profile.firstName ?? '',
+      lastName: profile.lastName ?? '',
+      phone: (profile.settings as any)?.phone ?? '',
+      jobTitle: (profile.settings as any)?.jobTitle ?? '',
+    });
+  }
+
+  const updateProfile = useMutation({
+    mutationFn: (data: any) => api.patch('/users/me', data),
+    onSuccess: () => {
+      toast.success('Profile updated');
+      setProfileDirty(false);
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Update failed'),
+  });
+
+  // Password form state
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwError, setPwError] = useState('');
+
+  const changePassword = useMutation({
+    mutationFn: (data: any) => api.patch('/users/me/password', data),
+    onSuccess: () => {
+      toast.success('Password changed successfully');
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPwError('');
+    },
+    onError: (e: any) => {
+      setPwError(e?.response?.data?.message ?? 'Password change failed');
+    },
+  });
+
+  const handleProfileSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfile.mutate({
+      firstName: profileForm.firstName,
+      lastName: profileForm.lastName,
+      phone: profileForm.phone || undefined,
+      jobTitle: profileForm.jobTitle || undefined,
+    });
+  };
+
+  const handlePasswordChange = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError('');
+    if (pwForm.newPassword.length < 8) { setPwError('Password must be at least 8 characters'); return; }
+    if (pwForm.newPassword !== pwForm.confirmPassword) { setPwError('Passwords do not match'); return; }
+    changePassword.mutate({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
+  };
+
+  if (profileLoading) return <div className="card text-center text-gray-400 py-12">Loading profile...</div>;
+
   return (
-    <div className="card max-w-lg">
-      <h3 className="font-semibold text-gray-900 mb-4">Profile Settings</h3>
-      <p className="text-sm text-gray-500">Profile management coming soon.</p>
+    <div className="space-y-6 max-w-xl">
+      {/* Profile details */}
+      <div className="card">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-lg">
+            {(profile?.firstName?.[0] ?? '') + (profile?.lastName?.[0] ?? '')}
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">{profile?.firstName} {profile?.lastName}</p>
+            <p className="text-xs text-gray-500">{profile?.email}</p>
+            <span className="inline-block mt-0.5 text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full">{profile?.role}</span>
+          </div>
+        </div>
+
+        <form onSubmit={handleProfileSave} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">First Name</label>
+              <input
+                className="input"
+                value={profileForm.firstName}
+                onChange={e => { setProfileForm(f => ({ ...f, firstName: e.target.value })); setProfileDirty(true); }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Last Name</label>
+              <input
+                className="input"
+                value={profileForm.lastName}
+                onChange={e => { setProfileForm(f => ({ ...f, lastName: e.target.value })); setProfileDirty(true); }}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Job Title <span className="text-gray-400">(optional)</span></label>
+            <input
+              className="input"
+              placeholder="e.g. Senior Recruiter"
+              value={profileForm.jobTitle}
+              onChange={e => { setProfileForm(f => ({ ...f, jobTitle: e.target.value })); setProfileDirty(true); }}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Phone <span className="text-gray-400">(optional)</span></label>
+            <input
+              className="input"
+              type="tel"
+              placeholder="+60 12-345 6789"
+              value={profileForm.phone}
+              onChange={e => { setProfileForm(f => ({ ...f, phone: e.target.value })); setProfileDirty(true); }}
+            />
+          </div>
+          <button type="submit" disabled={updateProfile.isPending || !profileDirty} className="btn-primary">
+            {updateProfile.isPending ? 'Saving...' : 'Save changes'}
+          </button>
+        </form>
+      </div>
+
+      {/* Change password */}
+      {profile?.authProvider === 'EMAIL' && (
+        <div className="card">
+          <h3 className="font-semibold text-gray-900 mb-1">Change Password</h3>
+          <p className="text-xs text-gray-500 mb-4">Enter your current password and choose a new one.</p>
+          <form onSubmit={handlePasswordChange} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Current Password</label>
+              <div className="relative">
+                <input
+                  type={showCurrentPw ? 'text' : 'password'}
+                  className="input pr-10"
+                  value={pwForm.currentPassword}
+                  onChange={e => setPwForm(f => ({ ...f, currentPassword: e.target.value }))}
+                  autoComplete="current-password"
+                />
+                <button type="button" onClick={() => setShowCurrentPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" tabIndex={-1}>
+                  {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">New Password</label>
+              <div className="relative">
+                <input
+                  type={showNewPw ? 'text' : 'password'}
+                  className="input pr-10"
+                  placeholder="Min 8 characters"
+                  value={pwForm.newPassword}
+                  onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))}
+                  autoComplete="new-password"
+                />
+                <button type="button" onClick={() => setShowNewPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" tabIndex={-1}>
+                  {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Confirm New Password</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPw ? 'text' : 'password'}
+                  className="input pr-10"
+                  placeholder="Repeat new password"
+                  value={pwForm.confirmPassword}
+                  onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                  autoComplete="new-password"
+                />
+                <button type="button" onClick={() => setShowConfirmPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" tabIndex={-1}>
+                  {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            {pwError && <p className="text-xs text-red-600">{pwError}</p>}
+            <button type="submit" disabled={changePassword.isPending || !pwForm.currentPassword || !pwForm.newPassword} className="btn-primary">
+              {changePassword.isPending ? 'Changing...' : 'Change password'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {profile?.authProvider === 'GOOGLE' && (
+        <div className="card bg-gray-50">
+          <p className="text-sm text-gray-500">You signed in with Google. Password management is handled by your Google account.</p>
+        </div>
+      )}
     </div>
   );
 }

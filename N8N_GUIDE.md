@@ -18,13 +18,13 @@ n8n **never accesses the database directly**. All interactions go through the Ne
 
 ## Accessing n8n
 
-After `docker compose up`, n8n is available at:
+n8n is already running in production at:
 
 ```
-http://localhost:5678
+https://n8n.srpailabs.com
 ```
 
-First-run setup will ask you to create an owner account. Use a strong password and keep it separate from your platform admin credentials.
+Log in with your n8n owner account. If you haven't set one up, go to the URL above and follow the first-run setup wizard.
 
 ---
 
@@ -32,11 +32,11 @@ First-run setup will ask you to create an owner account. Use a strong password a
 
 n8n has a Variables feature (`Settings → Variables`) where you can store values used across all workflows. Set these before importing any workflow:
 
-| Variable Name | Where to find it | Example |
+| Variable Name | Where to find it | Production Value |
 |---------------|-----------------|---------|
-| `BACKEND_URL` | Internal Docker URL | `http://backend:4000` |
-| `N8N_WEBHOOK_SECRET` | Your `.env` → `N8N_WEBHOOK_SECRET` | `your-secret-here` |
-| `BACKEND_SERVICE_TOKEN` | Generate once (see below) | `eyJhbGci...` |
+| `BACKEND_URL` | Server host → backend port | `http://host.docker.internal:8020` |
+| `N8N_WEBHOOK_SECRET` | Server `.env` → `N8N_WEBHOOK_SECRET` | `srp_n8n_growth_wh_2026` |
+| `BACKEND_SERVICE_TOKEN` | Generate via login (see below) | `eyJhbGci...` |
 | `APOLLO_API_KEY` | Apollo.io dashboard | `sk_...` |
 | `CLEARBIT_KEY` | Clearbit dashboard | `sk_...` |
 | `LINKEDIN_TOKEN` | LinkedIn App OAuth | `AQVN...` |
@@ -45,20 +45,18 @@ n8n has a Variables feature (`Settings → Variables`) where you can store value
 
 ### Generating a Backend Service Token
 
-The service token is a long-lived JWT used by n8n to call authenticated backend endpoints (e.g., fetching open jobs). Generate it by logging in as admin and copying the access token, or better — create a dedicated service account:
+The service token is a long-lived JWT used by n8n to call authenticated backend endpoints. Generate one by logging in as the platform owner:
 
 ```bash
-# Via Swagger UI at http://localhost:4000/api/docs
-# POST /api/v1/auth/login
-{
-  "email": "admin@srp-ai-labs.com",
-  "password": "Admin@123",
-  "tenantSlug": "srp-ai-labs"
-}
-# Copy the accessToken from the response
+curl -X POST https://growth.srpailabs.com/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "pasikantishashank24@gmail.com", "password": "SRP@Owner2026!"}'
+# Copy the accessToken from the response and set it as BACKEND_SERVICE_TOKEN in n8n
 ```
 
-> **Note:** Access tokens expire in 15 minutes. For a permanent service token, extend the `JWT_ACCESS_EXPIRY` for a service-only account, or implement a long-lived token mechanism.
+Or use the Swagger UI at `https://growth.srpailabs.com/api/v1/docs` → `POST /auth/login` → Authorize → copy token.
+
+> **Note:** Access tokens expire in 15 minutes. For n8n workflows that run on a schedule, use the `POST /auth/login` node at the start of each workflow to refresh the token before making backend calls.
 
 ---
 
@@ -121,21 +119,16 @@ The service token is a long-lived JWT used by n8n to call authenticated backend 
 
 **How to wire up the backend → n8n trigger:**
 
-In your `.env`, set:
+The backend is already configured to call n8n. In the server `.env`:
 ```
-N8N_BASE_URL=http://n8n:5678
-```
-
-Then in the backend `candidates.service.ts` (or via `EventEmitter2` listener in a dedicated service), emit:
-```typescript
-await this.httpService.post(
-  `${n8nUrl}/webhook/on-candidate-imported`,
-  { candidateId: candidate.id },
-  { headers: { 'X-N8N-Secret': secret } }
-).toPromise();
+N8N_BASE_URL=http://host.docker.internal:5678
+N8N_WEBHOOK_SECRET=srp_n8n_growth_wh_2026
 ```
 
-Or configure n8n to poll the backend for new candidates instead of using the push model.
+The n8n webhook URL for this workflow is:
+```
+https://n8n.srpailabs.com/webhook/on-candidate-imported
+```
 
 ---
 
@@ -171,20 +164,16 @@ Or configure n8n to poll the backend for new candidates instead of using the pus
 
 Every endpoint under `/api/v1/webhooks/` requires the `X-N8N-Secret` header. The backend verifies it against `N8N_WEBHOOK_SECRET` from the environment. If the header is missing or invalid, the request is rejected with `401 Unauthorized`.
 
-Always set n8n variables to match `.env`:
+The production secret is already set. In n8n, set the variable `N8N_WEBHOOK_SECRET` to match:
 ```
-# .env
-N8N_WEBHOOK_SECRET=my-super-secret-32-chars
-
-# n8n variable
-N8N_WEBHOOK_SECRET = my-super-secret-32-chars
+N8N_WEBHOOK_SECRET = srp_n8n_growth_wh_2026
 ```
 
 ---
 
 ## Testing Workflows Manually
 
-You can test any webhook endpoint using the Swagger UI at `http://localhost:4000/api/docs`:
+You can test any webhook endpoint using the Swagger UI at `https://growth.srpailabs.com/api/v1/docs`:
 
 1. Authenticate via `POST /auth/login`
 2. Click **Authorize** and paste the JWT
@@ -194,8 +183,8 @@ Or use curl:
 
 ```bash
 # Test trigger-screening manually
-curl -X POST http://localhost:4000/api/v1/webhooks/trigger-screening \
-  -H "X-N8N-Secret: your-secret-here" \
+curl -X POST https://growth.srpailabs.com/api/v1/webhooks/trigger-screening \
+  -H "X-N8N-Secret: srp_n8n_growth_wh_2026" \
   -H "Content-Type: application/json" \
   -d '{"candidateId": "<uuid>", "jobId": "<uuid>"}'
 ```
@@ -206,9 +195,9 @@ curl -X POST http://localhost:4000/api/v1/webhooks/trigger-screening \
 
 | Issue | Solution |
 |-------|---------|
-| Workflow can't reach backend | Use `http://backend:4000`, not `http://localhost:4000` — both are on the same Docker network |
-| `401 Unauthorized` on webhook | Check `N8N_WEBHOOK_SECRET` matches exactly between n8n variable and `.env` |
-| SMTP node fails | Verify SMTP credentials in n8n are active; test with a simple email workflow first |
-| Lead scoring returns 0 | Ensure the tenant has an active `IcpProfile` — create one via the backend API first |
-| n8n workflows deactivate on restart | This is a Docker volume issue — ensure `n8n_data` volume is persisted |
+| Workflow can't reach backend | Use `http://host.docker.internal:8020` as the backend URL — n8n runs on the host network, not inside the growth Docker network |
+| `401 Unauthorized` on webhook | Check `N8N_WEBHOOK_SECRET` in n8n variables matches `srp_n8n_growth_wh_2026` |
+| SMTP node fails | Verify SMTP credentials in n8n are active (`smtp.gmail.com`, port 587); test with a simple email workflow first |
+| Lead scoring returns 0 | Ensure the tenant has an active `IcpProfile` — create one in the platform UI under Settings → ICP Profile |
+| n8n workflows deactivate on restart | This is expected if the n8n Docker volume is not persisted — the `n8n` container on this server already has a persistent volume |
 | Candidate not found after import | Add a longer wait to Workflow 03 (increase from 2s to 5s) |

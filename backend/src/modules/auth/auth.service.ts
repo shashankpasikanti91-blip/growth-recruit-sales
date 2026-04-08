@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LoginDto, SignupDto } from './dto/login.dto';
+import { LoginDto, SignupDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto } from './dto/login.dto';
 import { GoogleProfile } from './strategies/google.strategy';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
@@ -11,6 +11,7 @@ import { BusinessIdService } from '../billing/business-id.service';
 import { getPlanConfig } from '../../config/plans.config';
 import { TenantOnboardingService } from '../tenants/tenant-onboarding.service';
 import { OwnerNotificationService } from '../notifications/owner-notification.service';
+import { OtpService } from './otp.service';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +24,7 @@ export class AuthService {
     private readonly businessIdService: BusinessIdService,
     private readonly tenantOnboarding: TenantOnboardingService,
     private readonly ownerNotify: OwnerNotificationService,
+    private readonly otpService: OtpService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -65,6 +67,11 @@ export class AuthService {
     if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
 
     if (!user.tenant.isActive) throw new UnauthorizedException('Tenant is inactive');
+
+    // Block unverified email users
+    if (user.status === 'pending_verification') {
+      throw new UnauthorizedException('Please verify your email before logging in. Check your inbox for the OTP code.');
+    }
 
     // Update last login
     await this.prisma.user.update({
@@ -151,7 +158,14 @@ export class AuthService {
       const existingUser = await this.prisma.user.findFirst({
         where: { email: dto.email.toLowerCase() },
       });
-      if (existingUser) throw new ConflictException('An account with this email already exists. Please log in instead.');
+      if (existingUser) {
+        if (existingUser.status === 'pending_verification') {
+          // Resend OTP for existing unverified user
+          await this.sendSignupOtp(existingUser.email, existingUser.firstName);
+          return { requiresVerification: true, email: existingUser.email };
+        }
+        throw new ConflictException('An account with this email already exists. Please log in instead.');
+      }
 
       return this.createNewTenantWithUser({
         email: dto.email.toLowerCase(),
@@ -160,6 +174,9 @@ export class AuthService {
         passwordHash: await bcrypt.hash(dto.password, 12),
         authProvider: 'EMAIL',
         companyName: dto.companyName,
+        phone: dto.phone,
+        industry: dto.industry,
+        country: dto.country,
       });
     }
 
@@ -370,6 +387,84 @@ export class AuthService {
     };
   }
 
+  // ── OTP Helpers ────────────────────────────────────────────────────────────
+
+  private async sendSignupOtp(email: string, firstName: string): Promise<void> {
+    const otp = await this.otpService.store(email, 'verify-email');
+    await this.otpService.sendVerificationOtp(email, firstName, otp);
+  }
+
+  async verifyEmail(dto: VerifyEmailDto) {
+    const valid = await this.otpService.verify(dto.email, 'verify-email', dto.otp);
+    if (!valid) {
+      throw new BadRequestException('Invalid or expired verification code. Please try again.');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: dto.email.toLowerCase(), status: 'pending_verification' },
+      include: { tenant: true },
+    });
+    if (!user) throw new BadRequestException('Account not found or already verified');
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { status: 'active', lastLoginAt: new Date() },
+    });
+
+    // Notify owner now that signup is confirmed
+    this.ownerNotify.notifyNewSignup({
+      tenantName: user.tenant.name,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      plan: user.tenant.plan,
+      signupAt: new Date(),
+    }).catch((err) => {
+      this.logger.warn(`Owner notification failed: ${err.message}`);
+    });
+
+    const tokens = await this.generateTokens(user.id, user.email, user.tenantId, user.role);
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: this.sanitizeUser(user, user.tenant),
+      isNewTenant: true,
+    };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    // Always return generic message — prevents user enumeration attacks
+    const genericMessage = { message: 'If this email is registered, you will receive a reset code shortly.' };
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: dto.email.toLowerCase(), isActive: true },
+    });
+    if (!user || user.authProvider !== 'EMAIL') return genericMessage;
+
+    const otp = await this.otpService.store(dto.email.toLowerCase(), 'reset-password');
+    this.otpService.sendPasswordResetOtp(dto.email.toLowerCase(), user.firstName, otp).catch((err) => {
+      this.logger.warn(`Password reset email failed for ${dto.email}: ${err.message}`);
+    });
+    return genericMessage;
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const valid = await this.otpService.verify(dto.email, 'reset-password', dto.otp);
+    if (!valid) {
+      throw new BadRequestException('Invalid or expired reset code. Please request a new one.');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: dto.email.toLowerCase(), isActive: true },
+    });
+    if (!user) throw new BadRequestException('Account not found');
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+
+    return { message: 'Password reset successfully. You can now log in with your new password.' };
+  }
+
   // ── New Tenant Creation ────────────────────────────────────────────────────
 
   private async createNewTenantWithUser(data: {
@@ -380,6 +475,9 @@ export class AuthService {
     authProvider: 'EMAIL' | 'GOOGLE';
     googleId?: string;
     companyName?: string;
+    phone?: string;
+    industry?: string;
+    country?: string;
   }) {
     const slug = this.generateSlug(data.companyName || `${data.firstName}-${data.lastName}`);
     const tenantBusinessId = await this.businessIdService.generate('tenant');
@@ -420,6 +518,10 @@ export class AuthService {
           authProvider: data.authProvider,
           googleId: data.googleId ?? null,
           lastLoginAt: new Date(),
+          status: data.authProvider === 'EMAIL' ? 'pending_verification' : 'active',
+          settings: (data.phone || data.industry || data.country)
+            ? { phone: data.phone, industry: data.industry, country: data.country }
+            : undefined,
         },
       });
 
@@ -455,7 +557,15 @@ export class AuthService {
       this.logger.warn(`Onboarding setup failed for tenant ${result.tenant.id}: ${err.message}`);
     });
 
-    // Notify owner (Telegram + email) — fire-and-forget
+    // EMAIL signups: send OTP and require verification before login
+    if (data.authProvider === 'EMAIL') {
+      this.sendSignupOtp(data.email, data.firstName).catch((err) => {
+        this.logger.warn(`Signup OTP send failed for ${data.email}: ${err.message}`);
+      });
+      return { requiresVerification: true, email: data.email };
+    }
+
+    // GOOGLE signups bypass email verification — notify owner immediately
     this.ownerNotify.notifyNewSignup({
       tenantName: result.tenant.name,
       email: result.user.email,

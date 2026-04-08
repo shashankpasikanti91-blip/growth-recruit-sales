@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, Length } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -40,6 +40,21 @@ export class SignupDto {
   @IsString()
   companyName?: string;
 
+  @ApiProperty({ required: false, example: '+60123456789' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ required: false, example: 'Recruitment' })
+  @IsOptional()
+  @IsString()
+  industry?: string;
+
+  @ApiProperty({ required: false, example: 'MY' })
+  @IsOptional()
+  @IsString()
+  country?: string;
+
   @ApiProperty({ required: false, description: 'Invite token for joining existing tenant' })
   @IsOptional()
   @IsString()
@@ -50,4 +65,37 @@ export class RefreshTokenDto {
   @ApiProperty()
   @IsString()
   refreshToken: string;
+}
+
+export class VerifyEmailDto {
+  @ApiProperty({ example: 'john@company.com' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: '123456' })
+  @IsString()
+  @Length(6, 6)
+  otp: string;
+}
+
+export class ForgotPasswordDto {
+  @ApiProperty({ example: 'john@company.com' })
+  @IsEmail()
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({ example: 'john@company.com' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: '123456' })
+  @IsString()
+  @Length(6, 6)
+  otp: string;
+
+  @ApiProperty({ example: 'NewP@ss123' })
+  @IsString()
+  @MinLength(8)
+  newPassword: string;
 }

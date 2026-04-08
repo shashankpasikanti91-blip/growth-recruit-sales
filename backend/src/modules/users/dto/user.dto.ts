@@ -48,6 +48,28 @@ export class UpdateUserDto {
   isActive?: boolean;
 }
 
+export class UpdateMeDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  jobTitle?: string;
+}
+
 export class ChangePasswordDto {
   @ApiProperty()
   @IsString()

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Patch, Body, Param, Query, UseGuards, Parse
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto, ChangePasswordDto } from './dto/user.dto';
+import { CreateUserDto, UpdateUserDto, UpdateMeDto, ChangePasswordDto } from './dto/user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -51,6 +51,12 @@ export class UsersController {
   @ApiOperation({ summary: 'Update user' })
   update(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(tenantId, id, dto);
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update own profile (name, phone, job title)' })
+  updateMe(@CurrentUser() user: any, @Body() dto: UpdateMeDto) {
+    return this.usersService.updateMe(user.tenantId, user.id, dto);
   }
 
   @Patch('me/password')

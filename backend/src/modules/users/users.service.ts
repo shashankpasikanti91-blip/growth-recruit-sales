@@ -2,7 +2,7 @@ import { Injectable, ConflictException, NotFoundException, ForbiddenException, U
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BusinessIdService } from '../billing/business-id.service';
-import { CreateUserDto, UpdateUserDto, ChangePasswordDto } from './dto/user.dto';
+import { CreateUserDto, UpdateUserDto, UpdateMeDto, ChangePasswordDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -68,6 +68,33 @@ export class UsersService {
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
+  }
+
+  async updateMe(tenantId: string, id: string, dto: UpdateMeDto) {
+    const user = await this.prisma.user.findFirst({ where: { id, tenantId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const { firstName, lastName, phone, jobTitle } = dto;
+    const settings = { ...(user.settings as Record<string, any> ?? {}) };
+    if (phone !== undefined) settings.phone = phone;
+    if (jobTitle !== undefined) settings.jobTitle = jobTitle;
+
+    const fn = firstName ?? user.firstName;
+    const ln = lastName ?? user.lastName;
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        ...(firstName ? { firstName } : {}),
+        ...(lastName ? { lastName } : {}),
+        fullName: `${fn} ${ln}`.trim(),
+        settings,
+      },
+      select: {
+        id: true, email: true, firstName: true, lastName: true,
+        role: true, isActive: true, settings: true, createdAt: true,
+      },
+    });
   }
 
   async update(tenantId: string, id: string, dto: UpdateUserDto) {
