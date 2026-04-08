@@ -98,8 +98,7 @@ export class AuthController {
         is_new_tenant: String(result.isNewTenant),
       });
 
-      const redirectPath = result.isNewTenant ? '/onboarding' : '/dashboard';
-      return res.redirect(`${frontendUrl}${redirectPath}?${params.toString()}`);
+      return res.redirect(`${frontendUrl}/auth/callback?${params.toString()}`);
     } catch (err: any) {
       const message = encodeURIComponent(err.message || 'Authentication failed');
       return res.redirect(`${frontendUrl}/login?error=${message}`);

@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/auth.store';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { Zap, ArrowLeft, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { GoogleLoginButton } from '@/components/GoogleLoginButton';
 
 const INDUSTRIES = [
   'Recruitment / Staffing',
@@ -268,6 +269,17 @@ export default function SignupPage() {
               {loading ? 'Creating account…' : 'Create account & verify email →'}
             </button>
           </form>
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-3 text-gray-400 tracking-wide">or</span>
+            </div>
+          </div>
+
+          <GoogleLoginButton label="Sign up with Google" />
 
           <p className="text-center text-xs text-gray-400 mt-5">
             Already have an account?{' '}
