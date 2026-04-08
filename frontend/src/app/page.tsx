@@ -210,10 +210,10 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              { name: 'Starter', badge: null, price: 'Free', period: '', color: 'border-gray-200', highlight: false, features: ['Up to 3 users', '500 candidates', '250 leads', '200 AI screenings/mo', 'Basic analytics'] },
-              { name: 'Growth', badge: 'Most Popular', price: '$19', period: '/mo', color: 'border-brand-500 ring-2 ring-brand-500', highlight: true, features: ['Up to 10 users', '5,000 candidates', '2,500 leads', '1,000 AI screenings/mo', 'Advanced analytics'] },
-              { name: 'Professional', badge: null, price: '$49', period: '/mo', color: 'border-blue-200', highlight: false, features: ['Up to 30 users', '25,000 candidates', '10,000 leads', '5,000 AI screenings/mo', 'Power BI analytics'] },
-              { name: 'Enterprise', badge: null, price: 'Custom', period: '', color: 'border-gray-200', highlight: false, features: ['Unlimited users', 'Unlimited candidates & leads', 'Unlimited AI screenings', 'Unlimited imports', 'Dedicated support'] },
+              { name: 'Free', badge: null, price: 'Free', period: '', color: 'border-gray-200', highlight: false, features: ['Up to 3 users', '500 candidates', '250 leads', '200 AI screenings/mo'] },
+              { name: 'Starter', badge: 'Popular', price: '$29', period: '/mo', color: 'border-brand-500 ring-2 ring-brand-500', highlight: true, features: ['Up to 5 users', '2,000 candidates', '1,000 leads', '500 AI screenings/mo'] },
+              { name: 'Growth', badge: null, price: '$69', period: '/mo', color: 'border-blue-200', highlight: false, features: ['Up to 15 users', '10,000 candidates', '2,500 leads', '1,000 AI screenings/mo'] },
+              { name: 'Professional', badge: null, price: '$149', period: '/mo', color: 'border-purple-200', highlight: false, features: ['Up to 30 users', '25,000 candidates', '10,000 leads', '5,000 AI screenings/mo'] },
             ].map(p => (
               <div key={p.name} className={`relative rounded-2xl border-2 p-6 bg-white shadow-sm ${p.color}`}>
                 {p.highlight && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-xs font-bold px-3 py-1 rounded-full">Most Popular</div>}

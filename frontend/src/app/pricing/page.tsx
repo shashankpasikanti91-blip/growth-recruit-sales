@@ -3,12 +3,12 @@ import { Check, Zap, ArrowLeft, ArrowRight } from 'lucide-react';
 
 const PLANS = [
   {
-    id: 'starter',
-    name: 'Starter',
+    id: 'free',
+    name: 'Free',
     badge: null,
     monthly: 0,
     annual: 0,
-    description: 'Get started for free — no credit card required.',
+    description: 'Try the platform with limited usage — no credit card required.',
     color: 'border-gray-200',
     highlight: false,
     features: [
@@ -24,32 +24,53 @@ const PLANS = [
     notIncluded: ['PDF/Word resume parsing', 'n8n workflows', 'Advanced analytics'],
   },
   {
-    id: 'growth',
-    name: 'Growth',
-    badge: 'Most Popular',
-    monthly: 19,
-    annual: 15,
-    description: 'For growing teams that need more capacity and automation.',
+    id: 'starter',
+    name: 'Starter',
+    badge: 'Popular',
+    monthly: 29,
+    annual: 23,
+    description: 'For individuals and small teams starting to scale their pipeline.',
     color: 'border-brand-500 ring-2 ring-brand-500',
     highlight: true,
     features: [
-      'Up to 10 users',
-      '5,000 candidates',
-      '2,500 leads',
-      '1,000 AI screenings / month',
+      'Up to 5 users',
+      '2,000 candidates',
+      '1,000 leads',
+      '500 AI screenings / month',
       'All file formats (PDF, Word, CSV)',
-      'Advanced analytics',
+      'Basic analytics',
       'n8n workflow automation',
-      'Priority support',
+      'Email support',
     ],
     notIncluded: ['Custom AI prompts', 'SSO / SAML'],
+  },
+  {
+    id: 'growth',
+    name: 'Growth',
+    badge: null,
+    monthly: 69,
+    annual: 55,
+    description: 'For growing teams that need more capacity and advanced features.',
+    color: 'border-blue-200',
+    highlight: false,
+    features: [
+      'Up to 15 users',
+      '10,000 candidates',
+      '2,500 leads',
+      '1,000 AI screenings / month',
+      'All file formats + bulk upload',
+      'Advanced analytics',
+      'Custom AI prompts',
+      'Priority support',
+    ],
+    notIncluded: ['SSO / SAML', 'Dedicated account manager'],
   },
   {
     id: 'professional',
     name: 'Professional',
     badge: null,
-    monthly: 49,
-    annual: 39,
+    monthly: 149,
+    annual: 119,
     description: 'Full-featured platform for established recruitment & sales teams.',
     color: 'border-purple-200',
     highlight: false,
@@ -91,18 +112,18 @@ const PLANS = [
 ];
 
 const COMPARISON = [
-  { feature: 'Users', starter: 'Up to 3', growth: 'Up to 10', professional: 'Up to 30', enterprise: 'Unlimited' },
-  { feature: 'Candidates', starter: '500', growth: '5,000', professional: '25,000', enterprise: 'Unlimited' },
-  { feature: 'Leads', starter: '250', growth: '2,500', professional: '10,000', enterprise: 'Unlimited' },
-  { feature: 'AI screenings / month', starter: '200', growth: '1,000', professional: '5,000', enterprise: 'Unlimited' },
-  { feature: 'CSV/Excel imports', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
-  { feature: 'PDF/Word resume parsing', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
-  { feature: 'n8n automation', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
-  { feature: 'Advanced analytics', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
-  { feature: 'Custom AI prompts', starter: '—', growth: '—', professional: '✓', enterprise: '✓' },
-  { feature: 'API access', starter: '—', growth: '—', professional: '✓', enterprise: '✓' },
-  { feature: 'SSO / SAML', starter: '—', growth: '—', professional: '—', enterprise: '✓' },
-  { feature: 'SLA guarantee', starter: '—', growth: '—', professional: '—', enterprise: '✓' },
+  { feature: 'Users', free: 'Up to 3', starter: 'Up to 5', growth: 'Up to 15', professional: 'Up to 30', enterprise: 'Unlimited' },
+  { feature: 'Candidates', free: '500', starter: '2,000', growth: '10,000', professional: '25,000', enterprise: 'Unlimited' },
+  { feature: 'Leads', free: '250', starter: '1,000', growth: '2,500', professional: '10,000', enterprise: 'Unlimited' },
+  { feature: 'AI screenings / month', free: '200', starter: '500', growth: '1,000', professional: '5,000', enterprise: 'Unlimited' },
+  { feature: 'CSV/Excel imports', free: '✓', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'PDF/Word resume parsing', free: '—', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'n8n automation', free: '—', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'Advanced analytics', free: '—', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'Custom AI prompts', free: '—', starter: '—', growth: '✓', professional: '✓', enterprise: '✓' },
+  { feature: 'API access', free: '—', starter: '—', growth: '—', professional: '✓', enterprise: '✓' },
+  { feature: 'SSO / SAML', free: '—', starter: '—', growth: '—', professional: '—', enterprise: '✓' },
+  { feature: 'SLA guarantee', free: '—', starter: '—', growth: '—', professional: '—', enterprise: '✓' },
 ];
 
 export default function PricingPage() {
@@ -229,7 +250,7 @@ export default function PricingPage() {
                 {COMPARISON.map((row, i) => (
                   <tr key={row.feature} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'}>
                     <td className="py-2.5 px-4 text-gray-700 font-medium">{row.feature}</td>
-                    {(['starter', 'growth', 'professional', 'enterprise'] as const).map(k => (
+                    {(['free', 'starter', 'growth', 'professional', 'enterprise'] as const).map(k => (
                       <td key={k} className="py-2.5 px-4 text-center text-gray-600">
                         {row[k] === '✓' ? (
                           <Check className="w-4 h-4 text-green-500 mx-auto" />
@@ -258,7 +279,7 @@ export default function PricingPage() {
               { q: 'What file formats are supported for imports?', a: 'CSV, Excel (.xlsx), PDF resumes, and Word documents (.docx) are all supported. The AI automatically extracts and maps candidate or lead data.' },
               { q: 'How does the AI resume screening work?', a: 'Upload a resume (any format) and select a job. Our AI compares the candidate against the job requirements and returns a score, decision, and detailed breakdown.' },
               { q: 'What is an AI processing credit?', a: 'An AI processing credit is consumed each time you use AI features — resume screening, lead scoring, JD parsing, or outreach generation. Each action uses one or more credits depending on complexity.' },
-              { q: 'Is there a free plan?', a: 'Yes! The Starter plan is completely free — 500 candidates, 250 leads, and 200 AI screenings per month with no credit card required. Upgrade anytime for more capacity.' },
+              { q: 'Is there a free plan?', a: 'Yes! The Free plan gives you 500 candidates, 250 leads, and 200 AI screenings per month — no credit card required. Upgrade anytime for more capacity.' },
               { q: 'Will prices go up?', a: 'Yes — these are early access launch prices. If you sign up now, your rate is locked in forever.' },
             ].map(faq => (
               <details key={faq.q} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm group">
