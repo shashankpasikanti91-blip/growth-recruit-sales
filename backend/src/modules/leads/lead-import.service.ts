@@ -503,8 +503,9 @@ export class LeadImportService {
   }
 
   /**
-   * Apollo lead generation — tries native API first (paid plans),
-   * falls back to Apify Apollo scraper (free plans / API inaccessible).
+   * Apollo lead generation — cascading fallback strategy:
+   *  1. Native Apollo API (requires paid Apollo plan)
+   *  2. Google Search B2B queries (always works on free Apify)
    */
   private async generateViaApollo(
     tenantId: string,
@@ -524,20 +525,18 @@ export class LeadImportService {
         }
         return { imported: 0, skipped: 0, errors: [] };
       } catch (err: any) {
-        // 403 = free plan, fall through to Apify scraper
-        if (err.message?.includes('free plan') || err.message?.includes('API_INACCESSIBLE') || err.status === 403) {
-          this.logger.warn('Apollo native API not available (free plan), falling back to Apify scraper');
-        } else if (err instanceof ServiceUnavailableException || err instanceof BadRequestException) {
-          // Don't fall through for auth/config errors
-          throw err;
+        // 403 = free plan — fall through to Google Search fallback
+        if (err.status === 403 || err.message?.includes('free plan') || err.message?.includes('API_INACCESSIBLE')) {
+          this.logger.warn('Apollo native API not available (free plan), falling back to Google Search B2B');
         } else {
-          this.logger.warn(`Apollo native API failed: ${err.message}, falling back to Apify scraper`);
+          this.logger.warn(`Apollo native API failed: ${err.message}, falling back to Google Search B2B`);
         }
       }
     }
 
-    // 2. Fallback: Apify Apollo scraper (uses Apify credits, works with free Apollo plan)
-    return this.generateViaApifyApollo(tenantId, industry, location, titles, limit, sourceImportId);
+    // 2. Fallback: Google Search with B2B-optimized queries
+    this.logger.log('Using Google Search B2B fallback for Apollo source');
+    return this.generateViaGoogleSearchB2B(tenantId, industry, location, titles, limit, sourceImportId);
   }
 
   /**
@@ -571,7 +570,6 @@ export class LeadImportService {
       if (!resp.ok) {
         const errText = await resp.text();
         this.logger.error(`Apollo API error: ${resp.status} ${errText}`);
-        // Surface the error message so the fallback logic can detect free plan
         const error: any = new Error(errText);
         error.status = resp.status;
         throw error;
@@ -587,10 +585,10 @@ export class LeadImportService {
   }
 
   /**
-   * Apify Apollo.io scraper fallback — works even with Apollo free plan.
-   * Uses Apify credits to scrape Apollo search results via headless browser.
+   * Google Search B2B fallback for Apollo — uses LinkedIn + business search queries
+   * to find contacts when Apollo API is not available.
    */
-  private async generateViaApifyApollo(
+  private async generateViaGoogleSearchB2B(
     tenantId: string,
     industry: string,
     location: string,
@@ -603,57 +601,59 @@ export class LeadImportService {
       throw new ServiceUnavailableException('Lead generation service is temporarily unavailable. Contact support.');
     }
 
-    const actorId = 'curious_coder/apollo-io-scraper';
-    const runUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${encodeURIComponent(apifyKey)}&waitForFinish=180`;
+    // Build optimized B2B search queries (LinkedIn + business directory focused)
+    const searchQueries: string[] = [];
+    if (titles.length > 0) {
+      for (const title of titles.slice(0, 3)) {
+        searchQueries.push(`site:linkedin.com/in "${title}" "${industry}" "${location}"`);
+        searchQueries.push(`"${title}" "${industry}" "${location}" email contact`);
+      }
+    } else {
+      searchQueries.push(`site:linkedin.com/in "${industry}" "${location}" CEO OR founder OR owner`);
+      searchQueries.push(`"${industry}" "${location}" owner founder email contact`);
+    }
+
+    const actorId = 'apify/google-search-scraper';
+    const runUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${encodeURIComponent(apifyKey)}&waitForFinish=120`;
 
     let allItems: any[] = [];
     try {
-      const searchUrl = this.buildApolloSearchUrl(industry, location, titles);
       const runResp = await fetch(runUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ searchUrl, maxResults: limit }),
+        body: JSON.stringify({
+          queries: searchQueries.join('\n'),
+          maxPagesPerQuery: 2,
+          resultsPerPage: Math.min(limit, 50),
+          languageCode: '',
+          mobileResults: false,
+        }),
       });
 
       if (!runResp.ok) {
         const errText = await runResp.text();
-        this.logger.error(`Apify Apollo run failed: ${runResp.status} ${errText}`);
-        throw new BadRequestException('Apollo lead generation failed. Please try again.');
+        this.logger.error(`Apify Google Search B2B run failed: ${runResp.status} ${errText}`);
+        throw new BadRequestException('Lead generation failed — search service returned an error');
       }
 
       const runData = await runResp.json() as any;
       const datasetId = runData?.data?.defaultDatasetId;
       if (!datasetId) {
-        throw new BadRequestException('Apollo lead generation failed — no results returned');
+        throw new BadRequestException('Lead generation failed — no results returned');
       }
 
-      const dataUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(apifyKey)}&limit=${limit}`;
+      const dataUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(apifyKey)}&limit=${limit * 2}`;
       const dataResp = await fetch(dataUrl);
       if (dataResp.ok) {
         allItems = await dataResp.json() as any[];
       }
     } catch (err: any) {
       if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
-      this.logger.error(`Apify Apollo error: ${err.message}`);
-      throw new BadRequestException('Apollo lead generation failed. Please try again.');
+      this.logger.error(`Google Search B2B error: ${err.message}`);
+      throw new BadRequestException('Lead generation failed. Please try again.');
     }
 
-    if (allItems.length === 0) {
-      return { imported: 0, skipped: 0, errors: [] };
-    }
-
-    // Apify Apollo scraper returns structured contact data — import with rich fields
-    return this.importFromApifyInternal(tenantId, allItems.slice(0, limit), 'apollo', sourceImportId);
-  }
-
-  private buildApolloSearchUrl(industry: string, location: string, titles: string[]): string {
-    const params = new URLSearchParams();
-    params.set('page', '1');
-    if (titles.length) titles.forEach(t => params.append('personTitles[]', t));
-    params.set('qKeywords', `${industry} ${location}`);
-    params.set('sortByField', '[none]');
-    params.set('sortAscending', 'false');
-    return `https://app.apollo.io/#/people?${params.toString()}`;
+    return this.parseSearchResultsToLeads(tenantId, allItems, 'apollo', limit, sourceImportId);
   }
 
   /**
