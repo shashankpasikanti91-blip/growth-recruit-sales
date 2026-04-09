@@ -174,6 +174,15 @@ export class LeadImportService {
           stage: 'NEW',
           companyId: company.id,
           phone: place.international_phone_number ?? null,
+          rawData: {
+            address: place.formatted_address || null,
+            website: place.website || null,
+            rating: place.rating || null,
+            totalRatings: place.user_ratings_total || null,
+            placeId: place.place_id || null,
+            lat: place.geometry?.location?.lat || null,
+            lng: place.geometry?.location?.lng || null,
+          },
           businessId: await this.businessIdService.generate('lead'),
         },
       });
@@ -285,7 +294,7 @@ export class LeadImportService {
       data: {
         tenantId,
         name: `AI Lead Gen — ${dto.source} — ${dto.industry} in ${dto.location}`,
-        source: dto.source === LeadSource.GOOGLE_MAPS ? 'GOOGLE_MAPS' : 'APIFY',
+        source: dto.source === LeadSource.GOOGLE_MAPS ? 'GOOGLE_MAPS' : dto.source === LeadSource.APOLLO ? 'APOLLO' : 'APIFY',
         status: 'PROCESSING',
         totalRows: limit,
         importType: 'lead',
@@ -300,7 +309,7 @@ export class LeadImportService {
       } else if (dto.source === LeadSource.GOOGLE_MAPS) {
         result = await this.generateViaGoogleMaps(tenantId, dto.industry, dto.location, limit, sourceImport.id);
       } else if (dto.source === LeadSource.APOLLO) {
-        result = await this.generateViaApifyApollo(tenantId, dto.industry, dto.location, titles, limit, sourceImport.id);
+        result = await this.generateViaApollo(tenantId, dto.industry, dto.location, titles, limit, sourceImport.id);
       } else {
         throw new BadRequestException('Unsupported source');
       }
@@ -395,7 +404,7 @@ export class LeadImportService {
 
     // Recent generation history (last 10)
     const recentGenerations = await this.prisma.sourceImport.findMany({
-      where: { tenantId, importType: 'lead', source: { in: ['APIFY', 'GOOGLE_MAPS'] } },
+      where: { tenantId, importType: 'lead', source: { in: ['APIFY', 'GOOGLE_MAPS', 'APOLLO'] } },
       orderBy: { createdAt: 'desc' },
       take: 10,
       select: {
@@ -494,9 +503,11 @@ export class LeadImportService {
   }
 
   /**
-   * Use Apify's Apollo.io Scraper to pull B2B contacts.
+   * Use Apollo.io native People Search API for B2B contacts.
+   * Returns verified emails, phone numbers, LinkedIn, company info, location.
+   * No Apify credits consumed — uses Apollo API key directly.
    */
-  private async generateViaApifyApollo(
+  private async generateViaApollo(
     tenantId: string,
     industry: string,
     location: string,
@@ -504,61 +515,149 @@ export class LeadImportService {
     limit: number,
     sourceImportId?: string,
   ) {
-    const apiKey = process.env.APIFY_API_KEY;
+    const apiKey = process.env.APOLLO_API_KEY;
     if (!apiKey) {
-      throw new ServiceUnavailableException('Lead generation service is temporarily unavailable. Contact support.');
+      throw new ServiceUnavailableException('Apollo API key is not configured. Contact support.');
     }
 
-    // Use Apify's Apollo scraper actor
-    const actorId = 'curious_coder/apollo-io-scraper';
-    const runUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}&waitForFinish=180`;
+    const perPage = Math.min(limit, 100);
+    const pages = Math.ceil(limit / perPage);
+    let allPeople: any[] = [];
 
-    let allItems: any[] = [];
     try {
-      const runResp = await fetch(runUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          searchUrl: this.buildApolloSearchUrl(industry, location, titles),
-          maxResults: limit,
-        }),
-      });
+      for (let page = 1; page <= pages && allPeople.length < limit; page++) {
+        const body: Record<string, any> = {
+          q_keywords: industry,
+          person_locations: [location],
+          per_page: perPage,
+          page,
+        };
+        if (titles.length > 0) {
+          body.person_titles = titles;
+        }
 
-      if (!runResp.ok) {
-        const errText = await runResp.text();
-        this.logger.error(`Apify Apollo run failed: ${runResp.status} ${errText}`);
-        throw new BadRequestException('Lead generation failed — Apollo scraper returned an error');
-      }
+        const resp = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': apiKey,
+          },
+          body: JSON.stringify(body),
+        });
 
-      const runData = await runResp.json() as any;
-      const datasetId = runData?.data?.defaultDatasetId;
-      if (!datasetId) {
-        throw new BadRequestException('Lead generation failed — no results returned');
-      }
+        if (!resp.ok) {
+          const errText = await resp.text();
+          this.logger.error(`Apollo API error: ${resp.status} ${errText}`);
+          if (resp.status === 401 || resp.status === 403) {
+            throw new ServiceUnavailableException('Apollo API key is invalid or expired. Contact support.');
+          }
+          throw new BadRequestException('Apollo API returned an error. Please try again.');
+        }
 
-      const dataUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${apiKey}&limit=${limit}`;
-      const dataResp = await fetch(dataUrl);
-      if (dataResp.ok) {
-        allItems = await dataResp.json() as any[];
+        const data = await resp.json() as any;
+        const people = data.people ?? [];
+        if (people.length === 0) break;
+        allPeople.push(...people);
       }
     } catch (err: any) {
       if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
-      this.logger.error(`Apify Apollo error: ${err.message}`);
-      throw new BadRequestException('Lead generation service encountered an error. Please try again.');
+      this.logger.error(`Apollo API error: ${err.message}`);
+      throw new BadRequestException('Apollo lead generation failed. Please try again.');
     }
 
-    // Apollo items are already structured contacts
-    return this.importFromApifyInternal(tenantId, allItems.slice(0, limit), 'apollo', sourceImportId);
+    if (allPeople.length === 0) {
+      return { imported: 0, skipped: 0, errors: [] };
+    }
+
+    // Import Apollo contacts as leads with rich data
+    return this.importApolloContacts(tenantId, allPeople.slice(0, limit), sourceImportId);
   }
 
-  private buildApolloSearchUrl(industry: string, location: string, titles: string[]): string {
-    const params = new URLSearchParams();
-    params.set('page', '1');
-    if (titles.length) titles.forEach(t => params.append('personTitles[]', t));
-    params.set('qKeywords', `${industry} ${location}`);
-    params.set('sortByField', '[none]');
-    params.set('sortAscending', 'false');
-    return `https://app.apollo.io/#/people?${params.toString()}`;
+  /**
+   * Import Apollo People Search results as leads with rich data.
+   */
+  private async importApolloContacts(tenantId: string, people: any[], sourceImportId?: string) {
+    let imported = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const person of people) {
+      try {
+        const email = person.email?.trim() || null;
+        const firstName = person.first_name || '';
+        const lastName = person.last_name || '';
+        const phone = person.phone_numbers?.[0]?.raw_number || person.phone_number || null;
+        const title = person.title || '';
+        const linkedinUrl = person.linkedin_url || null;
+        const org = person.organization ?? {};
+        const companyName = org.name || person.organization_name || null;
+
+        if (!firstName && !email) { skipped++; continue; }
+
+        // Skip duplicates by email
+        if (email) {
+          const existing = await this.prisma.lead.findFirst({ where: { tenantId, email } });
+          if (existing) { skipped++; continue; }
+        }
+
+        // Upsert company with rich data
+        let companyId: string | null = null;
+        if (companyName) {
+          let company = await this.prisma.company.findFirst({
+            where: { tenantId, name: { equals: companyName, mode: 'insensitive' } },
+          });
+          if (!company) {
+            company = await this.prisma.company.create({
+              data: {
+                tenantId,
+                name: companyName,
+                website: org.website_url || null,
+                domain: org.primary_domain || null,
+                industry: org.industry || null,
+                size: org.estimated_num_employees ? String(org.estimated_num_employees) : null,
+                businessId: await this.businessIdService.generate('company'),
+              },
+            });
+          }
+          companyId = company.id;
+        }
+
+        await this.prisma.lead.create({
+          data: {
+            tenantId,
+            firstName,
+            lastName,
+            email,
+            phone,
+            title,
+            linkedinUrl,
+            companyId,
+            sourceName: 'apollo',
+            sourceImportId: sourceImportId ?? null,
+            stage: 'NEW',
+            rawData: {
+              city: person.city || null,
+              state: person.state || null,
+              country: person.country || null,
+              headline: person.headline || null,
+              seniority: person.seniority || null,
+              departments: person.departments || [],
+              companyName,
+              companyWebsite: org.website_url || null,
+              companyIndustry: org.industry || null,
+              companySize: org.estimated_num_employees || null,
+              apolloId: person.id || null,
+            },
+            businessId: await this.businessIdService.generate('lead'),
+          },
+        });
+        imported++;
+      } catch (err: any) {
+        errors.push(`Row error: ${err.message}`);
+      }
+    }
+
+    return { imported, skipped, errors: errors.slice(0, 10) };
   }
 
   /**
@@ -646,6 +745,13 @@ export class LeadImportService {
             sourceName,
             sourceImportId: sourceImportId ?? null,
             stage: 'NEW',
+            rawData: {
+              location: item.location || null,
+              country: item.country || null,
+              website: item.website || null,
+              industry: item.industry || null,
+              companyName,
+            },
             businessId: await this.businessIdService.generate('lead'),
           },
         });

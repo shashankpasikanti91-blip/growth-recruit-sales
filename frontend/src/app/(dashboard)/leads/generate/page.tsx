@@ -12,13 +12,14 @@ import toast from 'react-hot-toast';
 
 const SOURCES = [
   {
-    id: 'GOOGLE_SEARCH',
-    label: 'Google Search',
-    icon: Search,
-    color: 'border-blue-500 bg-blue-50',
-    iconColor: 'text-blue-600',
-    desc: 'Find businesses and decision-makers from Google search results. Best for niche industries, local markets, and discovering new prospects.',
-    best: 'Local businesses · Niche industries · New markets',
+    id: 'APOLLO',
+    label: 'Apollo B2B',
+    icon: Target,
+    color: 'border-purple-500 bg-purple-50',
+    iconColor: 'text-purple-600',
+    desc: '275M+ verified B2B contacts with work emails, direct dials, LinkedIn profiles, and company data. Best for targeted outreach.',
+    best: 'Verified emails · Direct phones · B2B · SaaS · Enterprise',
+    badge: 'Recommended',
   },
   {
     id: 'GOOGLE_MAPS',
@@ -26,17 +27,19 @@ const SOURCES = [
     icon: MapPin,
     color: 'border-green-500 bg-green-50',
     iconColor: 'text-green-600',
-    desc: 'Discover local businesses with phone numbers, addresses, websites, and ratings. Ideal for location-based sales prospecting.',
-    best: 'Restaurants · Clinics · Agencies · Retail · Services',
+    desc: 'Local businesses with phone numbers, addresses, websites, ratings and opening hours. Perfect for location-based prospecting.',
+    best: 'Local businesses · Restaurants · Clinics · Services · Retail',
+    badge: null,
   },
   {
-    id: 'APOLLO',
-    label: 'Apollo B2B Database',
-    icon: Target,
-    color: 'border-purple-500 bg-purple-50',
-    iconColor: 'text-purple-600',
-    desc: 'Access verified B2B contacts with work emails, job titles, company info, and LinkedIn profiles. Best for enterprise and SaaS sales.',
-    best: 'B2B · SaaS · Enterprise · Verified emails',
+    id: 'GOOGLE_SEARCH',
+    label: 'Google Search',
+    icon: Search,
+    color: 'border-blue-500 bg-blue-50',
+    iconColor: 'text-blue-600',
+    desc: 'Find niche businesses and contacts from web search results. Great for industries not in traditional databases.',
+    best: 'Niche industries · Freelancers · New markets · Startups',
+    badge: null,
   },
 ];
 
@@ -60,7 +63,7 @@ const TITLE_PRESETS = [
 export default function GenerateLeadsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [source, setSource] = useState('GOOGLE_SEARCH');
+  const [source, setSource] = useState('APOLLO');
   const [industry, setIndustry] = useState('');
   const [customIndustry, setCustomIndustry] = useState('');
   const [location, setLocation] = useState('');
@@ -238,8 +241,11 @@ export default function GenerateLeadsPage() {
                   <button
                     key={s.id}
                     onClick={() => setSource(s.id)}
-                    className={`text-left p-4 rounded-xl border-2 transition-all ${active ? s.color + ' ring-1 ring-offset-1' : 'border-gray-200 hover:border-gray-300 bg-white'}`}
+                    className={`text-left p-4 rounded-xl border-2 transition-all relative ${active ? s.color + ' ring-1 ring-offset-1' : 'border-gray-200 hover:border-gray-300 bg-white'}`}
                   >
+                    {s.badge && (
+                      <span className="absolute -top-2.5 right-3 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{s.badge}</span>
+                    )}
                     <div className="flex items-center gap-2 mb-2">
                       <Icon className={`w-5 h-5 ${active ? s.iconColor : 'text-gray-400'}`} />
                       <span className={`font-semibold text-sm ${active ? 'text-gray-900' : 'text-gray-600'}`}>{s.label}</span>
