@@ -289,7 +289,7 @@ export class LeadImportService {
         status: 'PROCESSING',
         totalRows: limit,
         importType: 'lead',
-        businessId: await this.businessIdService.generate('import'),
+        businessId: await this.businessIdService.generate('sourceImport'),
       },
     });
 
