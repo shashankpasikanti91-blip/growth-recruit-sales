@@ -12,6 +12,8 @@ export interface PlanConfig {
   maxUsers: number;
   maxCandidatesPerMonth: number;
   maxLeadsPerMonth: number;
+  maxLeadsPerDay: number;
+  maxLeadsPerRequest: number;
   maxAiUsagePerMonth: number;
   features: string[];
 }
@@ -26,6 +28,8 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     maxUsers: 3,
     maxCandidatesPerMonth: 500,
     maxLeadsPerMonth: 250,
+    maxLeadsPerDay: 25,
+    maxLeadsPerRequest: 20,
     maxAiUsagePerMonth: 200,
     features: [
       'Up to 3 users',
@@ -45,6 +49,8 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     maxUsers: 5,
     maxCandidatesPerMonth: 2000,
     maxLeadsPerMonth: 1000,
+    maxLeadsPerDay: 100,
+    maxLeadsPerRequest: 50,
     maxAiUsagePerMonth: 500,
     features: [
       'Up to 5 users',
@@ -66,6 +72,8 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     maxUsers: 15,
     maxCandidatesPerMonth: 10000,
     maxLeadsPerMonth: 2500,
+    maxLeadsPerDay: 250,
+    maxLeadsPerRequest: 100,
     maxAiUsagePerMonth: 1000,
     features: [
       'Up to 15 users',
@@ -86,6 +94,8 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     maxUsers: 30,
     maxCandidatesPerMonth: 25000,
     maxLeadsPerMonth: 10000,
+    maxLeadsPerDay: 500,
+    maxLeadsPerRequest: 200,
     maxAiUsagePerMonth: 5000,
     features: [
       'Up to 30 users',
@@ -107,6 +117,8 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     maxUsers: 999,
     maxCandidatesPerMonth: 999999,
     maxLeadsPerMonth: 999999,
+    maxLeadsPerDay: 9999,
+    maxLeadsPerRequest: 200,
     maxAiUsagePerMonth: 999999,
     features: [
       'Unlimited users',

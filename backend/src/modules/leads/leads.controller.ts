@@ -64,6 +64,24 @@ export class LeadsController {
     return this.leadsService.findAll(tenantId, { search, stage, countryCode, source, page, limit });
   }
 
+  // ── Lead Generation (must be BEFORE :id routes) ──────────────────────────
+
+  @Get('generate/usage')
+  @ApiOperation({ summary: 'Get daily/monthly lead generation usage and limits' })
+  getGenerateUsage(@CurrentUser('tenantId') tenantId: string) {
+    return this.leadImport.getDailyUsage(tenantId);
+  }
+
+  @Post('generate')
+  @ApiOperation({ summary: 'Generate leads using platform AI — Google Search, Google Maps, or Apollo via Apify' })
+  @Roles(UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.SUPER_ADMIN)
+  generateLeads(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: GenerateLeadsDto,
+  ) {
+    return this.leadImport.generateLeads(tenantId, dto);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get lead profile with activities and outreach' })
   findOne(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
@@ -129,16 +147,5 @@ export class LeadsController {
     @Body() dto: ApifyImportDto,
   ) {
     return this.leadImport.importFromApify(tenantId, dto);
-  }
-
-  @Post('generate')
-  @ApiOperation({ summary: 'Generate leads using platform AI — Google Search, Google Maps, or Apollo via Apify' })
-  @Roles(UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.SUPER_ADMIN)
-  @UsageLimit('lead')
-  generateLeads(
-    @CurrentUser('tenantId') tenantId: string,
-    @Body() dto: GenerateLeadsDto,
-  ) {
-    return this.leadImport.generateLeads(tenantId, dto);
   }
 }

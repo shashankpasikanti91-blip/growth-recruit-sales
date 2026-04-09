@@ -1,12 +1,12 @@
 'use client';
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { leadsApi, billingApi } from '@/lib/api-client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { leadsApi } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Sparkles, Globe, MapPin, Search, Target,
   Briefcase, Users, RefreshCw, CheckCircle2, AlertCircle,
-  Info, Zap, TrendingUp, Shield,
+  Info, Zap, TrendingUp, Shield, Clock, Calendar,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -59,6 +59,7 @@ const TITLE_PRESETS = [
 
 export default function GenerateLeadsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [source, setSource] = useState('GOOGLE_SEARCH');
   const [industry, setIndustry] = useState('');
   const [customIndustry, setCustomIndustry] = useState('');
@@ -67,15 +68,23 @@ export default function GenerateLeadsPage() {
   const [limit, setLimit] = useState(50);
   const [result, setResult] = useState<any>(null);
 
-  const { data: usage } = useQuery({
-    queryKey: ['billing-usage'],
-    queryFn: billingApi.usage,
+  const { data: usage, isLoading: usageLoading } = useQuery({
+    queryKey: ['generate-usage'],
+    queryFn: leadsApi.generateUsage,
   });
 
-  const leadUsage = usage?.data?.find((u: any) => u.metric === 'lead');
-  const leadsUsed = leadUsage?.used ?? 0;
-  const leadsMax = leadUsage?.limit ?? 1000;
-  const leadsRemaining = leadsMax - leadsUsed;
+  const monthlyUsed = usage?.monthly?.used ?? 0;
+  const monthlyLimit = usage?.monthly?.limit ?? 1000;
+  const monthlyRemaining = usage?.monthly?.remaining ?? (monthlyLimit - monthlyUsed);
+  const dailyUsed = usage?.daily?.used ?? 0;
+  const dailyLimit = usage?.daily?.limit ?? 100;
+  const dailyRemaining = usage?.daily?.remaining ?? (dailyLimit - dailyUsed);
+  const maxPerRequest = usage?.perRequest ?? 200;
+  const planName = usage?.plan ?? 'Free';
+  const recentGenerations = usage?.recentGenerations ?? [];
+
+  // Effective max for slider: min(maxPerRequest, dailyRemaining, monthlyRemaining)
+  const effectiveMax = Math.min(maxPerRequest, Math.max(10, dailyRemaining), Math.max(10, monthlyRemaining));
 
   const mutation = useMutation({
     mutationFn: () => leadsApi.generate({
@@ -83,10 +92,11 @@ export default function GenerateLeadsPage() {
       industry: industry === 'Other' ? customIndustry : industry,
       location,
       jobTitles: jobTitles || undefined,
-      limit,
+      limit: Math.min(limit, effectiveMax),
     }),
     onSuccess: (data) => {
       setResult(data);
+      queryClient.invalidateQueries({ queryKey: ['generate-usage'] });
       toast.success(`${data.imported ?? 0} leads generated!`);
     },
     onError: (e: any) => {
@@ -95,6 +105,7 @@ export default function GenerateLeadsPage() {
   });
 
   const selectedSource = SOURCES.find(s => s.id === source)!;
+  const canGenerate = (industry === 'Other' ? customIndustry : industry) && location && dailyRemaining > 0 && monthlyRemaining > 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -114,22 +125,41 @@ export default function GenerateLeadsPage() {
         </div>
       </div>
 
-      {/* Credit usage bar */}
-      <div className="card flex items-center gap-4">
-        <div className="flex items-center gap-2 text-sm">
-          <TrendingUp className="w-4 h-4 text-brand-600" />
-          <span className="font-medium text-gray-700">Lead Credits</span>
+      {/* Usage bars: Monthly + Daily */}
+      <div className="card space-y-3">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm min-w-[120px]">
+            <Calendar className="w-4 h-4 text-brand-600" />
+            <span className="font-medium text-gray-700">Monthly</span>
+          </div>
+          <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+            <div
+              className={`h-2.5 rounded-full transition-all ${monthlyUsed / monthlyLimit > 0.9 ? 'bg-red-500' : monthlyUsed / monthlyLimit > 0.7 ? 'bg-amber-500' : 'bg-brand-500'}`}
+              style={{ width: `${Math.min((monthlyUsed / monthlyLimit) * 100, 100)}%` }}
+            />
+          </div>
+          <span className="text-sm font-semibold text-gray-600 whitespace-nowrap">
+            {monthlyRemaining.toLocaleString()} left
+          </span>
+          <span className="text-xs text-gray-400 whitespace-nowrap">{monthlyUsed.toLocaleString()} / {monthlyLimit.toLocaleString()}</span>
         </div>
-        <div className="flex-1 bg-gray-100 rounded-full h-2.5">
-          <div
-            className={`h-2.5 rounded-full transition-all ${leadsUsed / leadsMax > 0.9 ? 'bg-red-500' : leadsUsed / leadsMax > 0.7 ? 'bg-amber-500' : 'bg-brand-500'}`}
-            style={{ width: `${Math.min((leadsUsed / leadsMax) * 100, 100)}%` }}
-          />
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm min-w-[120px]">
+            <Clock className="w-4 h-4 text-purple-600" />
+            <span className="font-medium text-gray-700">Today</span>
+          </div>
+          <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+            <div
+              className={`h-2.5 rounded-full transition-all ${dailyUsed / dailyLimit > 0.9 ? 'bg-red-500' : dailyUsed / dailyLimit > 0.7 ? 'bg-amber-500' : 'bg-purple-500'}`}
+              style={{ width: `${Math.min((dailyUsed / dailyLimit) * 100, 100)}%` }}
+            />
+          </div>
+          <span className="text-sm font-semibold text-gray-600 whitespace-nowrap">
+            {dailyRemaining.toLocaleString()} left
+          </span>
+          <span className="text-xs text-gray-400 whitespace-nowrap">{dailyUsed} / {dailyLimit}/day</span>
         </div>
-        <span className="text-sm font-semibold text-gray-600 whitespace-nowrap">
-          {leadsRemaining.toLocaleString()} remaining
-        </span>
-        <span className="text-xs text-gray-400">of {leadsMax.toLocaleString()}/mo</span>
+        <p className="text-xs text-gray-400">{planName} plan · Max {maxPerRequest} leads per request · Daily limit resets at midnight</p>
       </div>
 
       {/* How it works notice */}
@@ -140,7 +170,7 @@ export default function GenerateLeadsPage() {
           <p>
             Our platform searches multiple data sources on your behalf and delivers verified leads directly into your pipeline.
             You never need API keys or third-party accounts — we handle all the data sourcing, deduplication, and compliance.
-            Each lead counts against your monthly plan credit.
+            Each lead imported counts against your monthly and daily plan credits.
           </p>
         </div>
       </div>
@@ -170,6 +200,10 @@ export default function GenerateLeadsPage() {
               <div className="text-xs text-blue-600 font-medium">Total Found</div>
             </div>
           </div>
+
+          {result.importId && (
+            <p className="text-xs text-gray-400 text-center">Import ID: {result.importId}</p>
+          )}
 
           {result.errors?.length > 0 && (
             <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-600">
@@ -269,10 +303,12 @@ export default function GenerateLeadsPage() {
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Number of Leads</label>
               <div className="flex items-center gap-3">
-                <input type="range" className="flex-1 accent-brand-600" min={10} max={200} step={10} value={limit} onChange={e => setLimit(Number(e.target.value))} />
-                <span className="text-sm font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded-lg min-w-[60px] text-center">{limit}</span>
+                <input type="range" className="flex-1 accent-brand-600" min={10} max={effectiveMax} step={10} value={Math.min(limit, effectiveMax)} onChange={e => setLimit(Number(e.target.value))} />
+                <span className="text-sm font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded-lg min-w-[60px] text-center">{Math.min(limit, effectiveMax)}</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Each lead counts as 1 credit from your plan. You have {leadsRemaining.toLocaleString()} credits remaining.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Each lead = 1 credit. You have {dailyRemaining} today + {monthlyRemaining.toLocaleString()} this month.
+              </p>
             </div>
           </div>
 
@@ -300,14 +336,14 @@ export default function GenerateLeadsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Leads</p>
-                  <p className="font-semibold text-gray-800">{limit}</p>
+                  <p className="font-semibold text-gray-800">{Math.min(limit, effectiveMax)}</p>
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => mutation.mutate()}
-              disabled={mutation.isPending || !(industry === 'Other' ? customIndustry : industry) || !location || leadsRemaining < 1}
+              disabled={mutation.isPending || !canGenerate}
               className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-base disabled:opacity-50"
             >
               {mutation.isPending ? (
@@ -318,16 +354,55 @@ export default function GenerateLeadsPage() {
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  Generate {limit} Leads via {selectedSource.label}
+                  Generate {Math.min(limit, effectiveMax)} Leads via {selectedSource.label}
                 </>
               )}
             </button>
 
-            {leadsRemaining < 1 && (
+            {monthlyRemaining < 1 && (
               <p className="text-xs text-red-500 text-center mt-2">
-                You have no lead credits remaining. <a href="/billing" className="underline font-semibold">Upgrade your plan</a> to generate more leads.
+                Monthly limit reached. <a href="/billing" className="underline font-semibold">Upgrade your plan</a> to generate more.
               </p>
             )}
+            {monthlyRemaining > 0 && dailyRemaining < 1 && (
+              <p className="text-xs text-amber-600 text-center mt-2">
+                Daily limit reached ({dailyLimit}/day on {planName} plan). Resets at midnight.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Generation History */}
+      {recentGenerations.length > 0 && (
+        <div className="card">
+          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-gray-400" />
+            Recent Generations
+          </h3>
+          <div className="divide-y divide-gray-100">
+            {recentGenerations.map((gen: any) => (
+              <div key={gen.id} className="flex items-center justify-between py-2.5 text-sm">
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-800 font-medium truncate">{gen.name}</p>
+                  <p className="text-xs text-gray-400">{new Date(gen.createdAt).toLocaleString()}</p>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className={`px-2 py-0.5 rounded-full font-medium ${
+                    gen.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                    gen.status === 'PROCESSING' ? 'bg-blue-100 text-blue-700' :
+                    gen.status === 'FAILED' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {gen.status}
+                  </span>
+                  <span className="text-gray-600 font-semibold">{gen.successRows} leads</span>
+                  {gen.duplicateRows > 0 && (
+                    <span className="text-amber-500">{gen.duplicateRows} dupes</span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

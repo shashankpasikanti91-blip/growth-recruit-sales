@@ -1,7 +1,7 @@
 import { login, authGet, authPost, AuthTokens } from './helpers';
 
 /**
- * Leads CRUD + Import E2E Tests
+ * Leads CRUD + Import + Generate E2E Tests
  */
 describe('Leads', () => {
   let token: string;
@@ -55,5 +55,60 @@ describe('Leads', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.data.every((l: any) => l.stage === 'NEW')).toBe(true);
+  });
+
+  // ── Lead Generation ────────────────────────────────────────────────────────
+
+  it('GET /leads/generate/usage should return daily/monthly usage stats', async () => {
+    const res = await authGet('/leads/generate/usage', token);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toHaveProperty('monthly');
+    expect(data).toHaveProperty('daily');
+    expect(data).toHaveProperty('perRequest');
+    expect(data).toHaveProperty('plan');
+    expect(data.monthly).toHaveProperty('used');
+    expect(data.monthly).toHaveProperty('limit');
+    expect(data.monthly).toHaveProperty('remaining');
+    expect(data.daily).toHaveProperty('used');
+    expect(data.daily).toHaveProperty('limit');
+    expect(data.daily).toHaveProperty('remaining');
+    expect(typeof data.perRequest).toBe('number');
+    expect(Array.isArray(data.recentGenerations)).toBe(true);
+  });
+
+  it('POST /leads/generate with Google Maps should return results', async () => {
+    const res = await authPost('/leads/generate', token, {
+      source: 'GOOGLE_MAPS',
+      industry: 'Recruitment Agencies',
+      location: 'Kuala Lumpur, Malaysia',
+      limit: 10,
+    });
+    // 200/201 = success, 403 = over limit, 503 = API key not configured — all acceptable
+    expect([200, 201, 403, 503]).toContain(res.status);
+    if (res.status === 200 || res.status === 201) {
+      const data = await res.json();
+      expect(data).toHaveProperty('imported');
+      expect(data).toHaveProperty('skipped');
+      expect(data).toHaveProperty('importId');
+      expect(typeof data.imported).toBe('number');
+    }
+  });
+
+  it('POST /leads/generate should reject invalid source', async () => {
+    const res = await authPost('/leads/generate', token, {
+      source: 'INVALID',
+      industry: 'Test',
+      location: 'Test',
+      limit: 10,
+    });
+    expect([400, 422]).toContain(res.status);
+  });
+
+  it('POST /leads/generate should reject missing required fields', async () => {
+    const res = await authPost('/leads/generate', token, {
+      source: 'GOOGLE_MAPS',
+    });
+    expect([400, 422]).toContain(res.status);
   });
 });

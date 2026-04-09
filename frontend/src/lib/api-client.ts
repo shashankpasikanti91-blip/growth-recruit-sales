@@ -48,6 +48,7 @@ export const leadsApi = {
   importApify: (items: any[]) => api.post('/leads/import/apify', { items }).then(r => r.data),
   generate: (data: { source: string; industry: string; location: string; jobTitles?: string; limit?: number }) =>
     api.post('/leads/generate', data).then(r => r.data),
+  generateUsage: () => api.get('/leads/generate/usage').then(r => r.data),
 };
 
 // ─── Companies ───────────────────────────────────────────────────────────────
