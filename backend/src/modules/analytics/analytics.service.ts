@@ -246,6 +246,9 @@ export class AnalyticsService {
       openApplications,
       aiCallsThisMonth,
       recentActivities,
+      interviewsScheduled,
+      offersReleased,
+      sourcePipeline,
     ] = await Promise.all([
       this.prisma.candidate.count({ where: { tenantId, isActive: true } }),
       this.prisma.candidate.count({ where: { tenantId, createdAt: { gte: since7 } } }),
@@ -264,7 +267,18 @@ export class AnalyticsService {
           lead: { select: { firstName: true, lastName: true } },
         },
       }),
+      this.prisma.application.count({ where: { tenantId, stage: 'INTERVIEWING' } }),
+      this.prisma.application.count({ where: { tenantId, stage: 'OFFERED' } }),
+      this.prisma.candidate.groupBy({
+        by: ['sourceName'],
+        where: { tenantId, isActive: true, sourceName: { not: null } },
+        _count: true,
+        orderBy: { _count: { sourceName: 'desc' } },
+        take: 6,
+      }),
     ]);
+
+    const totalSourced = sourcePipeline.reduce((s, x) => s + x._count, 0) || 1;
 
       return {
         kpis: [
@@ -273,6 +287,15 @@ export class AnalyticsService {
           { label: 'Open Jobs', value: openJobs, sub: `${openApplications} active applications`, color: 'green', icon: 'briefcase' },
           { label: 'AI Calls (30d)', value: aiCallsThisMonth, sub: 'Screenings + scoring', color: 'orange', icon: 'zap' },
         ],
+        openJobs,
+        openApplications,
+        interviewsScheduled,
+        offersReleased,
+        sourcePipeline: sourcePipeline.map((s) => ({
+          source: s.sourceName ?? 'Direct',
+          count: s._count,
+          pct: Math.round((s._count / totalSourced) * 100),
+        })),
         recentActivities,
       };
     }, 2 * 60); // cache 2 minutes — dashboard is high-traffic
