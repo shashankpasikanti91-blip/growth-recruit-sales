@@ -457,7 +457,7 @@ export class LeadImportService {
       : [`${industry} ${location} business owner email contact`];
 
     // Run Apify Google Search Results Scraper
-    const actorId = 'apify/google-search-scraper';
+    const actorId = 'apify~google-search-scraper';
     const runUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}&waitForFinish=120`;
 
     let allItems: any[] = [];
@@ -613,7 +613,7 @@ export class LeadImportService {
       searchQueries.push(`"${industry}" "${location}" owner founder email contact`);
     }
 
-    const actorId = 'apify/google-search-scraper';
+    const actorId = 'apify~google-search-scraper';
     const runUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${encodeURIComponent(apifyKey)}&waitForFinish=120`;
 
     let allItems: any[] = [];
