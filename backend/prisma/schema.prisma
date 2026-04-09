@@ -73,6 +73,7 @@ enum ImportSource {
   SCRAPER
   EMAIL
   GOOGLE_MAPS
+  APOLLO
 }
 
 enum OutreachStatus {
