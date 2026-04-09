@@ -6,7 +6,7 @@ export const metadata = {
   description: 'Terms of Service for SRP AI Labs Recruitment & Sales Automation Platform',
 };
 
-const LAST_UPDATED = '1 April 2026';
+const LAST_UPDATED = '9 April 2026';
 const COMPANY = 'SRP AI Labs Sdn. Bhd.';
 const CONTACT_EMAIL = 'legal@srp-ai-labs.com';
 
@@ -89,10 +89,68 @@ export default function TermsPage() {
                   have obtained the candidate's consent or have a lawful basis under applicable employment and data protection law
                   to process their personal data for recruitment purposes. Resumes may contain special category data (health,
                   nationality, etc.) — you are responsible for handling this in accordance with applicable law.</p>
-                <p><strong>3.4 AI Processing of Personal Data.</strong> The Platform may process personal data through AI features
-                  (e.g., screening summaries, enrichment). Such processing occurs within our infrastructure and is described in
-                  our Privacy Policy and Data Processing Agreement (available on request).</p>
+                <p><strong>3.4 AI Processing of Personal Data.</strong> The Platform uses AI-powered features
+                  (e.g., screening summaries, lead scoring, outreach drafting) to assist your workflows. Such processing
+                  occurs within our secure infrastructure. AI-generated content is indicative only — you remain solely
+                  responsible for all final recruitment and sales decisions. We do not disclose which specific AI models
+                  are used as part of our proprietary service delivery.</p>
               </div>
+            </section>
+
+            {/* 3a */}
+            <section>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">3a. Data Integrity, ID Management & Deduplication</h2>
+              <div className="space-y-3">
+                <p><strong>3a.1 System IDs.</strong> Every record imported into the Platform (candidate, lead, company, contact)
+                  is assigned a unique internal ID by our system at the time of import. If you are migrating from an existing ATS
+                  or CRM, your old system IDs are stored as a separate <em>external reference</em> field alongside the new Platform ID.
+                  The two coexist — no data is overwritten.</p>
+                <p><strong>3a.2 Deduplication.</strong> When importing data, the Platform automatically checks for duplicate
+                  records using email address, full name + company name, and LinkedIn URL as matching keys. Duplicate records
+                  are flagged in the import summary. You may choose to skip, merge, or update existing records. We recommend
+                  reviewing duplicate reports after every large import to ensure data accuracy.</p>
+                <p><strong>3a.3 Historical & Legacy Data.</strong> You may import historical records from your existing systems
+                  at any time. Historical records are treated identically to new records. You are responsible for the accuracy
+                  and completeness of data you import from legacy systems.</p>
+                <p><strong>3a.4 No Warranty on External Data.</strong> We are not responsible for the accuracy or completeness
+                  of data sourced from third-party providers (Apollo.io, Google Maps, CSV exports, etc.). You should validate
+                  imported data before actioning it.</p>
+              </div>
+            </section>
+
+            {/* 3b */}
+            <section>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">3b. Outreach, Follow-Up & Communication Channels</h2>
+              <div className="space-y-3">
+                <p><strong>3b.1 Permitted Channels.</strong> The Platform supports outreach via email, LinkedIn message, and
+                  WhatsApp (where configured with your own credentials). Each channel operates using your own accounts and
+                  credentials — we do not send messages on your behalf using proprietary accounts.</p>
+                <p><strong>3b.2 Follow-Up Frequency.</strong> The Platform allows you to set automated follow-up sequences.
+                  You are responsible for ensuring that follow-up frequency complies with applicable anti-spam laws and the
+                  communication preferences of your contacts. We recommend a maximum of 3–4 follow-up touches per contact
+                  per campaign, with at least 3 days between each message.</p>
+                <p><strong>3b.3 Unsubscribe / Opt-Out.</strong> Outreach emails sent via the Platform should include an
+                  opt-out mechanism. You are responsible for honouring opt-out requests promptly and suppressing opted-out
+                  contacts from future campaigns.</p>
+                <p><strong>3b.4 WhatsApp.</strong> WhatsApp outreach via this Platform is only permitted using the official
+                  WhatsApp Business API with your own approved account. Personal WhatsApp automation is not supported and
+                  would violate WhatsApp's Terms of Service.</p>
+              </div>
+            </section>
+
+            {/* 3c */}
+            <section>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">3c. Meeting Scheduling</h2>
+              <p>
+                The Platform includes a meeting scheduling feature to book interviews, discovery calls, and follow-up meetings
+                with candidates and leads. By using this feature:
+              </p>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>You confirm that scheduling a meeting constitutes a legitimate communication with the contact</li>
+                <li>Meeting details (date, time, attendees, notes) are stored within your organisation's isolated account</li>
+                <li>You are responsible for sending calendar invites to attendees via your own calendar system</li>
+                <li>We do not have access to your personal calendar — we generate .ics calendar files or Google Calendar links for your use</li>
+              </ul>
             </section>
 
             {/* 4 */}

@@ -35,7 +35,7 @@ const PLANS = [
     features: [
       'Up to 5 users',
       '2,000 candidates',
-      '1,000 leads',
+      '1,000 AI-generated leads',
       '500 AI screenings / month',
       'All file formats (PDF, Word, CSV)',
       'Basic analytics',
@@ -56,7 +56,7 @@ const PLANS = [
     features: [
       'Up to 15 users',
       '10,000 candidates',
-      '2,500 leads',
+      '2,500 AI-generated leads',
       '1,000 AI screenings / month',
       'All file formats + bulk upload',
       'Advanced analytics',
@@ -77,7 +77,7 @@ const PLANS = [
     features: [
       'Up to 30 users',
       '25,000 candidates',
-      '10,000 leads',
+      '10,000 AI-generated leads',
       '5,000 AI screenings / month',
       'All file formats + API access',
       'Power BI analytics',
@@ -114,7 +114,7 @@ const PLANS = [
 const COMPARISON = [
   { feature: 'Users', free: 'Up to 3', starter: 'Up to 5', growth: 'Up to 15', professional: 'Up to 30', enterprise: 'Unlimited' },
   { feature: 'Candidates', free: '500', starter: '2,000', growth: '10,000', professional: '25,000', enterprise: 'Unlimited' },
-  { feature: 'Leads', free: '250', starter: '1,000', growth: '2,500', professional: '10,000', enterprise: 'Unlimited' },
+  { feature: 'AI-Generated Leads', free: '250', starter: '1,000', growth: '2,500', professional: '10,000', enterprise: 'Unlimited' },
   { feature: 'AI screenings / month', free: '200', starter: '500', growth: '1,000', professional: '5,000', enterprise: 'Unlimited' },
   { feature: 'CSV/Excel imports', free: '✓', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },
   { feature: 'PDF/Word resume parsing', free: '—', starter: '✓', growth: '✓', professional: '✓', enterprise: '✓' },

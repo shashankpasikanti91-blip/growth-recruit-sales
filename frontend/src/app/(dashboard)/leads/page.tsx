@@ -76,9 +76,14 @@ export default function LeadsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
           <p className="text-gray-500 mt-1">Your client acquisition pipeline. Score, qualify, and convert sales leads.</p>
         </div>
-        <Link href="/leads/new" className="btn-primary">
-          <Users className="w-4 h-4" /> Add Lead
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/leads/generate" className="btn-primary flex items-center gap-1.5">
+            <Zap className="w-4 h-4" /> Generate Leads
+          </Link>
+          <Link href="/leads/new" className="btn-secondary flex items-center gap-1.5">
+            <Users className="w-4 h-4" /> Add Manually
+          </Link>
+        </div>
       </div>
 
       {/* ICP Fit Score explanation banner */}

@@ -19,7 +19,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto, UpdateLeadDto, UpdateLeadStageDto } from './dto/lead.dto';
-import { LeadImportService, GoogleMapsImportDto, ApifyImportDto } from './lead-import.service';
+import { LeadImportService, GoogleMapsImportDto, ApifyImportDto, GenerateLeadsDto } from './lead-import.service';
 import { UsageGuard, UsageLimit } from '../billing/usage.guard';
 import { IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
@@ -129,5 +129,16 @@ export class LeadsController {
     @Body() dto: ApifyImportDto,
   ) {
     return this.leadImport.importFromApify(tenantId, dto);
+  }
+
+  @Post('generate')
+  @ApiOperation({ summary: 'Generate leads using platform AI — Google Search, Google Maps, or Apollo via Apify' })
+  @Roles(UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.SUPER_ADMIN)
+  @UsageLimit('lead')
+  generateLeads(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: GenerateLeadsDto,
+  ) {
+    return this.leadImport.generateLeads(tenantId, dto);
   }
 }

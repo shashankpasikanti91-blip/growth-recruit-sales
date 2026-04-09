@@ -2,8 +2,8 @@
 import React from 'react';
 import Link from 'next/link';
 import {
-  ExternalLink, CheckCircle, XCircle, Settings, Zap, Globe, Database, Mail,
-  Info, ShieldCheck, Upload, Users, Lock, Server, Webhook, Building2, FileSpreadsheet,
+  ExternalLink, CheckCircle, Zap, Globe, Database, Mail,
+  Info, ShieldCheck, Upload, FileSpreadsheet,
   Linkedin, Search, MapPin, ArrowRight,
 } from 'lucide-react';
 
@@ -80,72 +80,78 @@ export default function IntegrationsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Integrations & Data Sources</h1>
           <p className="text-gray-500 text-sm mt-1">
-            Every lead, candidate, and integration — connected in one place.
+            AI-powered lead generation and data sources — all managed by the platform.
           </p>
         </div>
-        <Link href="/settings"
-          className="flex items-center gap-1.5 text-sm text-brand-600 font-medium border border-brand-200 px-3 py-1.5 rounded-lg hover:bg-brand-50 transition-colors">
-          <Settings className="w-4 h-4" /> Configure API Keys
+        <Link href="/leads/generate"
+          className="flex items-center gap-1.5 text-sm text-white font-medium bg-brand-600 px-4 py-2 rounded-lg hover:bg-brand-700 transition-colors">
+          <Zap className="w-4 h-4" /> Generate Leads
         </Link>
       </div>
 
       {/* Ownership notice */}
-      <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-        <ShieldCheck className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-        <div className="text-sm text-blue-700">
-          <p className="font-semibold mb-0.5">Your data, your control</p>
-          <p className="text-blue-600 text-xs">
-            All integrations use your own approved API credentials. No data is shared between companies. Each organisation has a completely isolated data space.
-            You can export or delete your data at any time.
+      <div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
+        <ShieldCheck className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+        <div className="text-sm text-green-700">
+          <p className="font-semibold mb-0.5">Platform-Powered Lead Generation — No API Keys Required</p>
+          <p className="text-green-600 text-xs">
+            Our platform finds and delivers leads for you. You describe your ideal customer — industry, location, job title — and we generate verified leads directly into your pipeline.
+            No third-party accounts, no API keys, no technical setup. Everything is included in your plan.
           </p>
         </div>
       </div>
 
-      {/* ── Section 1: Lead Sources ── */}
+      {/* ── Section 1: AI Lead Generation ── */}
       <div>
-        <h2 className="text-base font-bold text-gray-900 mb-1">Lead Sources</h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-base font-bold text-gray-900">AI Lead Generation Sources</h2>
+          <Link href="/leads/generate" className="flex items-center gap-1.5 text-sm text-brand-600 font-semibold border border-brand-200 px-3 py-1.5 rounded-lg hover:bg-brand-50 transition-colors">
+            <Zap className="w-3.5 h-3.5" /> Generate Leads Now
+          </Link>
+        </div>
         <p className="text-xs text-gray-400 mb-4">
-          Bring leads into the platform from any approved source. All B2B data only — name, work email, phone, company, title.
+          Tell us who your ideal customer is — we search multiple data networks and deliver verified B2B leads directly into your account. All included in your plan.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <SourceCard
             icon={Database}
-            name="Apollo.io"
+            name="Apollo B2B Database"
             status="active"
-            how="Automated. n8n workflow runs every 12 hours, pulls B2B contacts matching your ICP from Apollo.io using your API key, and imports them as leads. Add your Apollo API key in Settings."
+            how="Access 275M+ verified B2B contacts. Our platform searches Apollo on your behalf — just define your ICP (industry, title, location) and we deliver leads with verified emails, phone numbers, and LinkedIn profiles."
             fields={['Name', 'Work email (verified)', 'Phone', 'Job title', 'LinkedIn URL', 'Company name', 'Industry', 'Employee count', 'Country']}
-            action={{ label: 'Configure Apollo key in Settings', href: '/settings' }}
+            action={{ label: 'Generate leads now', href: '/leads/generate' }}
           />
           <SourceCard
-            icon={Linkedin}
-            name="LinkedIn Sales Navigator"
-            status="manual"
-            how="Export your Sales Navigator search or Lead List as a CSV. Upload it on the Imports page. Columns are auto-detected. No scraping — you use your own LinkedIn account export."
-            fields={['Name', 'Email (if visible)', 'Phone', 'Title', 'Company', 'Industry', 'LinkedIn URL', 'Location']}
-            action={{ label: 'Upload LinkedIn CSV', href: '/imports' }}
+            icon={Search}
+            name="Google Search"
+            status="active"
+            how="Our AI searches Google for businesses and decision-makers matching your criteria. Ideal for niche industries, local markets, and discovering prospects not in traditional databases."
+            fields={['Business name', 'Email', 'Phone', 'Website', 'Address', 'Description']}
+            action={{ label: 'Generate leads now', href: '/leads/generate' }}
           />
           <SourceCard
             icon={MapPin}
             name="Google Maps / Local Business"
-            status="available"
-            how="Search by location + industry keyword via the Google Maps Places API. Ideal for local sales prospecting (restaurants, clinics, agencies, etc.). Add your Google Maps API key in Settings."
+            status="active"
+            how="Discover local businesses by location and industry. We search Google Maps and deliver business names, phone numbers, addresses, websites, and ratings — perfect for location-based sales prospecting."
             fields={['Business name', 'Phone', 'Address', 'Website', 'Rating', 'Category', 'Opening hours']}
-            action={{ label: 'Configure Google Maps key in Settings', href: '/settings' }}
+            action={{ label: 'Generate leads now', href: '/leads/generate' }}
+          />
+          <SourceCard
+            icon={Linkedin}
+            name="LinkedIn (via CSV Upload)"
+            status="manual"
+            how="Export your Sales Navigator search or Lead List as a CSV file and upload it here. The system auto-detects columns. No scraping — uses your own LinkedIn CSV export."
+            fields={['Name', 'Email (if visible)', 'Phone', 'Title', 'Company', 'Industry', 'LinkedIn URL', 'Location']}
+            action={{ label: 'Upload LinkedIn CSV', href: '/imports' }}
           />
           <SourceCard
             icon={Search}
             name="Indeed / Job Boards"
             status="available"
-            how="Export applicant data from Indeed, Totaljobs, Reed, or any job board as CSV/Excel and upload it. Or connect the Indeed Publisher API via Settings to pull job postings and applicants automatically."
+            how="Export applicant data from Indeed, Totaljobs, Reed, or any job board as CSV/Excel and upload it. All standard fields are auto-mapped."
             fields={['Name', 'Email', 'Phone', 'CV / Resume', 'Current title', 'Location', 'Applied role']}
             action={{ label: 'Upload job board CSV', href: '/imports' }}
-          />
-          <SourceCard
-            icon={Globe}
-            name="Google Search (via Apify)"
-            status="coming_soon"
-            how="Automatically extract business and contact data from Google Search results using Apify actors. Ideal for niche markets not covered by Apollo. Contact us to activate."
-            fields={['Business name', 'Email', 'Phone', 'Website', 'Address', 'Description']}
           />
           <SourceCard
             icon={FileSpreadsheet}
@@ -221,16 +227,16 @@ export default function IntegrationsPage() {
 
       {/* ── Section 4: Automation Engine ── */}
       <div>
-        <h2 className="text-base font-bold text-gray-900 mb-1">Automation Engine (n8n)</h2>
+        <h2 className="text-base font-bold text-gray-900 mb-1">Automation Engine</h2>
         <p className="text-xs text-gray-400 mb-4">
-          All automated workflows run inside n8n — a self-hosted visual automation engine. Your data never leaves your server.
+          All workflows run automatically in the background. Your data never leaves your server.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
             {
               icon: Zap,
-              name: 'Lead Import — Apollo.io',
-              how: 'Runs every 12 hours. Searches Apollo.io with your ICP filters, pulls verified contacts, deduplicates, and stores them as leads in your account.',
+              name: 'AI Lead Generation',
+              how: 'On-demand lead generation from multiple data sources. Define your ICP once — the platform finds matching leads, deduplicates, and adds them to your pipeline automatically.',
             },
             {
               icon: Database,
@@ -265,54 +271,6 @@ export default function IntegrationsPage() {
             Open Automation Dashboard <ExternalLink className="w-3.5 h-3.5" />
           </a>
         )}
-      </div>
-
-      {/* ── Section 5: Platform Security & Tech Stack ── */}
-      <div>
-        <h2 className="text-base font-bold text-gray-900 mb-1">Platform Security & Tech Stack</h2>
-        <p className="text-xs text-gray-400 mb-4">For clients asking how the platform is built and how their data is protected.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Server className="w-4 h-4 text-brand-600" />
-              <p className="font-semibold text-gray-900 text-sm">Built With</p>
-            </div>
-            {[
-              ['Backend API', 'NestJS (Node.js) — enterprise-grade, modular, TypeScript'],
-              ['Frontend', 'Next.js 14 — fast, SEO-ready, React-based web app'],
-              ['Database', 'PostgreSQL — relational, ACID-compliant, battle-tested'],
-              ['Cache / Queue', 'Redis — fast session cache and background job queues'],
-              ['Automation', 'n8n — self-hosted, visual workflow engine'],
-              ['AI / Screening', 'OpenAI GPT-4o via OpenRouter — resume screening + lead scoring'],
-              ['Infrastructure', 'Docker — containerised, reproducible, cloud-portable'],
-            ].map(([label, value]) => (
-              <div key={label} className="flex items-start gap-2 text-xs">
-                <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
-                <span><span className="font-semibold text-gray-700">{label}: </span><span className="text-gray-500">{value}</span></span>
-              </div>
-            ))}
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Lock className="w-4 h-4 text-green-600" />
-              <p className="font-semibold text-gray-900 text-sm">Data Security</p>
-            </div>
-            {[
-              ['Multi-tenant isolation', 'Each company\'s data is completely separate. No cross-company data leakage.'],
-              ['Encrypted in transit', 'All traffic over HTTPS / TLS 1.3. No plain HTTP endpoints.'],
-              ['Encrypted at rest', 'PostgreSQL data stored on encrypted volumes. Backups encrypted.'],
-              ['Role-based access', 'Admin, Recruiter, Sales, Viewer roles. Users can only see what their role allows.'],
-              ['JWT authentication', 'Short-lived access tokens + refresh token rotation. Secure cookies.'],
-              ['Audit log', 'Every critical action is logged with user, timestamp, and IP address.'],
-              ['Old & new data', 'Import historical records from your old ATS at any time. All data is yours — export or delete on request.'],
-            ].map(([label, value]) => (
-              <div key={label} className="flex items-start gap-2 text-xs">
-                <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
-                <span><span className="font-semibold text-gray-700">{label}: </span><span className="text-gray-500">{value}</span></span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

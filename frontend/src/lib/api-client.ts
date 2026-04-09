@@ -46,6 +46,8 @@ export const leadsApi = {
   importGoogleMaps: (data: { query: string; location: string; limit?: number }) =>
     api.post('/leads/import/google-maps', data).then(r => r.data),
   importApify: (items: any[]) => api.post('/leads/import/apify', { items }).then(r => r.data),
+  generate: (data: { source: string; industry: string; location: string; jobTitles?: string; limit?: number }) =>
+    api.post('/leads/generate', data).then(r => r.data),
 };
 
 // ─── Companies ───────────────────────────────────────────────────────────────

@@ -35,7 +35,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMwLTkuOTQtOC4wNi0xOC0xOC0xOHY2YzYuNjMgMCAxMiA1LjM3IDEyIDEyaC02eiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjwvZz48L3N2Zz4=')] opacity-30" />
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-brand-500/30 text-brand-100 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-brand-400/40">
-            <Zap className="w-3 h-3" /> AI-Powered · OpenRouter GPT-4.1 Mini · Multi-Tenant SaaS
+            <Zap className="w-3 h-3" /> AI-Powered · Enterprise-Grade · Multi-Tenant SaaS
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-6">
             Hire Faster.<br />
@@ -88,13 +88,13 @@ export default function HomePage() {
             {[
               { icon: Users, color: 'bg-blue-100 text-blue-600', title: 'AI Resume Screening', desc: 'Upload PDF, Word, or Excel. Our AI scores and ranks candidates against job requirements in seconds, not hours.', bullets: ['Multi-format file support', '6-step screening pipeline', 'Auto-stage candidates'] },
               { icon: Target, color: 'bg-purple-100 text-purple-600', title: 'Lead Scoring & CRM', desc: 'AI-powered ICP scoring for every lead. Identify your best prospects and prioritise your sales pipeline automatically.', bullets: ['Auto ICP score 0-100', 'Company intelligence', 'Activity timeline'] },
-              { icon: Mail, color: 'bg-green-100 text-green-600', title: 'Outreach Automation', desc: 'Generate personalised emails for candidates and leads. Sequence-based campaigns via n8n integration.', bullets: ['AI-written messages', 'Multi-step sequences', 'Open/reply tracking'] },
-              { icon: Upload, color: 'bg-orange-100 text-orange-600', title: 'Smart Imports', desc: 'Import candidates or leads from CSV, Excel, PDF or Word. Map fields with a visual drag-and-drop editor. Duplicate detection prevents double entries.', bullets: ['CSV, XLSX, PDF, DOCX', 'Visual field mapping', 'Duplicate detection'] },
-              { icon: BarChart3, color: 'bg-pink-100 text-pink-600', title: 'Real-Time Analytics', desc: 'Live dashboards for recruitment funnel, sales pipeline, and AI usage. All queries cached for instant load.', bullets: ['Conversion funnels', 'Period comparison', 'Redis-cached KPIs'] },
-              { icon: Zap, color: 'bg-yellow-100 text-yellow-600', title: 'n8n Workflow Engine', desc: 'Pre-built automation workflows for onboarding sequences, follow-ups, and integrations with your existing tools.', bullets: ['5 pre-built workflows', 'Webhook triggers', 'Slack / email alerts'] },
+              { icon: Mail, color: 'bg-green-100 text-green-600', title: 'Outreach Automation', desc: 'Generate personalised multi-channel messages for candidates and leads. Email, LinkedIn, and WhatsApp sequences with automated follow-up scheduling.', bullets: ['AI-written personalised messages', 'Multi-step follow-up sequences', 'Email, LinkedIn & WhatsApp channels'] },
+              { icon: Upload, color: 'bg-orange-100 text-orange-600', title: 'Smart Imports with Deduplication', desc: 'Import candidates or leads from CSV, Excel, PDF or Word. Smart deduplication ensures no double entries — records are matched by email, name, and company.', bullets: ['CSV, XLSX, PDF, DOCX', 'Auto column detection', 'Smart deduplication engine'] },
+              { icon: BarChart3, color: 'bg-pink-100 text-pink-600', title: 'Real-Time Analytics', desc: 'Live dashboards for recruitment funnel, sales pipeline, and AI usage. Instant load with smart caching.', bullets: ['Conversion funnels', 'Period comparison', 'Export-ready reports'] },
+              { icon: Zap, color: 'bg-yellow-100 text-yellow-600', title: 'Automated Workflow Engine', desc: 'Pre-built automation workflows for lead generation, candidate screening, follow-up sequences, and ATS/CRM integrations.', bullets: ['Auto lead import & scoring', 'Follow-up sequences', 'ATS webhook integrations'] },
               { icon: Linkedin, color: 'bg-blue-100 text-blue-600', title: 'LinkedIn AI Writer', desc: 'Generate posts, connection requests, InMails, and profile content with one click. 6 content types, all AI-powered.', bullets: ['Posts & connection notes', 'Recruiter & sales InMails', 'Profile About rewrite'] },
               { icon: MapPin, color: 'bg-green-100 text-green-600', title: 'Google Maps Lead Finder', desc: 'Search any business type in any city and automatically import matching companies as qualified leads.', bullets: ['Business type search', 'Auto company creation', 'Duplicate detection'] },
-              { icon: FileText, color: 'bg-red-100 text-red-600', title: 'Secure Document Vault', desc: 'Upload resumes, proposals, and contracts with AES-256 encryption, tenant isolation, and full audit trail.', bullets: ['S3-encrypted storage', 'Signed URL downloads', 'Duplicate detection via checksum'] },
+              { icon: FileText, color: 'bg-red-100 text-red-600', title: 'Secure Document Vault', desc: 'Upload resumes, proposals, and contracts with military-grade encryption, tenant isolation, and a full audit trail.', bullets: ['Military-grade encrypted storage', 'Secure time-limited downloads', 'Integrity verification'] },
             ].map(f => {
               const Icon = f.icon;
               return (
@@ -177,14 +177,14 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Lock, color: 'bg-blue-100 text-blue-600', title: 'AES-256 Encryption at Rest', desc: 'All uploaded documents are encrypted with AES-256 server-side encryption in our S3-compatible object storage.' },
+              { icon: Lock, color: 'bg-blue-100 text-blue-600', title: 'AES-256 Encryption at Rest', desc: 'All uploaded documents and sensitive data are encrypted with AES-256 server-side encryption. Encrypted backups run daily.' },
               { icon: Shield, color: 'bg-green-100 text-green-600', title: 'Tenant Isolation', desc: 'Complete data separation per tenant. No cross-tenant access is architecturally possible — enforced at database and API level.' },
-              { icon: Eye, color: 'bg-purple-100 text-purple-600', title: 'Signed URL Downloads', desc: 'Document downloads use time-limited signed URLs (15 min expiry). No permanent public links. Backend proxy available for extra security.' },
+              { icon: Eye, color: 'bg-purple-100 text-purple-600', title: 'Secure Time-Limited Downloads', desc: 'Document downloads use time-limited secure links (15-minute expiry). No permanent public links. All downloads are logged.' },
               { icon: FileText, color: 'bg-orange-100 text-orange-600', title: 'Full Audit Trail', desc: 'Every document upload, download, and deletion is logged with user identity, timestamp, and IP address for complete traceability.' },
-              { icon: Server, color: 'bg-red-100 text-red-600', title: 'HTTPS + HSTS', desc: 'All traffic encrypted in transit with TLS 1.3. HSTS headers enforced with preload. No plain HTTP access in production.' },
-              { icon: Lock, color: 'bg-yellow-100 text-yellow-600', title: 'File Validation', desc: 'Strict MIME type and file size validation. Only approved document types accepted. SHA-256 checksum for duplicate and integrity detection.' },
-              { icon: Shield, color: 'bg-pink-100 text-pink-600', title: 'RBAC + JWT Auth', desc: 'Role-based access control with JWT access tokens (15 min) and secure refresh token rotation. Google OAuth2 SSO support.' },
-              { icon: Eye, color: 'bg-cyan-100 text-cyan-600', title: 'Security Headers', desc: 'CSP, X-Frame-Options DENY, nosniff, strict referrer policy, and permission policy. Powered by Helmet.js with custom hardening.' },
+              { icon: Server, color: 'bg-red-100 text-red-600', title: 'HTTPS Everywhere', desc: 'All traffic encrypted in transit with TLS 1.3. No plain connections allowed in production. Strong security headers enforced on every response.' },
+              { icon: Lock, color: 'bg-yellow-100 text-yellow-600', title: 'File Integrity Validation', desc: 'Strict file type and size validation. Only approved document formats accepted. Checksum verification detects duplicates and tampering.' },
+              { icon: Shield, color: 'bg-pink-100 text-pink-600', title: 'Role-Based Access Control', desc: 'Admin, Recruiter, Sales, and Viewer roles. Secure token-based authentication with automatic rotation. Google SSO supported.' },
+              { icon: Eye, color: 'bg-cyan-100 text-cyan-600', title: 'Advanced Security Headers', desc: 'Full content security policy, click-jacking protection, referrer control, and permissions policy enforced on every page and API response.' },
             ].map(f => {
               const Icon = f.icon;
               return (
@@ -211,9 +211,9 @@ export default function HomePage() {
           <div className="grid md:grid-cols-4 gap-6">
             {[
               { name: 'Free', badge: null, price: 'Free', period: '', color: 'border-gray-200', highlight: false, features: ['Up to 3 users', '500 candidates', '250 leads', '200 AI screenings/mo'] },
-              { name: 'Starter', badge: 'Popular', price: '$29', period: '/mo', color: 'border-brand-500 ring-2 ring-brand-500', highlight: true, features: ['Up to 5 users', '2,000 candidates', '1,000 leads', '500 AI screenings/mo'] },
-              { name: 'Growth', badge: null, price: '$69', period: '/mo', color: 'border-blue-200', highlight: false, features: ['Up to 15 users', '10,000 candidates', '2,500 leads', '1,000 AI screenings/mo'] },
-              { name: 'Professional', badge: null, price: '$149', period: '/mo', color: 'border-purple-200', highlight: false, features: ['Up to 30 users', '25,000 candidates', '10,000 leads', '5,000 AI screenings/mo'] },
+              { name: 'Starter', badge: 'Popular', price: '$29', period: '/mo', color: 'border-brand-500 ring-2 ring-brand-500', highlight: true, features: ['Up to 5 users', '2,000 candidates', '1,000 AI-generated leads', '500 AI screenings/mo'] },
+              { name: 'Growth', badge: null, price: '$69', period: '/mo', color: 'border-blue-200', highlight: false, features: ['Up to 15 users', '10,000 candidates', '2,500 AI-generated leads', '1,000 AI screenings/mo'] },
+              { name: 'Professional', badge: null, price: '$149', period: '/mo', color: 'border-purple-200', highlight: false, features: ['Up to 30 users', '25,000 candidates', '10,000 AI-generated leads', '5,000 AI screenings/mo'] },
             ].map(p => (
               <div key={p.name} className={`relative rounded-2xl border-2 p-6 bg-white shadow-sm ${p.color}`}>
                 {p.highlight && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-xs font-bold px-3 py-1 rounded-full">Most Popular</div>}
@@ -267,6 +267,8 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-6 text-gray-400 text-xs">
             <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
             <Link href="/login" className="hover:text-white transition-colors">Login</Link>
             <span>© 2026 SRP AI Labs. All rights reserved.</span>
           </div>

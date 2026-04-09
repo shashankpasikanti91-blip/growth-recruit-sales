@@ -49,7 +49,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     features: [
       'Up to 5 users',
       '2,000 candidates',
-      '1,000 leads',
+      '1,000 AI-generated leads',
       '500 AI screenings/month',
       'All file formats (PDF, Word, CSV)',
       'Basic analytics',
@@ -70,7 +70,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     features: [
       'Up to 15 users',
       '10,000 candidates',
-      '2,500 leads',
+      '2,500 AI-generated leads',
       '1,000 AI screenings/month',
       'Advanced analytics',
       'Custom AI prompts',
@@ -90,7 +90,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     features: [
       'Up to 30 users',
       '25,000 candidates',
-      '10,000 leads',
+      '10,000 AI-generated leads',
       '5,000 AI screenings/month',
       'All file formats + API access',
       'Power BI analytics',

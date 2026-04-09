@@ -1,7 +1,7 @@
-import { Injectable, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, BadRequestException, ServiceUnavailableException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BusinessIdService } from '../billing/business-id.service';
-import { IsString, IsOptional, IsInt, Min, Max, IsArray, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min, Max, IsArray, IsObject, IsEnum, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class GoogleMapsImportDto {
@@ -25,6 +25,38 @@ export class ApifyImportDto {
   @ApiProperty({ description: 'Array of Apify dataset items (lead records)' })
   @IsArray()
   items: ApifyLeadItem[];
+}
+
+export enum LeadSource {
+  GOOGLE_SEARCH = 'GOOGLE_SEARCH',
+  GOOGLE_MAPS = 'GOOGLE_MAPS',
+  APOLLO = 'APOLLO',
+}
+
+export class GenerateLeadsDto {
+  @ApiProperty({ example: 'GOOGLE_SEARCH', enum: LeadSource })
+  @IsEnum(LeadSource)
+  source: LeadSource;
+
+  @ApiProperty({ example: 'recruitment agencies' })
+  @IsString()
+  industry: string;
+
+  @ApiProperty({ example: 'Kuala Lumpur, Malaysia' })
+  @IsString()
+  location: string;
+
+  @ApiPropertyOptional({ example: 'owner,founder,CEO' })
+  @IsOptional()
+  @IsString()
+  jobTitles?: string;
+
+  @ApiPropertyOptional({ example: 50, minimum: 10, maximum: 200 })
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(200)
+  limit?: number;
 }
 
 interface ApifyLeadItem {
@@ -224,5 +256,230 @@ export class LeadImportService {
     }
 
     return { imported, skipped, errors: errors.slice(0, 10) };
+  }
+
+  // ── Platform-Powered Lead Generation ──────────────────────────────────────
+
+  private readonly logger = new Logger(LeadImportService.name);
+
+  /**
+   * Generate leads using SRP AI Labs' own Apify + Google Maps + Apollo keys.
+   * Clients never need their own API keys — the platform handles everything.
+   */
+  async generateLeads(tenantId: string, dto: GenerateLeadsDto) {
+    const limit = dto.limit ?? 50;
+    const titles = dto.jobTitles?.split(',').map(t => t.trim()).filter(Boolean) ?? [];
+
+    if (dto.source === LeadSource.GOOGLE_SEARCH) {
+      return this.generateViaApifyGoogleSearch(tenantId, dto.industry, dto.location, titles, limit);
+    }
+    if (dto.source === LeadSource.GOOGLE_MAPS) {
+      return this.importFromGoogleMaps(tenantId, { query: dto.industry, location: dto.location, limit: Math.min(limit, 60) });
+    }
+    if (dto.source === LeadSource.APOLLO) {
+      return this.generateViaApifyApollo(tenantId, dto.industry, dto.location, titles, limit);
+    }
+
+    throw new BadRequestException('Unsupported source');
+  }
+
+  /**
+   * Use Apify's Google Search Results Scraper to find businesses and contacts.
+   */
+  private async generateViaApifyGoogleSearch(
+    tenantId: string,
+    industry: string,
+    location: string,
+    titles: string[],
+    limit: number,
+  ) {
+    const apiKey = process.env.APIFY_API_KEY;
+    if (!apiKey) {
+      throw new ServiceUnavailableException('Lead generation service is temporarily unavailable. Contact support.');
+    }
+
+    const searchQueries = titles.length > 0
+      ? titles.map(t => `${t} ${industry} ${location} email contact`)
+      : [`${industry} ${location} business owner email contact`];
+
+    // Run Apify Google Search Results Scraper
+    const actorId = 'apify/google-search-scraper';
+    const runUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}&waitForFinish=120`;
+
+    let allItems: any[] = [];
+    try {
+      const runResp = await fetch(runUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          queries: searchQueries.join('\n'),
+          maxPagesPerQuery: 2,
+          resultsPerPage: Math.min(limit, 100),
+          languageCode: '',
+          mobileResults: false,
+        }),
+      });
+
+      if (!runResp.ok) {
+        const errText = await runResp.text();
+        this.logger.error(`Apify run failed: ${runResp.status} ${errText}`);
+        throw new BadRequestException('Lead generation failed — search service returned an error');
+      }
+
+      const runData = await runResp.json() as any;
+      const datasetId = runData?.data?.defaultDatasetId;
+      if (!datasetId) {
+        throw new BadRequestException('Lead generation failed — no results returned');
+      }
+
+      // Fetch dataset items
+      const dataUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${apiKey}&limit=${limit}`;
+      const dataResp = await fetch(dataUrl);
+      if (dataResp.ok) {
+        allItems = await dataResp.json() as any[];
+      }
+    } catch (err: any) {
+      if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
+      this.logger.error(`Apify Google Search error: ${err.message}`);
+      throw new BadRequestException('Lead generation service encountered an error. Please try again.');
+    }
+
+    // Parse search results into leads
+    return this.parseSearchResultsToLeads(tenantId, allItems, 'google_search', limit);
+  }
+
+  /**
+   * Use Apify's Apollo.io Scraper to pull B2B contacts.
+   */
+  private async generateViaApifyApollo(
+    tenantId: string,
+    industry: string,
+    location: string,
+    titles: string[],
+    limit: number,
+  ) {
+    const apiKey = process.env.APIFY_API_KEY;
+    if (!apiKey) {
+      throw new ServiceUnavailableException('Lead generation service is temporarily unavailable. Contact support.');
+    }
+
+    // Use Apify's Apollo scraper actor
+    const actorId = 'curious_coder/apollo-io-scraper';
+    const runUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${apiKey}&waitForFinish=180`;
+
+    let allItems: any[] = [];
+    try {
+      const runResp = await fetch(runUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          searchUrl: this.buildApolloSearchUrl(industry, location, titles),
+          maxResults: limit,
+        }),
+      });
+
+      if (!runResp.ok) {
+        const errText = await runResp.text();
+        this.logger.error(`Apify Apollo run failed: ${runResp.status} ${errText}`);
+        throw new BadRequestException('Lead generation failed — Apollo scraper returned an error');
+      }
+
+      const runData = await runResp.json() as any;
+      const datasetId = runData?.data?.defaultDatasetId;
+      if (!datasetId) {
+        throw new BadRequestException('Lead generation failed — no results returned');
+      }
+
+      const dataUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${apiKey}&limit=${limit}`;
+      const dataResp = await fetch(dataUrl);
+      if (dataResp.ok) {
+        allItems = await dataResp.json() as any[];
+      }
+    } catch (err: any) {
+      if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
+      this.logger.error(`Apify Apollo error: ${err.message}`);
+      throw new BadRequestException('Lead generation service encountered an error. Please try again.');
+    }
+
+    // Apollo items are already structured contacts
+    return this.importFromApify(tenantId, { items: allItems.slice(0, limit) });
+  }
+
+  private buildApolloSearchUrl(industry: string, location: string, titles: string[]): string {
+    const params = new URLSearchParams();
+    params.set('page', '1');
+    if (titles.length) titles.forEach(t => params.append('personTitles[]', t));
+    params.set('qKeywords', `${industry} ${location}`);
+    params.set('sortByField', '[none]');
+    params.set('sortAscending', 'false');
+    return `https://app.apollo.io/#/people?${params.toString()}`;
+  }
+
+  /**
+   * Parse generic search results (Google Search) into lead records.
+   */
+  private async parseSearchResultsToLeads(
+    tenantId: string,
+    items: any[],
+    sourceName: string,
+    limit: number,
+  ) {
+    let imported = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const item of items.slice(0, limit)) {
+      try {
+        // Google Search results have organicResults array
+        const results = item.organicResults ?? [item];
+        for (const result of results) {
+          if (imported >= limit) break;
+
+          const title = result.title ?? result.name ?? '';
+          const url = result.url ?? result.link ?? result.website ?? '';
+          const description = result.description ?? result.snippet ?? '';
+
+          // Extract potential company name from title
+          const companyName = title.split(' - ')[0]?.split(' | ')[0]?.trim() || title;
+          if (!companyName) { skipped++; continue; }
+
+          // Skip duplicates
+          const existing = await this.prisma.company.findFirst({
+            where: { tenantId, name: { equals: companyName, mode: 'insensitive' } },
+          });
+
+          let company = existing;
+          if (!company) {
+            company = await this.prisma.company.create({
+              data: { tenantId, name: companyName, website: url || null, businessId: await this.businessIdService.generate('company') },
+            });
+          }
+
+          // Check if lead already exists for this company
+          const existingLead = await this.prisma.lead.findFirst({
+            where: { tenantId, companyId: company.id },
+          });
+          if (existingLead) { skipped++; continue; }
+
+          await this.prisma.lead.create({
+            data: {
+              tenantId,
+              firstName: companyName,
+              lastName: '',
+              sourceName,
+              stage: 'NEW',
+              companyId: company.id,
+              notes: description || null,
+              businessId: await this.businessIdService.generate('lead'),
+            },
+          });
+          imported++;
+        }
+      } catch (err: any) {
+        errors.push(err.message);
+      }
+    }
+
+    return { imported, skipped, errors: errors.slice(0, 5), source: sourceName };
   }
 }

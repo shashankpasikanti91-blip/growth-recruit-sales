@@ -6,7 +6,7 @@ export const metadata = {
   description: 'Privacy Policy for SRP AI Labs Recruitment & Sales Automation Platform',
 };
 
-const LAST_UPDATED = '1 April 2026';
+const LAST_UPDATED = '9 April 2026';
 const COMPANY = 'SRP AI Labs Sdn. Bhd.';
 const CONTACT_EMAIL = 'privacy@srp-ai-labs.com';
 const DPO_EMAIL = 'dpo@srp-ai-labs.com';
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
                 <li>Authentication data (password hash, Google OAuth tokens) — passwords are never stored in plain text</li>
                 <li>Usage data: pages visited, features used, API call logs</li>
                 <li>IP address, browser type, device information</li>
-                <li>Email verification codes (OTP) — stored in Redis with a 10-minute TTL, then permanently deleted</li>
+                <li>Email verification codes (OTP) — deleted immediately upon use or after a short expiry window, then permanently removed</li>
               </ul>
 
               <h3 className="font-medium text-gray-800 mt-4 mb-1">2.2 Candidate & Contact Data (Customer Data)</h3>
@@ -123,7 +123,7 @@ export default function PrivacyPage() {
               <ul className="list-disc pl-5 mt-2 space-y-1">
                 <li><strong>Service Providers:</strong> Cloud hosting (our VPS provider), database services, email delivery — bound by data processing agreements</li>
                 <li><strong>Third-Party Integrations:</strong> Only when you explicitly connect services (Apollo.io, LinkedIn, Hunter.io, etc.) — API calls are made with your credentials on your behalf</li>
-                <li><strong>AI Processing:</strong> AI features process your data within our infrastructure. We do not send candidate personal data to third-party AI APIs without disclosure</li>
+                <li><strong>AI Processing:</strong> AI features are used to assist with screening, scoring, and drafting. Processing occurs within our secure infrastructure. We do not send candidate personal data to third-party AI APIs without disclosure in our Data Processing Agreement</li>
                 <li><strong>Legal requirements:</strong> When required by law, court order, or to protect rights and safety</li>
                 <li><strong>Business transfer:</strong> In connection with a merger or acquisition, with data protection obligations maintained</li>
               </ul>
@@ -146,7 +146,7 @@ export default function PrivacyPage() {
               <h2 className="text-lg font-semibold text-gray-900 mb-3">6. Security</h2>
               <p>We implement appropriate technical and organisational measures to protect your data, including:</p>
               <ul className="list-disc pl-5 mt-2 space-y-1">
-                <li>All passwords hashed with bcrypt (cost factor 12)</li>
+                <li>All passwords hashed using a strong, industry-standard cryptographic algorithm</li>
                 <li>Email OTP verification for new account registrations</li>
                 <li>TLS/HTTPS encryption for all data in transit</li>
                 <li>Encrypted database backups</li>

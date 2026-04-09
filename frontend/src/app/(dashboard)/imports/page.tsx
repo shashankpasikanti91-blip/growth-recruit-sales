@@ -262,6 +262,20 @@ export default function ImportsPage() {
         </p>
       </div>
 
+      {/* Deduplication & ID rules */}
+      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+        <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+        <div className="text-xs text-amber-700">
+          <p className="font-semibold mb-1">Deduplication & ID Rules</p>
+          <ul className="space-y-0.5 list-disc list-inside">
+            <li><strong>Same email</strong> — automatically skipped (not imported twice)</li>
+            <li><strong>Same name + company</strong> — flagged as potential duplicate for review</li>
+            <li><strong>System IDs</strong> — every record gets a unique platform ID. Your external IDs (from old systems) are stored separately as a reference</li>
+            <li><strong>Historical data</strong> — you can import old data from any CRM. Duplicates are resolved automatically</li>
+          </ul>
+        </div>
+      </div>
+
       <NewImportCard />
 
       <div className="card p-0 overflow-hidden">
