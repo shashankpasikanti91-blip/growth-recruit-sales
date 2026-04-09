@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OutreachGenerationService } from '../ai/services/outreach-generation.service';
 import { BusinessIdService } from '../billing/business-id.service';
 import { IsString, IsOptional, IsEnum, IsArray, IsInt, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import * as nodemailer from 'nodemailer';
 
 export class GenerateOutreachDto {
   @ApiProperty({ enum: ['CANDIDATE', 'LEAD'] })
@@ -44,6 +46,7 @@ export class OutreachService {
     private readonly prisma: PrismaService,
     private readonly outreachGen: OutreachGenerationService,
     private readonly businessIdService: BusinessIdService,
+    private readonly config: ConfigService,
   ) {}
 
   // ─── Generate outreach message(s) via AI ──────────────────────────────────
@@ -145,6 +148,62 @@ export class OutreachService {
     }
   }
 
+  // ─── Send email directly via SMTP ──────────────────────────────────────────
+
+  async sendMessage(tenantId: string, messageId: string) {
+    const msg = await this.prisma.outreachMessage.findFirst({
+      where: { id: messageId, tenantId },
+      include: {
+        candidate: { select: { email: true, firstName: true, lastName: true } },
+        lead: { select: { email: true, firstName: true, lastName: true } },
+      },
+    });
+    if (!msg) throw new NotFoundException('Message not found');
+    if (msg.channel !== 'EMAIL') throw new BadRequestException('Only EMAIL channel messages can be sent directly');
+    if (msg.status === 'SENT') throw new BadRequestException('Message already sent');
+
+    const recipientEmail = msg.candidate?.email ?? msg.lead?.email;
+    if (!recipientEmail) throw new BadRequestException('Recipient has no email address');
+
+    const smtpHost = this.config.get<string>('SMTP_HOST');
+    const smtpUser = this.config.get<string>('SMTP_USER');
+    const smtpPass = this.config.get<string>('SMTP_PASSWORD');
+    const smtpFrom = this.config.get<string>('SMTP_FROM') ?? `SRP AI Labs <${smtpUser}>`;
+
+    if (!smtpHost || !smtpUser || !smtpPass || smtpPass === 'changeme_smtp') {
+      throw new BadRequestException(
+        'SMTP is not configured. Please set SMTP_HOST, SMTP_USER, and SMTP_PASSWORD in server environment to send emails.',
+      );
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: parseInt(this.config.get<string>('SMTP_PORT') ?? '587'),
+      secure: false,
+      auth: { user: smtpUser, pass: smtpPass },
+    });
+
+    const recipientName = msg.candidate
+      ? `${msg.candidate.firstName} ${msg.candidate.lastName}`.trim()
+      : msg.lead
+        ? `${msg.lead.firstName} ${msg.lead.lastName}`.trim()
+        : recipientEmail;
+
+    await transporter.sendMail({
+      from: smtpFrom,
+      to: `${recipientName} <${recipientEmail}>`,
+      subject: msg.subject ?? 'Message from SRP AI Labs',
+      html: msg.body,
+    });
+
+    const updated = await this.prisma.outreachMessage.update({
+      where: { id: messageId },
+      data: { status: 'SENT', sentAt: new Date() },
+    });
+
+    return { ...updated, recipientEmail };
+  }
+
   // ─── Queries ────────────────────────────────────────────────────────────────
 
   async listMessages(tenantId: string, filters: { candidateId?: string; leadId?: string; status?: string; page?: number; limit?: number }) {
@@ -155,7 +214,16 @@ export class OutreachService {
     if (status) where.status = status;
 
     const [data, total] = await Promise.all([
-      this.prisma.outreachMessage.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { createdAt: 'desc' } }),
+      this.prisma.outreachMessage.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          candidate: { select: { firstName: true, lastName: true, email: true } },
+          lead: { select: { firstName: true, lastName: true, email: true } },
+        },
+      }),
       this.prisma.outreachMessage.count({ where }),
     ]);
     return { data, meta: { total, page, limit } };

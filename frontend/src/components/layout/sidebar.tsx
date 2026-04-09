@@ -58,7 +58,7 @@ const navConfig = (role: string) => {
       ],
     },
     {
-      group: 'Growth',
+      group: 'Sales',
       items: [
         { label: 'Leads', href: '/leads', icon: Target },
         { label: 'Generate Leads', href: '/leads/generate', icon: Sparkles },

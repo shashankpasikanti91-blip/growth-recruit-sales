@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leadsApi } from '@/lib/api-client';
 import Link from 'next/link';
-import { Users, Search, Zap, Info } from 'lucide-react';
+import { Users, Search, Zap, Info, Filter } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -39,16 +39,52 @@ const STAGE_ACTIONS: Record<string, string> = {
 
 const STAGES = Object.keys(STAGE_ACTIONS);
 
+const SOURCES = [
+  { value: 'apollo', label: 'Apollo B2B' },
+  { value: 'google_search', label: 'Google Search' },
+  { value: 'google_maps', label: 'Google Maps' },
+  { value: 'manual', label: 'Manual' },
+  { value: 'csv', label: 'CSV Import' },
+];
+
+const SCORE_RANGES = [
+  { value: '', label: 'All scores' },
+  { value: '70-100', label: 'High (70+)' },
+  { value: '50-69', label: 'Medium (50–69)' },
+  { value: '0-49', label: 'Low (0–49)' },
+  { value: 'unscored', label: 'Not scored' },
+];
+
 export default function LeadsPage() {
   const [search, setSearch] = useState('');
   const [stage, setStage] = useState('');
+  const [source, setSource] = useState('');
+  const [scoreRange, setScoreRange] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
+  const scoreParams = (() => {
+    if (!scoreRange || scoreRange === 'unscored') return {};
+    const [min, max] = scoreRange.split('-').map(Number);
+    return { minScore: min, maxScore: max };
+  })();
+
   const { data, isLoading } = useQuery({
-    queryKey: ['leads', search, stage, page],
-    queryFn: () => leadsApi.list({ search: search || undefined, stage: stage || undefined, page, limit: 20 }),
+    queryKey: ['leads', search, stage, source, scoreRange, page],
+    queryFn: () => leadsApi.list({
+      search: search || undefined,
+      stage: stage || undefined,
+      source: source || undefined,
+      ...scoreParams,
+      page,
+      limit: 20,
+    }),
     placeholderData: (prev) => prev,
+  });
+
+  const allLeads: any[] = (data?.data ?? []).filter((l: any) => {
+    if (scoreRange === 'unscored') return l.score == null;
+    return true;
   });
 
   const stageMutation = useMutation({
@@ -66,8 +102,6 @@ export default function LeadsPage() {
       toast.success(`ICP Fit Score: ${result.score ?? result.icpFitScore ?? 0}/100 — ${result.nextBestAction ?? result.recommendation ?? 'Score saved'}`, { duration: 5000 }),
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'AI scoring failed'),
   });
-
-  const allLeads: any[] = data?.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -122,24 +156,52 @@ export default function LeadsPage() {
       </div>
 
       {/* Filters */}
-      <div className="card p-4 flex gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            className="input pl-9"
-            placeholder="Search by name, email, company..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-          />
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
+          <Filter className="w-3.5 h-3.5" /> Filters
         </div>
-        <select
-          className="input w-48"
-          value={stage}
-          onChange={e => { setStage(e.target.value); setPage(1); }}
-        >
-          <option value="">All stages</option>
-          {STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
-        </select>
+        <div className="flex gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              className="input pl-9"
+              placeholder="Search by name, email, title, company..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+            />
+          </div>
+          <select
+            className="input w-40"
+            value={stage}
+            onChange={e => { setStage(e.target.value); setPage(1); }}
+          >
+            <option value="">All stages</option>
+            {STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
+          </select>
+          <select
+            className="input w-40"
+            value={source}
+            onChange={e => { setSource(e.target.value); setPage(1); }}
+          >
+            <option value="">All sources</option>
+            {SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          <select
+            className="input w-44"
+            value={scoreRange}
+            onChange={e => { setScoreRange(e.target.value); setPage(1); }}
+          >
+            {SCORE_RANGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          {(search || stage || source || scoreRange) && (
+            <button
+              onClick={() => { setSearch(''); setStage(''); setSource(''); setScoreRange(''); setPage(1); }}
+              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border border-gray-200 rounded-lg"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}

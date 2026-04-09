@@ -87,6 +87,7 @@ export const outreachApi = {
   listMessages: (params?: Record<string, any>) => api.get('/outreach/messages', { params }).then(r => r.data),
   listSequences: () => api.get('/outreach/sequences').then(r => r.data),
   updateStatus: (id: string, status: string) => api.patch(`/outreach/messages/${id}/status`, { status }).then(r => r.data),
+  sendMessage: (id: string) => api.post(`/outreach/messages/${id}/send`).then(r => r.data),
 };
 
 // ─── Analytics ───────────────────────────────────────────────────────────────

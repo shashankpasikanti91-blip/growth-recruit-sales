@@ -66,16 +66,23 @@ export class LeadsService {
       stage?: string;
       countryCode?: string;
       source?: string;
+      minScore?: number;
+      maxScore?: number;
       page?: number;
       limit?: number;
     },
   ) {
-    const { search, stage, countryCode, source, page = 1, limit = 20 } = filters;
+    const { search, stage, countryCode, source, minScore, maxScore, page = 1, limit = 20 } = filters;
     const where: any = { tenantId };
 
     if (stage) where.stage = stage;
     if (source) where.sourceName = source;
     if (countryCode) where.company = { countryCode };
+    if (minScore !== undefined || maxScore !== undefined) {
+      where.score = {};
+      if (minScore !== undefined) where.score.gte = minScore;
+      if (maxScore !== undefined) where.score.lte = maxScore;
+    }
 
     if (search) {
       where.OR = [

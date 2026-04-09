@@ -379,10 +379,19 @@ const TABS = [
 export default function OutreachPage() {
   const [tab, setTab] = useState('playbook');
   const [status, setStatus] = useState('');
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['outreach-messages', status],
     queryFn: () => outreachApi.listMessages({ status: status || undefined, limit: 50 }),
     enabled: tab === 'messages',
+  });
+  const sendMutation = useMutation({
+    mutationFn: (id: string) => outreachApi.sendMessage(id),
+    onSuccess: (result: any) => {
+      toast.success(`Email sent to ${result.recipientEmail ?? 'recipient'}!`);
+      queryClient.invalidateQueries({ queryKey: ['outreach-messages'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to send email'),
   });
   return (
     <div className="space-y-6">
@@ -432,16 +441,16 @@ export default function OutreachPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {['Channel','Recipient','Subject / Message','Status','Step','Created'].map(h => (
+                {['Channel','Recipient','Subject / Message','Status','Step','Created','Actions'].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
               ) : !data?.data?.length ? (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No messages yet — use the Generate tab to create your first outreach</td></tr>
+                <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400">No messages yet — use the Generate tab to create your first outreach</td></tr>
               ) : data?.data?.map((msg: any) => {
                 const ch = CHANNEL_CONFIG[msg.channel];
                 const Icon = ch?.icon ?? Mail;
@@ -457,6 +466,20 @@ export default function OutreachPage() {
                     <td className="px-4 py-3"><span className={STATUS_BADGE[msg.status] ?? 'badge-gray'}>{msg.status}</span></td>
                     <td className="px-4 py-3 text-gray-500 text-xs">Step {msg.stepNumber}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs">{formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}</td>
+                    <td className="px-4 py-3">
+                      {msg.channel === 'EMAIL' && msg.status === 'DRAFT' && (
+                        <button
+                          onClick={() => sendMutation.mutate(msg.id)}
+                          disabled={sendMutation.isPending}
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          <Mail className="w-3 h-3" /> Send
+                        </button>
+                      )}
+                      {msg.status === 'SENT' && (
+                        <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Sent</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

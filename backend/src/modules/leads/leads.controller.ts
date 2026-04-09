@@ -50,6 +50,8 @@ export class LeadsController {
   @ApiQuery({ name: 'stage', required: false })
   @ApiQuery({ name: 'countryCode', required: false })
   @ApiQuery({ name: 'source', required: false })
+  @ApiQuery({ name: 'minScore', required: false, type: Number })
+  @ApiQuery({ name: 'maxScore', required: false, type: Number })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(
@@ -58,10 +60,16 @@ export class LeadsController {
     @Query('stage') stage?: string,
     @Query('countryCode') countryCode?: string,
     @Query('source') source?: string,
+    @Query('minScore') minScore?: string,
+    @Query('maxScore') maxScore?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
-    return this.leadsService.findAll(tenantId, { search, stage, countryCode, source, page, limit });
+    return this.leadsService.findAll(tenantId, {
+      search, stage, countryCode, source, page, limit,
+      minScore: minScore ? Number(minScore) : undefined,
+      maxScore: maxScore ? Number(maxScore) : undefined,
+    });
   }
 
   // ── Lead Generation (must be BEFORE :id routes) ──────────────────────────

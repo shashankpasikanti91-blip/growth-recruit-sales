@@ -27,9 +27,9 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     annualPrice: 0,
     maxUsers: 3,
     maxCandidatesPerMonth: 500,
-    maxLeadsPerMonth: 250,
-    maxLeadsPerDay: 25,
-    maxLeadsPerRequest: 20,
+    maxLeadsPerMonth: 1000,
+    maxLeadsPerDay: 100,
+    maxLeadsPerRequest: 50,
     maxAiUsagePerMonth: 200,
     features: [
       'Up to 3 users',

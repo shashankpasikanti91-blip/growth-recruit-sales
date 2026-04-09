@@ -53,6 +53,15 @@ export class OutreachController {
     return this.outreachService.updateMessageStatus(tenantId, id, dto.status);
   }
 
+  @Post('messages/:id/send')
+  @ApiOperation({ summary: 'Send an outreach email message directly via SMTP' })
+  sendMessage(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+  ) {
+    return this.outreachService.sendMessage(tenantId, id);
+  }
+
   @Post('suppression')
   @ApiOperation({ summary: 'Add email to suppression list (opted-out)' })
   addSuppression(@CurrentUser('tenantId') tenantId: string, @Body() dto: SuppressionDto) {
