@@ -17,11 +17,11 @@ const SOURCES = [
     icon: Target,
     color: 'border-purple-500 bg-purple-50',
     iconColor: 'text-purple-600',
-    desc: '275M+ verified B2B contacts with work emails, direct dials, LinkedIn profiles, and company data. Best for targeted outreach.',
-    best: 'Verified emails · Direct phones · B2B · SaaS · Enterprise',
+    desc: 'B2B-focused lead search using LinkedIn and business directories. Finds decision-makers with company details and websites.',
+    best: 'B2B contacts · Decision-makers · SaaS · Enterprise · Services',
     badge: 'Recommended',
-    quality: '⭐⭐⭐⭐⭐ Best quality — verified emails, direct dials, LinkedIn, full company data',
-    cost: '💰 Free tier: 10K credits/mo · No Apify cost · Fastest',
+    quality: '⭐⭐⭐⭐ B2B optimized — LinkedIn profiles, company info, websites',
+    cost: '💰 Uses Apify free credits · Fast',
   },
   {
     id: 'GOOGLE_MAPS',
@@ -33,7 +33,7 @@ const SOURCES = [
     best: 'Local businesses · Restaurants · Clinics · Services · Retail',
     badge: null,
     quality: '⭐⭐⭐⭐ Great for local — business phone, address, ratings, website',
-    cost: '💰 Google API: small cost per search · No Apify cost',
+    cost: '⚠️ Requires Google Maps API IP setup · Contact admin',
   },
   {
     id: 'GOOGLE_SEARCH',
@@ -45,7 +45,7 @@ const SOURCES = [
     best: 'Niche industries · Freelancers · New markets · Startups',
     badge: null,
     quality: '⭐⭐⭐ Good for niche — company names, websites, descriptions',
-    cost: '💰 Uses Apify credits ($5/mo free tier) · Slower',
+    cost: '💰 Uses Apify free credits · Moderate speed',
   },
 ];
 
@@ -177,7 +177,7 @@ export default function GenerateLeadsPage() {
         <div className="text-xs text-blue-700">
           <p className="font-semibold mb-1">Which source should I use?</p>
           <ul className="space-y-1 text-blue-600">
-            <li><strong>Apollo B2B</strong> — Best for B2B sales. Returns verified emails, phone numbers, LinkedIn, and full company info. Cheapest and fastest.</li>
+            <li><strong>Apollo B2B</strong> — Best for B2B sales. Searches LinkedIn and business directories for decision-makers with company info.</li>
             <li><strong>Google Maps</strong> — Best for local businesses (restaurants, clinics, agencies). Returns phone, address, website, and ratings.</li>
             <li><strong>Google Search</strong> — Best for niche markets not in databases. Returns company names and websites from Google results.</li>
           </ul>
