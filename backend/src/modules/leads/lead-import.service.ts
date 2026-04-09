@@ -503,9 +503,8 @@ export class LeadImportService {
   }
 
   /**
-   * Use Apollo.io native People Search API for B2B contacts.
-   * Returns verified emails, phone numbers, LinkedIn, company info, location.
-   * No Apify credits consumed — uses Apollo API key directly.
+   * Apollo lead generation — tries native API first (paid plans),
+   * falls back to Apify Apollo scraper (free plans / API inaccessible).
    */
   private async generateViaApollo(
     tenantId: string,
@@ -515,62 +514,146 @@ export class LeadImportService {
     limit: number,
     sourceImportId?: string,
   ) {
-    const apiKey = process.env.APOLLO_API_KEY;
-    if (!apiKey) {
-      throw new ServiceUnavailableException('Apollo API key is not configured. Contact support.');
+    // 1. Try native Apollo API (works on paid plans)
+    const apolloApiKey = process.env.APOLLO_API_KEY;
+    if (apolloApiKey) {
+      try {
+        const people = await this.callApolloNativeApi(apolloApiKey, industry, location, titles, limit);
+        if (people.length > 0) {
+          return this.importApolloContacts(tenantId, people.slice(0, limit), sourceImportId);
+        }
+        return { imported: 0, skipped: 0, errors: [] };
+      } catch (err: any) {
+        // 403 = free plan, fall through to Apify scraper
+        if (err.message?.includes('free plan') || err.message?.includes('API_INACCESSIBLE') || err.status === 403) {
+          this.logger.warn('Apollo native API not available (free plan), falling back to Apify scraper');
+        } else if (err instanceof ServiceUnavailableException || err instanceof BadRequestException) {
+          // Don't fall through for auth/config errors
+          throw err;
+        } else {
+          this.logger.warn(`Apollo native API failed: ${err.message}, falling back to Apify scraper`);
+        }
+      }
     }
 
+    // 2. Fallback: Apify Apollo scraper (uses Apify credits, works with free Apollo plan)
+    return this.generateViaApifyApollo(tenantId, industry, location, titles, limit, sourceImportId);
+  }
+
+  /**
+   * Native Apollo.io People Search API (requires paid plan).
+   */
+  private async callApolloNativeApi(apiKey: string, industry: string, location: string, titles: string[], limit: number): Promise<any[]> {
     const perPage = Math.min(limit, 100);
     const pages = Math.ceil(limit / perPage);
     let allPeople: any[] = [];
 
+    for (let page = 1; page <= pages && allPeople.length < limit; page++) {
+      const body: Record<string, any> = {
+        q_keywords: industry,
+        person_locations: [location],
+        per_page: perPage,
+        page,
+      };
+      if (titles.length > 0) {
+        body.person_titles = titles;
+      }
+
+      const resp = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        this.logger.error(`Apollo API error: ${resp.status} ${errText}`);
+        // Surface the error message so the fallback logic can detect free plan
+        const error: any = new Error(errText);
+        error.status = resp.status;
+        throw error;
+      }
+
+      const data = await resp.json() as any;
+      const people = data.people ?? [];
+      if (people.length === 0) break;
+      allPeople.push(...people);
+    }
+
+    return allPeople;
+  }
+
+  /**
+   * Apify Apollo.io scraper fallback — works even with Apollo free plan.
+   * Uses Apify credits to scrape Apollo search results via headless browser.
+   */
+  private async generateViaApifyApollo(
+    tenantId: string,
+    industry: string,
+    location: string,
+    titles: string[],
+    limit: number,
+    sourceImportId?: string,
+  ) {
+    const apifyKey = process.env.APIFY_API_KEY;
+    if (!apifyKey) {
+      throw new ServiceUnavailableException('Lead generation service is temporarily unavailable. Contact support.');
+    }
+
+    const actorId = 'curious_coder/apollo-io-scraper';
+    const runUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${encodeURIComponent(apifyKey)}&waitForFinish=180`;
+
+    let allItems: any[] = [];
     try {
-      for (let page = 1; page <= pages && allPeople.length < limit; page++) {
-        const body: Record<string, any> = {
-          q_keywords: industry,
-          person_locations: [location],
-          per_page: perPage,
-          page,
-        };
-        if (titles.length > 0) {
-          body.person_titles = titles;
-        }
+      const searchUrl = this.buildApolloSearchUrl(industry, location, titles);
+      const runResp = await fetch(runUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ searchUrl, maxResults: limit }),
+      });
 
-        const resp = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Api-Key': apiKey,
-          },
-          body: JSON.stringify(body),
-        });
+      if (!runResp.ok) {
+        const errText = await runResp.text();
+        this.logger.error(`Apify Apollo run failed: ${runResp.status} ${errText}`);
+        throw new BadRequestException('Apollo lead generation failed. Please try again.');
+      }
 
-        if (!resp.ok) {
-          const errText = await resp.text();
-          this.logger.error(`Apollo API error: ${resp.status} ${errText}`);
-          if (resp.status === 401 || resp.status === 403) {
-            throw new ServiceUnavailableException('Apollo API key is invalid or expired. Contact support.');
-          }
-          throw new BadRequestException('Apollo API returned an error. Please try again.');
-        }
+      const runData = await runResp.json() as any;
+      const datasetId = runData?.data?.defaultDatasetId;
+      if (!datasetId) {
+        throw new BadRequestException('Apollo lead generation failed — no results returned');
+      }
 
-        const data = await resp.json() as any;
-        const people = data.people ?? [];
-        if (people.length === 0) break;
-        allPeople.push(...people);
+      const dataUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(apifyKey)}&limit=${limit}`;
+      const dataResp = await fetch(dataUrl);
+      if (dataResp.ok) {
+        allItems = await dataResp.json() as any[];
       }
     } catch (err: any) {
       if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
-      this.logger.error(`Apollo API error: ${err.message}`);
+      this.logger.error(`Apify Apollo error: ${err.message}`);
       throw new BadRequestException('Apollo lead generation failed. Please try again.');
     }
 
-    if (allPeople.length === 0) {
+    if (allItems.length === 0) {
       return { imported: 0, skipped: 0, errors: [] };
     }
 
-    // Import Apollo contacts as leads with rich data
-    return this.importApolloContacts(tenantId, allPeople.slice(0, limit), sourceImportId);
+    // Apify Apollo scraper returns structured contact data — import with rich fields
+    return this.importFromApifyInternal(tenantId, allItems.slice(0, limit), 'apollo', sourceImportId);
+  }
+
+  private buildApolloSearchUrl(industry: string, location: string, titles: string[]): string {
+    const params = new URLSearchParams();
+    params.set('page', '1');
+    if (titles.length) titles.forEach(t => params.append('personTitles[]', t));
+    params.set('qKeywords', `${industry} ${location}`);
+    params.set('sortByField', '[none]');
+    params.set('sortAscending', 'false');
+    return `https://app.apollo.io/#/people?${params.toString()}`;
   }
 
   /**

@@ -95,6 +95,25 @@ describe('Leads', () => {
     }
   });
 
+  it('POST /leads/generate with Apollo should return results or gracefully fail', async () => {
+    const res = await authPost('/leads/generate', token, {
+      source: 'APOLLO',
+      industry: 'Recruitment Agencies',
+      location: 'Kuala Lumpur, Malaysia',
+      jobTitles: 'CEO,Founder',
+      limit: 10,
+    });
+    // 200/201 = success (native API or Apify fallback), 400 = scraper error, 403 = daily limit, 503 = no API keys
+    expect([200, 201, 400, 403, 503]).toContain(res.status);
+    if (res.status === 200 || res.status === 201) {
+      const data = await res.json();
+      expect(data).toHaveProperty('imported');
+      expect(data).toHaveProperty('skipped');
+      expect(data).toHaveProperty('importId');
+      expect(typeof data.imported).toBe('number');
+    }
+  }, 240000); // 4 min timeout — Apify scraper can take up to 3 min
+
   it('POST /leads/generate should reject invalid source', async () => {
     const res = await authPost('/leads/generate', token, {
       source: 'INVALID',
