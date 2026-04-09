@@ -20,6 +20,8 @@ const SOURCES = [
     desc: '275M+ verified B2B contacts with work emails, direct dials, LinkedIn profiles, and company data. Best for targeted outreach.',
     best: 'Verified emails · Direct phones · B2B · SaaS · Enterprise',
     badge: 'Recommended',
+    quality: '⭐⭐⭐⭐⭐ Best quality — verified emails, direct dials, LinkedIn, full company data',
+    cost: '💰 Free tier: 10K credits/mo · No Apify cost · Fastest',
   },
   {
     id: 'GOOGLE_MAPS',
@@ -30,6 +32,8 @@ const SOURCES = [
     desc: 'Local businesses with phone numbers, addresses, websites, ratings and opening hours. Perfect for location-based prospecting.',
     best: 'Local businesses · Restaurants · Clinics · Services · Retail',
     badge: null,
+    quality: '⭐⭐⭐⭐ Great for local — business phone, address, ratings, website',
+    cost: '💰 Google API: small cost per search · No Apify cost',
   },
   {
     id: 'GOOGLE_SEARCH',
@@ -40,6 +44,8 @@ const SOURCES = [
     desc: 'Find niche businesses and contacts from web search results. Great for industries not in traditional databases.',
     best: 'Niche industries · Freelancers · New markets · Startups',
     badge: null,
+    quality: '⭐⭐⭐ Good for niche — company names, websites, descriptions',
+    cost: '💰 Uses Apify credits ($5/mo free tier) · Slower',
   },
 ];
 
@@ -169,12 +175,13 @@ export default function GenerateLeadsPage() {
       <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
         <Shield className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
         <div className="text-xs text-blue-700">
-          <p className="font-semibold mb-1">How it works</p>
-          <p>
-            Our platform searches multiple data sources on your behalf and delivers verified leads directly into your pipeline.
-            You never need API keys or third-party accounts — we handle all the data sourcing, deduplication, and compliance.
-            Each lead imported counts against your monthly and daily plan credits.
-          </p>
+          <p className="font-semibold mb-1">Which source should I use?</p>
+          <ul className="space-y-1 text-blue-600">
+            <li><strong>Apollo B2B</strong> — Best for B2B sales. Returns verified emails, phone numbers, LinkedIn, and full company info. Cheapest and fastest.</li>
+            <li><strong>Google Maps</strong> — Best for local businesses (restaurants, clinics, agencies). Returns phone, address, website, and ratings.</li>
+            <li><strong>Google Search</strong> — Best for niche markets not in databases. Returns company names and websites from Google results.</li>
+          </ul>
+          <p className="mt-1 text-blue-500">All sources are included in your plan. No API keys needed — we handle everything.</p>
         </div>
       </div>
 
@@ -251,7 +258,13 @@ export default function GenerateLeadsPage() {
                       <span className={`font-semibold text-sm ${active ? 'text-gray-900' : 'text-gray-600'}`}>{s.label}</span>
                     </div>
                     <p className="text-xs text-gray-500 mb-2">{s.desc}</p>
-                    <p className="text-xs font-medium text-gray-400">{s.best}</p>
+                    <p className="text-xs font-medium text-gray-400 mb-2">{s.best}</p>
+                    {active && (
+                      <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                        <p className="text-[11px] text-gray-600">{s.quality}</p>
+                        <p className="text-[11px] text-gray-500">{s.cost}</p>
+                      </div>
+                    )}
                   </button>
                 );
               })}

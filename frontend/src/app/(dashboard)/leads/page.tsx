@@ -196,10 +196,10 @@ export default function LeadsPage() {
                     </select>
                   </td>
                   <td className="px-6 py-4">
-                    {lead.aiScore != null ? (
+                    {lead.score != null ? (
                       <div className="flex items-center gap-1">
-                        <span className={`font-bold text-sm ${lead.aiScore >= 70 ? 'text-green-600' : lead.aiScore >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
-                          {lead.aiScore}
+                        <span className={`font-bold text-sm ${lead.score >= 70 ? 'text-green-600' : lead.score >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
+                          {lead.score}
                         </span>
                         <span className="text-xs text-gray-400">/100</span>
                       </div>
@@ -207,7 +207,7 @@ export default function LeadsPage() {
                       <span className="text-gray-300 text-xs">Not scored</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-gray-500 text-xs">{lead.source ?? '—'}</td>
+                  <td className="px-6 py-4 text-gray-500 text-xs">{(lead.sourceName ?? '—').replace(/_/g, ' ')}</td>
                   <td className="px-6 py-4 text-gray-400 text-xs">
                     {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true })}
                   </td>
