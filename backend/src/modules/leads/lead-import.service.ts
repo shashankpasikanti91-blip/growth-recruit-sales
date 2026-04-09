@@ -422,8 +422,8 @@ export class LeadImportService {
     return {
       monthly: {
         used: tenant?.currentLeadUsage ?? 0,
-        limit: tenant?.maxLeadsPerMonth ?? planConfig.maxLeadsPerMonth,
-        remaining: Math.max(0, (tenant?.maxLeadsPerMonth ?? planConfig.maxLeadsPerMonth) - (tenant?.currentLeadUsage ?? 0)),
+        limit: planConfig.maxLeadsPerMonth,
+        remaining: Math.max(0, planConfig.maxLeadsPerMonth - (tenant?.currentLeadUsage ?? 0)),
       },
       daily: {
         used: todayCount,
