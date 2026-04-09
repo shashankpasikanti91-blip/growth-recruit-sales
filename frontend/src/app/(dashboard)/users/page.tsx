@@ -1,8 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
-import { UserCog, Shield, Mail, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { UserCog, Shield, Mail, Plus, Trash2, RefreshCw, Users, Info } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { billingApi } from '@/lib/api-client';
 import api from '@/lib/api';
+import Link from 'next/link';
 
 type AppUser = {
   id: string;
@@ -29,6 +32,11 @@ export default function UsersPage() {
 
   const ADMIN_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN'];
   const canManage = ADMIN_ROLES.includes(currentUser?.role ?? '');
+
+  const { data: sub } = useQuery({ queryKey: ['billing-subscription'], queryFn: billingApi.subscription });
+  const maxUsers: number = sub?.subscription?.plan?.maxUsers ?? 0;
+  const seatLabel = maxUsers >= 999999 ? '∞' : maxUsers > 0 ? String(maxUsers) : '—';
+  const seatsUsed = users.length;
 
   const load = () => {
     setLoading(true);
@@ -70,6 +78,25 @@ export default function UsersPage() {
             <Plus className="w-4 h-4" />
             Invite User
           </button>
+        </div>
+      </div>
+
+      {/* Seat usage banner */}
+      <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+        <Users className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-blue-700">
+              Team Seats — {seatsUsed} / {seatLabel} used
+            </p>
+            <Link href="/billing" className="text-xs text-blue-600 underline font-medium">Upgrade plan</Link>
+          </div>
+          <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">
+            Each person in your company gets their <strong>own login</strong> (email + password).
+            There is <strong>one company account</strong> (tenant) — team members are added to it.
+            Roles: <strong>Admin</strong> (full access) · <strong>Recruiter</strong> (candidates &amp; jobs) ·
+            <strong> Sales</strong> (leads &amp; outreach) · <strong>Viewer</strong> (read-only).
+          </p>
         </div>
       </div>
 

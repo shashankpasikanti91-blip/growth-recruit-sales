@@ -197,6 +197,23 @@ export default function BillingPage() {
         </div>
       )}
 
+      {/* Team seat model explanation */}
+      <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+        <Users className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-blue-700 mb-0.5">How team seats work</p>
+          <p className="text-xs text-blue-600 leading-relaxed">
+            Your plan includes a set number of <strong>team member logins</strong>. For example, the Starter plan ($29/mo) allows
+            up to <strong>5 people</strong> in your company to log in — each with their own email and password.
+            The <strong>company owner</strong> signs up first and then invites teammates from the{' '}
+            <Link href="/users" className="underline font-semibold">Users page</Link>.
+            Invite roles: <strong>Admin</strong> (full access), <strong>Recruiter</strong> (candidates + jobs),
+            <strong> Sales</strong> (leads + outreach), <strong>Viewer</strong> (read-only).
+            All team members share the same plan data limits (candidates, leads, AI calls).
+          </p>
+        </div>
+      </div>
+
       {/* Plan upgrade cards */}
       {plans && plans.length > 0 && (
         <div>
@@ -229,6 +246,12 @@ export default function BillingPage() {
                     )}
                   </div>
                   <ul className="space-y-1.5 mb-4 flex-1">
+                    {plan.maxUsers && plan.maxUsers !== -1 && (
+                      <li className="flex items-start gap-1.5 text-xs font-semibold text-brand-700 bg-brand-50 rounded-lg px-2 py-1">
+                        <Users className="w-3 h-3 text-brand-500 flex-shrink-0 mt-0.5" />
+                        {plan.maxUsers >= 999999 ? 'Unlimited team members' : `Up to ${plan.maxUsers} team member logins`}
+                      </li>
+                    )}
                     {(plan.features ?? []).slice(0, 4).map((f: string) => (
                       <li key={f} className="flex items-start gap-1.5 text-xs text-gray-600">
                         <Check className="w-3 h-3 text-green-500 flex-shrink-0 mt-0.5" /> {f}
