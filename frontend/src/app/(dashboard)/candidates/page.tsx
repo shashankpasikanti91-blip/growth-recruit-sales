@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { candidatesApi } from '@/lib/api-client';
 import Link from 'next/link';
-import { UserPlus, Search, Filter, Briefcase, Copy, Check } from 'lucide-react';
+import { UserPlus, Search, Briefcase, Copy, Check, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const STAGE_BADGE: Record<string, string> = {
@@ -11,16 +11,63 @@ const STAGE_BADGE: Record<string, string> = {
   OFFERED: 'badge-green', PLACED: 'badge-green', REJECTED: 'badge-red', WITHDRAWN: 'badge-yellow',
 };
 
+const ROLE_FILTERS = [
+  'Engineer / Developer',
+  'Manager / Director',
+  'Analyst',
+  'Sales / BD',
+  'HR / Recruitment',
+  'Marketing',
+  'Finance / Accounting',
+  'Operations',
+  'Designer / Creative',
+  'Executive / C-Suite',
+  'Other',
+];
+
 export default function CandidatesPage() {
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
   const [page, setPage] = useState(1);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['candidates', search, page],
+    queryKey: ['candidates', search, roleFilter, page],
     queryFn: () => candidatesApi.list({ search: search || undefined, page, limit: 20 }),
     placeholderData: (prev) => prev,
   });
+
+  // Client-side role filter applied on top of search results
+  const ROLE_KEYWORDS: Record<string, string[]> = {
+    'Engineer / Developer': ['engineer', 'developer', 'dev', 'software', 'programmer', 'architect', 'devops', 'sre', 'fullstack', 'frontend', 'backend'],
+    'Manager / Director': ['manager', 'director', 'head of', 'lead', 'supervisor'],
+    'Analyst': ['analyst', 'analysis', 'data', 'business analyst', 'research'],
+    'Sales / BD': ['sales', 'business development', 'account executive', 'bd', 'revenue'],
+    'HR / Recruitment': ['hr', 'human resource', 'recruiter', 'talent', 'people'],
+    'Marketing': ['marketing', 'growth', 'seo', 'content', 'brand', 'digital'],
+    'Finance / Accounting': ['finance', 'accounting', 'accountant', 'cfo', 'financial', 'audit'],
+    'Operations': ['operations', 'ops', 'logistics', 'supply chain', 'procurement'],
+    'Designer / Creative': ['designer', 'design', 'ux', 'ui', 'creative', 'graphic'],
+    'Executive / C-Suite': ['ceo', 'cto', 'coo', 'cmo', 'chief', 'president', 'founder', 'executive'],
+    'Other': [],
+  };
+
+  const filteredData = (() => {
+    if (!roleFilter || !data?.data) return data?.data ?? [];
+    const keywords = ROLE_KEYWORDS[roleFilter] ?? [];
+    if (keywords.length === 0) {
+      // "Other" = doesn't match any known keyword set
+      const allKeywords = Object.values(ROLE_KEYWORDS).flat();
+      return data.data.filter((c: any) => {
+        const title = (c.currentTitle ?? '').toLowerCase();
+        return !allKeywords.some(k => title.includes(k));
+      });
+    }
+    return data.data.filter((c: any) => {
+      const title = (c.currentTitle ?? '').toLowerCase();
+      return keywords.some(k => title.includes(k));
+    });
+  })();
 
   return (
     <div className="space-y-6">
@@ -34,21 +81,70 @@ export default function CandidatesPage() {
         </Link>
       </div>
 
-      {/* Search */}
-      <div className="card p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            className="input pl-9"
-            placeholder="Search by name, email, title, company..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
+      {/* Search + Role Filter */}
+      <div className="card p-4 space-y-3">
+        <div className="flex gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              className="input pl-9"
+              placeholder="Search by name, email, title, company..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            />
+          </div>
+          <select
+            className="input w-52"
+            value={roleFilter}
+            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
+          >
+            <option value="">All roles / titles</option>
+            {ROLE_FILTERS.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          {(search || roleFilter) && (
+            <button
+              onClick={() => { setSearch(''); setRoleFilter(''); setPage(1); }}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-3 py-2 border border-gray-200 rounded-lg"
+            >
+              <X className="w-3 h-3" /> Clear
+            </button>
+          )}
         </div>
+        {roleFilter && (
+          <div className="flex flex-wrap gap-2">
+            {ROLE_FILTERS.map(r => (
+              <button
+                key={r}
+                onClick={() => setRoleFilter(roleFilter === r ? '' : r)}
+                className={`text-xs px-3 py-1 rounded-full border transition-colors ${roleFilter === r ? 'bg-brand-600 text-white border-brand-600' : 'border-gray-200 text-gray-600 hover:border-brand-400 hover:text-brand-600'}`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        )}
+        {!roleFilter && (
+          <div className="flex flex-wrap gap-2">
+            {ROLE_FILTERS.map(r => (
+              <button
+                key={r}
+                onClick={() => setRoleFilter(r)}
+                className="text-xs px-3 py-1 rounded-full border border-gray-200 text-gray-600 hover:border-brand-400 hover:text-brand-600 transition-colors"
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Table */}
       <div className="card p-0 overflow-hidden">
+        {roleFilter && (
+          <div className="px-6 py-2 bg-brand-50 border-b border-brand-100 text-xs text-brand-700 font-medium">
+            Showing {filteredData.length} candidate{filteredData.length !== 1 ? 's' : ''} matching &ldquo;{roleFilter}&rdquo;
+          </div>
+        )}
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
@@ -63,10 +159,10 @@ export default function CandidatesPage() {
           <tbody className="divide-y divide-gray-50">
             {isLoading ? (
               <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
-            ) : data?.data?.length === 0 ? (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No candidates found</td></tr>
+            ) : filteredData.length === 0 ? (
+              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No candidates found{roleFilter ? ` for "${roleFilter}"` : ''}</td></tr>
             ) : (
-              data?.data?.map((c: any) => (
+              filteredData.map((c: any) => (
                 <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <button

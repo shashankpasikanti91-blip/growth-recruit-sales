@@ -60,6 +60,7 @@ export default function LeadsPage() {
   const [stage, setStage] = useState('');
   const [source, setSource] = useState('');
   const [scoreRange, setScoreRange] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
@@ -70,7 +71,7 @@ export default function LeadsPage() {
   })();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['leads', search, stage, source, scoreRange, page],
+    queryKey: ['leads', search, stage, source, scoreRange, roleFilter, page],
     queryFn: () => leadsApi.list({
       search: search || undefined,
       stage: stage || undefined,
@@ -82,8 +83,27 @@ export default function LeadsPage() {
     placeholderData: (prev) => prev,
   });
 
+  const ROLE_KEYWORDS: Record<string, string[]> = {
+    'CEO / Founder': ['ceo', 'founder', 'co-founder', 'owner', 'president', 'managing director', 'md'],
+    'C-Suite': ['cto', 'coo', 'cmo', 'cfo', 'chief', 'executive'],
+    'VP / Director': ['vp', 'vice president', 'director', 'head of'],
+    'Manager': ['manager', 'lead', 'supervisor'],
+    'HR / People': ['hr', 'human resource', 'recruiter', 'talent', 'people'],
+    'Sales / BD': ['sales', 'business development', 'account', 'revenue', 'bd'],
+    'Marketing': ['marketing', 'growth', 'content', 'brand', 'digital', 'seo'],
+    'IT / Tech': ['it', 'tech', 'engineer', 'developer', 'software', 'cto'],
+    'Finance': ['finance', 'cfo', 'accountant', 'financial', 'audit'],
+  };
+
+  const ROLE_FILTER_OPTIONS = ['CEO / Founder', 'C-Suite', 'VP / Director', 'Manager', 'HR / People', 'Sales / BD', 'Marketing', 'IT / Tech', 'Finance'];
+
   const allLeads: any[] = (data?.data ?? []).filter((l: any) => {
     if (scoreRange === 'unscored') return l.score == null;
+    if (roleFilter) {
+      const keywords = ROLE_KEYWORDS[roleFilter] ?? [];
+      const title = (l.title ?? '').toLowerCase();
+      return keywords.some(k => title.includes(k));
+    }
     return true;
   });
 
@@ -193,9 +213,17 @@ export default function LeadsPage() {
           >
             {SCORE_RANGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
-          {(search || stage || source || scoreRange) && (
+          <select
+            className="input w-44"
+            value={roleFilter}
+            onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
+          >
+            <option value="">All titles / roles</option>
+            {ROLE_FILTER_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          {(search || stage || source || scoreRange || roleFilter) && (
             <button
-              onClick={() => { setSearch(''); setStage(''); setSource(''); setScoreRange(''); setPage(1); }}
+              onClick={() => { setSearch(''); setStage(''); setSource(''); setScoreRange(''); setRoleFilter(''); setPage(1); }}
               className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border border-gray-200 rounded-lg"
             >
               Clear all

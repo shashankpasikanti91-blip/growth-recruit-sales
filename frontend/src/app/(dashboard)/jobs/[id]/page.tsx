@@ -1,11 +1,12 @@
 'use client';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jobsApi, applicationsApi, candidatesApi } from '@/lib/api-client';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Briefcase, MapPin, DollarSign, Users, Clock, ArrowLeft,
-  Zap, ChevronRight, CheckCircle, XCircle,
+  Zap, ChevronRight, CheckCircle, XCircle, ChevronDown, ChevronUp, X,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -27,6 +28,7 @@ export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [showFullJD, setShowFullJD] = useState(false);
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', id],
@@ -224,8 +226,93 @@ export default function JobDetailPage() {
           {/* Description */}
           {job.description && (
             <div className="card">
-              <h2 className="font-semibold text-gray-900 mb-3">Description</h2>
-              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{job.description}</p>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold text-gray-900">Description</h2>
+                <button
+                  onClick={() => setShowFullJD(true)}
+                  className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                >
+                  View Full JD <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {/* Preview — max 4 lines */}
+              <div className="relative">
+                <p className="text-sm text-gray-600 leading-relaxed line-clamp-4 whitespace-pre-wrap">{job.description}</p>
+                <button
+                  onClick={() => setShowFullJD(true)}
+                  className="mt-2 flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" /> Show more
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Full JD Modal */}
+          {showFullJD && job.description && (
+            <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">{job.title}</h2>
+                    {job.department && <p className="text-sm text-gray-500">{job.department}</p>}
+                  </div>
+                  <button
+                    onClick={() => setShowFullJD(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="px-6 py-5">
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {job.location && (
+                      <span className="flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                        <MapPin className="w-3 h-3" /> {job.location}
+                      </span>
+                    )}
+                    {job.workMode && <span className="badge-blue text-xs">{job.workMode}</span>}
+                    {job.employmentType && <span className="badge-gray text-xs">{job.employmentType}</span>}
+                    {(job.salaryMin || job.salaryMax) && (
+                      <span className="flex items-center gap-1 text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">
+                        <DollarSign className="w-3 h-3" />
+                        {job.salaryCurrency ?? 'USD'} {job.salaryMin?.toLocaleString()} – {job.salaryMax?.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <pre className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">{job.description}</pre>
+                  {job.requirements?.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="font-semibold text-gray-900 mb-3">Requirements</h3>
+                      <ul className="space-y-1.5">
+                        {job.requirements.map((r: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                            <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />{r}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {job.skills?.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="font-semibold text-gray-900 mb-3">Required Skills</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {job.skills.map((s: string, i: number) => (
+                          <span key={i} className="badge-blue text-xs">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="px-6 pb-5">
+                  <button
+                    onClick={() => setShowFullJD(false)}
+                    className="btn-secondary w-full"
+                  >
+                    <ChevronUp className="w-4 h-4" /> Close
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

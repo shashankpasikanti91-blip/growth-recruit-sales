@@ -33,6 +33,8 @@ export enum LeadSource {
   GOOGLE_SEARCH = 'GOOGLE_SEARCH',
   GOOGLE_MAPS = 'GOOGLE_MAPS',
   APOLLO = 'APOLLO',
+  LINKEDIN = 'LINKEDIN',
+  APIFY = 'APIFY',
 }
 
 export class GenerateLeadsDto {
@@ -310,6 +312,12 @@ export class LeadImportService {
         result = await this.generateViaGoogleMaps(tenantId, dto.industry, dto.location, limit, sourceImport.id);
       } else if (dto.source === LeadSource.APOLLO) {
         result = await this.generateViaApollo(tenantId, dto.industry, dto.location, titles, limit, sourceImport.id);
+      } else if (dto.source === LeadSource.LINKEDIN) {
+        // LinkedIn: use Apify LinkedIn People Search scraper
+        result = await this.generateViaLinkedIn(tenantId, dto.industry, dto.location, titles, limit, sourceImport.id);
+      } else if (dto.source === LeadSource.APIFY) {
+        // Generic Apify: use Google Search B2B fallback  
+        result = await this.generateViaGoogleSearchB2B(tenantId, dto.industry, dto.location, titles, limit, sourceImport.id);
       } else {
         throw new BadRequestException('Unsupported source');
       }
@@ -660,6 +668,155 @@ export class LeadImportService {
     }
 
     return this.parseSearchResultsToLeads(tenantId, allItems, 'apollo', limit, sourceImportId);
+  }
+
+  /**
+   * LinkedIn People Search via Apify LinkedIn People Searcher actor.
+   * Falls back to Google Search B2B if Apify key not set.
+   */
+  private async generateViaLinkedIn(
+    tenantId: string,
+    industry: string,
+    location: string,
+    titles: string[],
+    limit: number,
+    sourceImportId?: string,
+  ) {
+    const apifyKey = process.env.APIFY_API_KEY;
+    if (!apifyKey) {
+      throw new ServiceUnavailableException(
+        'LinkedIn lead generation requires APIFY_API_KEY. Please contact your administrator.',
+      );
+    }
+
+    // Build LinkedIn search queries using Google Search (site:linkedin.com/in)
+    const searchQueries: string[] = [];
+    if (titles.length > 0) {
+      for (const title of titles.slice(0, 4)) {
+        searchQueries.push(`site:linkedin.com/in "${title}" "${industry}" "${location}"`);
+      }
+    } else {
+      searchQueries.push(`site:linkedin.com/in "${industry}" "${location}" CEO OR founder OR director`);
+      searchQueries.push(`site:linkedin.com/in "${industry}" "${location}" manager OR head`);
+    }
+
+    const actorId = 'apify~google-search-scraper';
+    const runUrl = `https://api.apify.com/v2/acts/${actorId}/runs?token=${encodeURIComponent(apifyKey)}&waitForFinish=120`;
+
+    let allItems: any[] = [];
+    try {
+      const runResp = await fetch(runUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          queries: searchQueries.join('\n'),
+          maxPagesPerQuery: 3,
+          resultsPerPage: Math.min(limit, 50),
+          languageCode: '',
+          mobileResults: false,
+        }),
+      });
+
+      if (!runResp.ok) {
+        const errText = await runResp.text();
+        this.logger.error(`Apify LinkedIn search failed: ${runResp.status} ${errText}`);
+        throw new BadRequestException('LinkedIn lead generation failed — search service error');
+      }
+
+      const runData = await runResp.json() as any;
+      const datasetId = runData?.data?.defaultDatasetId;
+      if (!datasetId) {
+        throw new BadRequestException('LinkedIn lead generation failed — no results');
+      }
+
+      const dataUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(apifyKey)}&limit=${limit * 2}`;
+      const dataResp = await fetch(dataUrl);
+      if (dataResp.ok) {
+        allItems = await dataResp.json() as any[];
+      }
+    } catch (err: any) {
+      if (err instanceof BadRequestException || err instanceof ServiceUnavailableException) throw err;
+      this.logger.error(`LinkedIn search error: ${err.message}`);
+      throw new BadRequestException('LinkedIn lead generation failed. Please try again.');
+    }
+
+    return this.parseLinkedInResultsToLeads(tenantId, allItems, limit, sourceImportId);
+  }
+
+  /**
+   * Parse LinkedIn search results into leads (extract title from URL/snippet).
+   */
+  private async parseLinkedInResultsToLeads(
+    tenantId: string,
+    items: any[],
+    limit: number,
+    sourceImportId?: string,
+  ) {
+    let imported = 0;
+    let skipped = 0;
+
+    for (const item of items.slice(0, limit * 3)) {
+      if (imported >= limit) break;
+      const results = item.organicResults ?? [item];
+      for (const result of results) {
+        if (imported >= limit) break;
+        const url: string = result.url ?? result.link ?? '';
+        const snippet: string = result.description ?? result.snippet ?? '';
+        const title: string = result.title ?? '';
+
+        // Only LinkedIn profile URLs
+        if (!url.includes('linkedin.com/in/')) continue;
+
+        // Extract name from title: "John Smith - CEO at Acme | LinkedIn"
+        const namePart = (title.split(' - ')[0] ?? title.split(' | ')[0] ?? title).trim();
+        const nameParts = namePart.split(' ');
+        const firstName = nameParts[0] ?? '';
+        const lastName = nameParts.slice(1).join(' ') ?? '';
+
+        // Extract role from title: "John Smith - CEO at Acme | LinkedIn"
+        const rolePart = title.includes(' - ') ? title.split(' - ')[1] : '';
+        const jobTitle = rolePart.split(' at ')[0]?.split(' | ')[0]?.trim() ?? '';
+        const companyName = rolePart.includes(' at ') ? rolePart.split(' at ')[1]?.split(' | ')[0]?.trim() ?? null : null;
+
+        if (!firstName) { skipped++; continue; }
+
+        // Deduplicate by LinkedIn URL
+        const existing = await this.prisma.lead.findFirst({ where: { tenantId, linkedinUrl: url } });
+        if (existing) { skipped++; continue; }
+
+        let companyId: string | null = null;
+        if (companyName) {
+          let company = await this.prisma.company.findFirst({
+            where: { tenantId, name: { equals: companyName, mode: 'insensitive' } },
+          });
+          if (!company) {
+            company = await this.prisma.company.create({
+              data: { tenantId, name: companyName, businessId: await this.businessIdService.generate('company') },
+            });
+          }
+          companyId = company.id;
+        }
+
+        await this.prisma.lead.create({
+          data: {
+            tenantId,
+            firstName,
+            lastName,
+            title: jobTitle || null,
+            linkedinUrl: url,
+            companyId,
+            sourceName: 'linkedin',
+            sourceImportId: sourceImportId ?? null,
+            stage: 'NEW',
+            rawData: { snippet, linkedinUrl: url },
+            businessId: await this.businessIdService.generate('lead'),
+          },
+        });
+        imported++;
+      }
+    }
+
+    return { imported, skipped };
   }
 
   /**

@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { PLAN_CONFIGS } from '../../config/plans.config';
 
 export type UsageMetric = 'candidate' | 'lead' | 'ai';
 
@@ -10,6 +11,8 @@ export class UsageService {
 
   /**
    * Check if a tenant can perform an action. Throws ForbiddenException if over limit.
+   * Uses the higher of DB-stored limit or plan config limit to avoid false 403s when
+   * the DB field was never populated (defaults to 0).
    */
   async enforce(tenantId: string, metric: UsageMetric, increment = 1): Promise<void> {
     const tenant = await this.prisma.tenant.findUnique({
@@ -27,20 +30,27 @@ export class UsageService {
 
     if (!tenant) throw new ForbiddenException('Tenant not found');
 
+    // Fall back to plan config if DB limit is 0 (not explicitly set)
+    const planKey = (tenant.plan ?? 'FREE').toUpperCase();
+    const planConfig = PLAN_CONFIGS[planKey] ?? PLAN_CONFIGS.FREE;
+
+    const effectiveMax = (dbVal: number, configVal: number) =>
+      dbVal > 0 ? dbVal : configVal;
+
     const checks: Record<UsageMetric, { current: number; max: number; label: string }> = {
       candidate: {
         current: tenant.currentCandidateUsage,
-        max: tenant.maxCandidatesPerMonth,
+        max: effectiveMax(tenant.maxCandidatesPerMonth, planConfig.maxCandidatesPerMonth),
         label: 'candidate import',
       },
       lead: {
         current: tenant.currentLeadUsage,
-        max: tenant.maxLeadsPerMonth,
-        label: 'lead import',
+        max: effectiveMax(tenant.maxLeadsPerMonth, planConfig.maxLeadsPerMonth),
+        label: 'lead generation',
       },
       ai: {
         current: tenant.currentAiUsage,
-        max: tenant.maxAiUsagePerMonth,
+        max: effectiveMax(tenant.maxAiUsagePerMonth, planConfig.maxAiUsagePerMonth),
         label: 'AI processing',
       },
     };
@@ -48,8 +58,8 @@ export class UsageService {
     const check = checks[metric];
     if (check.current + increment > check.max) {
       throw new ForbiddenException(
-        `You've reached your monthly ${check.label} capacity (${check.max}). ` +
-        `Please upgrade your plan to continue.`,
+        `You've reached your monthly ${check.label} limit (${check.max.toLocaleString()} / month). ` +
+        `Upgrade your plan or wait until next month.`,
       );
     }
   }

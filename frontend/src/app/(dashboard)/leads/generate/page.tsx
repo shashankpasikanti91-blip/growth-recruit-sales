@@ -47,6 +47,30 @@ const SOURCES = [
     quality: '⭐⭐⭐ Good for niche — company names, websites, descriptions',
     cost: '💰 Uses Apify free credits · Moderate speed',
   },
+  {
+    id: 'LINKEDIN',
+    label: 'LinkedIn',
+    icon: Users,
+    color: 'border-blue-700 bg-blue-50',
+    iconColor: 'text-blue-700',
+    desc: 'Search LinkedIn profiles for decision-makers via Google + Apify. Finds name, title, company, and LinkedIn URL.',
+    best: 'Decision-makers · B2B Contacts · Professional network',
+    badge: null,
+    quality: '⭐⭐⭐⭐ Professional profiles — name, title, company, LinkedIn URL',
+    cost: '💰 Uses Apify credits',
+  },
+  {
+    id: 'APIFY',
+    label: 'Apify Web Scrape',
+    icon: Globe,
+    color: 'border-orange-500 bg-orange-50',
+    iconColor: 'text-orange-600',
+    desc: 'Broad web scraping via Apify Google Search with optimized B2B queries. Good for any industry.',
+    best: 'Any industry · Broad search · Fallback option',
+    badge: null,
+    quality: '⭐⭐⭐ Broad results — company names, websites, descriptions',
+    cost: '💰 Uses Apify free credits · Fast',
+  },
 ];
 
 const INDUSTRIES = [
@@ -109,7 +133,8 @@ export default function GenerateLeadsPage() {
       toast.success(`${data.imported ?? 0} leads generated!`);
     },
     onError: (e: any) => {
-      toast.error(e?.response?.data?.message ?? 'Lead generation failed. Please try again.');
+      const msg = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Lead generation failed. Please try again.';
+      toast.error(msg, { duration: 6000 });
     },
   });
 

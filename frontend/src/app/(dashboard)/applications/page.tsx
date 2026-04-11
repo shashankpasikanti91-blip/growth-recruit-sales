@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, User, Briefcase, Calendar, Search, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { ClipboardList, User, Briefcase, Calendar, Search, ChevronLeft, ChevronRight, ArrowUpDown, Filter, X } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 
@@ -55,7 +55,18 @@ export default function ApplicationsPage() {
   const [filter, setFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [jobFilter, setJobFilter] = useState('');
   const [page, setPage] = useState(1);
+
+  // Fetch jobs for filter dropdown
+  const { data: jobsData } = useQuery({
+    queryKey: ['jobs-list'],
+    queryFn: async () => {
+      const { data } = await api.get('/jobs', { params: { limit: 100 } });
+      return Array.isArray(data) ? data : data?.data ?? [];
+    },
+    staleTime: 60000,
+  });
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -70,11 +81,12 @@ export default function ApplicationsPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['applications', filter, debouncedSearch, page],
+    queryKey: ['applications', filter, debouncedSearch, jobFilter, page],
     queryFn: async () => {
       const params: Record<string, any> = { page, limit: 20 };
       if (filter !== 'ALL') params.stage = filter;
       if (debouncedSearch) params.search = debouncedSearch;
+      if (jobFilter) params.jobId = jobFilter;
       const { data } = await api.get('/applications', { params });
       // Handle both old array response and new paginated response
       if (Array.isArray(data)) {
@@ -125,16 +137,36 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search by candidate name, email, or job title..."
-          value={search}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="pl-9 pr-4 py-2.5 w-full max-w-sm border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-        />
+      {/* Search + Job filter */}
+      <div className="flex gap-3 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by candidate name, email, or job title..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="pl-9 pr-4 py-2.5 w-full border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+        <select
+          className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 min-w-[180px]"
+          value={jobFilter}
+          onChange={e => { setJobFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All jobs</option>
+          {(jobsData ?? []).map((j: any) => (
+            <option key={j.id} value={j.id}>{j.title}</option>
+          ))}
+        </select>
+        {(search || jobFilter) && (
+          <button
+            onClick={() => { setSearch(''); setDebouncedSearch(''); setJobFilter(''); setPage(1); }}
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-3 py-2.5 border border-gray-200 rounded-lg"
+          >
+            <X className="w-3 h-3" /> Clear
+          </button>
+        )}
       </div>
 
       {/* Pipeline stage tabs */}
