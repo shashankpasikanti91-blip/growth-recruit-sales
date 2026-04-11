@@ -68,6 +68,7 @@ export class ApplicationsController {
   @ApiQuery({ name: 'jobId', required: false })
   @ApiQuery({ name: 'candidateId', required: false })
   @ApiQuery({ name: 'stage', required: false })
+  @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(
@@ -75,10 +76,11 @@ export class ApplicationsController {
     @Query('jobId') jobId?: string,
     @Query('candidateId') candidateId?: string,
     @Query('stage') stage?: string,
+    @Query('search') search?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
-    return this.applicationsService.findAll(tenantId, { jobId, candidateId, stage, page, limit });
+    return this.applicationsService.findAll(tenantId, { jobId, candidateId, stage, search, page, limit });
   }
 
   @Get(':id')

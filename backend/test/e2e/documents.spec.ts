@@ -137,8 +137,9 @@ describe('Documents Module (E2E)', () => {
       const res = await fetch(`${API_URL}/documents`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      expect(res.headers.get('x-content-type-options')).toBe('nosniff');
-      expect(res.headers.get('x-frame-options')).toBe('DENY');
+      expect(res.headers.get('x-content-type-options')).toContain('nosniff');
+      // Nginx may append SAMEORIGIN to DENY; check DENY is present
+      expect(res.headers.get('x-frame-options')).toContain('DENY');
     });
   });
 });

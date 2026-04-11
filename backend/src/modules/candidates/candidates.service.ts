@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BusinessIdService } from '../billing/business-id.service';
 import { UsageService } from '../billing/usage.service';
@@ -38,27 +38,54 @@ export class CandidatesService {
     private readonly duplicateDetection: DuplicateDetectionService,
   ) {}
 
-  async create(tenantId: string, dto: CreateCandidateDto) {
+  async create(tenantId: string, dto: CreateCandidateDto, allowDuplicate = false) {
+    // Normalize inputs for duplicate checking
+    const normalizedEmail = dto.email?.trim().toLowerCase() || undefined;
+    const normalizedPhone = dto.phone?.replace(/[\s\-\(\)\.]/g, '') || undefined;
+
+    // Check for duplicates BEFORE creating
+    const dupeCheck = await this.duplicateDetection.checkCandidate(tenantId, {
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      firstName: dto.firstName?.trim(),
+      lastName: dto.lastName?.trim(),
+      currentCompany: dto.currentCompany?.trim(),
+    });
+
+    // Block duplicate creation unless explicitly allowed by admin
+    if (dupeCheck.isDuplicate && !allowDuplicate) {
+      const exactMatches = dupeCheck.matches.filter(m => m.confidence === 'exact');
+      const bestMatch = exactMatches[0] || dupeCheck.matches[0];
+      throw new ConflictException({
+        statusCode: 409,
+        error: 'Duplicate candidate detected',
+        message: `A candidate with the same ${bestMatch.matchField} already exists (${bestMatch.matchValue}).`,
+        duplicateOf: {
+          id: bestMatch.id,
+          businessId: bestMatch.businessId,
+          matchField: bestMatch.matchField,
+          matchValue: bestMatch.matchValue,
+          confidence: bestMatch.confidence,
+        },
+        allMatches: dupeCheck.matches,
+      });
+    }
+
     // Enforce candidate usage limit
     await this.usageService.enforceAndIncrement(tenantId, 'candidate');
 
     const businessId = await this.businessIdService.generate('candidate');
     const { visaExpiry, source, resumeText, ...rest } = dto;
 
-    // Check for duplicates
-    const dupeCheck = await this.duplicateDetection.checkCandidate(tenantId, {
-      email: dto.email, phone: dto.phone, firstName: dto.firstName, lastName: dto.lastName, currentCompany: dto.currentCompany,
-    });
-
     const candidate = await this.prisma.candidate.create({
       data: {
         tenantId,
         businessId,
         ...rest,
+        email: normalizedEmail,
         sourceName: source || 'MANUAL',
         visaExpiry: visaExpiry ? new Date(visaExpiry) : undefined,
-        isDuplicate: dupeCheck.isDuplicate,
-        duplicateOfId: dupeCheck.matches[0]?.id,
+        isDuplicate: false,
       },
     });
 
@@ -77,7 +104,7 @@ export class CandidatesService {
       });
     }
 
-    return { ...candidate, duplicateWarning: dupeCheck.isDuplicate ? dupeCheck.matches : undefined };
+    return candidate;
   }
 
   async findAll(tenantId: string, filters: { search?: string; skills?: string; stage?: string; page?: number; limit?: number }) {

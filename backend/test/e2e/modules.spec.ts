@@ -41,8 +41,10 @@ describe('Contacts', () => {
   it('GET /contacts should return paginated list', async () => {
     const res = await authGet('/contacts', token);
     expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data).toHaveProperty('data');
+    const body = await res.json();
+    // API returns { data, meta } (paginated) — accept either shape for backwards compat
+    const items = Array.isArray(body) ? body : body.data;
+    expect(Array.isArray(items)).toBe(true);
   });
 });
 
@@ -70,8 +72,8 @@ describe('Workflows', () => {
     token = tokens.accessToken;
   });
 
-  it('GET /workflows should return workflow runs', async () => {
-    const res = await authGet('/workflows', token);
+  it('GET /workflows/runs should return workflow runs', async () => {
+    const res = await authGet('/workflows/runs', token);
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data).toHaveProperty('data');

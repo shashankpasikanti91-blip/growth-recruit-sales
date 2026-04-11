@@ -1,5 +1,7 @@
 'use client';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
 interface GoogleLoginButtonProps {
   label?: string;
   className?: string;
@@ -7,7 +9,7 @@ interface GoogleLoginButtonProps {
 
 export function GoogleLoginButton({ label = 'Continue with Google', className = '' }: GoogleLoginButtonProps) {
   const handleClick = () => {
-    window.location.href = '/api/v1/auth/google';
+    window.location.href = `${API_URL}/v1/auth/google`;
   };
 
   return (

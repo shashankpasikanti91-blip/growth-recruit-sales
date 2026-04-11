@@ -55,7 +55,7 @@ function KpiCard({ label, value, sub, icon: Icon, gradient, href }: {
 }
 
 export default function DashboardPage() {
-  const { data: dash } = useQuery({
+  const { data: dash, isLoading: dashLoading, isError: dashError } = useQuery({
     queryKey: ['analytics', 'dashboard'],
     queryFn: () => analyticsApi.dashboard(),
   });
@@ -106,6 +106,43 @@ export default function DashboardPage() {
 
   const timeSeries = (recruitment?.timeSeries ?? []).slice(-14);
   const isEmpty = openPositions === 0 && candidatesInPipeline === 0 && interviewsScheduled === 0 && offersReleased === 0;
+
+  if (dashLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-400 text-sm mt-0.5">Loading your overview…</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-2xl p-5 bg-gray-100 animate-pulse h-28" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-gray-100 rounded-2xl animate-pulse h-64" />
+          <div className="bg-gray-100 rounded-2xl animate-pulse h-64" />
+        </div>
+      </div>
+    );
+  }
+
+  if (dashError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-400 text-sm mt-0.5">Live recruitment overview</p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <p className="text-red-600 font-medium">Failed to load dashboard data</p>
+          <p className="text-sm text-red-500 mt-1">Please check your connection and try refreshing the page.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -32,12 +32,29 @@ export class ContactsService {
     return { ...contact, duplicateWarning: dupeCheck.isDuplicate ? dupeCheck.matches : undefined };
   }
 
-  async findAll(tenantId: string, companyId?: string) {
-    return this.prisma.contact.findMany({
-      where: { tenantId, ...(companyId ? { companyId } : {}) },
-      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-      include: { company: { select: { id: true, name: true } } },
-    });
+  async findAll(tenantId: string, filters: { companyId?: string; search?: string; page?: number; limit?: number } = {}) {
+    const { companyId, search, page = 1, limit = 20 } = filters;
+    const where: any = { tenantId, ...(companyId ? { companyId } : {}) };
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { company: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+    const [data, total] = await Promise.all([
+      this.prisma.contact.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+        include: { company: { select: { id: true, name: true } } },
+      }),
+      this.prisma.contact.count({ where }),
+    ]);
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
   async findOne(tenantId: string, id: string) {

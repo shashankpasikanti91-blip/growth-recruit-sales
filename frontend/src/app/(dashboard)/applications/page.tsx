@@ -1,6 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { ClipboardList, User, Briefcase, Calendar, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ClipboardList, User, Briefcase, Calendar, Search, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
+import Link from 'next/link';
 import api from '@/lib/api';
 
 type Application = {
@@ -10,8 +12,8 @@ type Application = {
   createdAt: string | null;
   updatedAt: string | null;
   matchScore?: number | null;
-  candidate: { firstName: string; lastName: string; email: string } | null;
-  job: { title: string } | null;
+  candidate: { id: string; firstName: string; lastName: string; email: string } | null;
+  job: { id: string; title: string } | null;
 };
 
 const PIPELINE_STAGES = ['APPLIED', 'SCREENING', 'SHORTLISTED', 'INTERVIEWING', 'OFFERED', 'REJECTED', 'WITHDRAWN'];
@@ -24,7 +26,6 @@ const STATUS_COLORS: Record<string, string> = {
   OFFERED:      'bg-green-100 text-green-700',
   REJECTED:     'bg-red-100 text-red-600',
   WITHDRAWN:    'bg-gray-100 text-gray-500',
-  // Legacy stage names from DB (Prisma enum)
   SOURCED:      'bg-gray-100 text-gray-600',
   SCREENED:     'bg-yellow-100 text-yellow-700',
   PLACED:       'bg-teal-100 text-teal-700',
@@ -36,7 +37,6 @@ const STATUS_LABELS: Record<string, string> = {
   WITHDRAWN: 'Withdrawn', SOURCED: 'Applied', SCREENED: 'Screening', PLACED: 'Placed',
 };
 
-// Safe date formatter — never returns "Invalid Date"
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
   const d = new Date(value);
@@ -44,34 +44,65 @@ function formatDate(value: string | null | undefined): string {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-// Normalise DB-side stage names to display labels
 function displayStage(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
 
+// Normalise stage keys for filtering (SOURCED → APPLIED, SCREENED → SCREENING)
+const normalise = (s: string) => ({ SOURCED: 'APPLIED', SCREENED: 'SCREENING' }[s] ?? s);
+
 export default function ApplicationsPage() {
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('ALL');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    api.get('/applications').then(({ data }) => {
-      const raw = Array.isArray(data) ? data : data?.data ?? [];
-      // Guard: skip rows without a valid candidate+job reference
-      setApplications(raw.filter((a: Application) => a.candidate || a.job));
-    }).finally(() => setLoading(false));
-  }, []);
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPage(1);
+    clearTimeout((window as any).__appSearchTimer);
+    (window as any).__appSearchTimer = setTimeout(() => setDebouncedSearch(value), 300);
+  };
 
-  // Normalise stage keys for filtering (SOURCED → APPLIED, SCREENED → SCREENING, etc.)
-  const normalise = (s: string) => ({ SOURCED: 'APPLIED', SCREENED: 'SCREENING' }[s] ?? s);
+  const handleStageFilter = (stage: string) => {
+    setFilter(stage);
+    setPage(1);
+  };
 
-  const filtered = filter === 'ALL'
-    ? applications
-    : applications.filter((a) => normalise(a.status) === filter);
+  const { data, isLoading } = useQuery({
+    queryKey: ['applications', filter, debouncedSearch, page],
+    queryFn: async () => {
+      const params: Record<string, any> = { page, limit: 20 };
+      if (filter !== 'ALL') params.stage = filter;
+      if (debouncedSearch) params.search = debouncedSearch;
+      const { data } = await api.get('/applications', { params });
+      // Handle both old array response and new paginated response
+      if (Array.isArray(data)) {
+        const items = data.filter((a: Application) => a.candidate || a.job);
+        return { data: items, meta: { total: items.length, page: 1, limit: items.length, totalPages: 1 } };
+      }
+      return data;
+    },
+  });
 
-  const countFor = (s: string) => applications.filter(a => normalise(a.status) === s).length;
+  const applications: Application[] = data?.data ?? [];
+  const meta = data?.meta ?? { total: 0, page: 1, totalPages: 1 };
 
-  if (loading) {
+  // Count all applications (without filter) for stage tabs — use total when filter is ALL
+  const { data: allData } = useQuery({
+    queryKey: ['applications', 'counts'],
+    queryFn: async () => {
+      const { data } = await api.get('/applications', { params: { limit: 1000 } });
+      const items = Array.isArray(data) ? data : data?.data ?? [];
+      const counts: Record<string, number> = { ALL: items.length };
+      PIPELINE_STAGES.forEach(s => { counts[s] = items.filter((a: Application) => normalise(a.status) === s).length; });
+      return counts;
+    },
+    staleTime: 30000,
+  });
+  const counts = allData ?? {};
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full" />
@@ -90,35 +121,49 @@ export default function ApplicationsPage() {
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <ClipboardList className="w-4 h-4" />
-          <span className="font-semibold text-gray-700">{applications.length}</span> total
+          <span className="font-semibold text-gray-700">{meta.total}</span> total
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search by candidate name, email, or job title..."
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
+          className="pl-9 pr-4 py-2.5 w-full max-w-sm border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
       </div>
 
       {/* Pipeline stage tabs */}
       <div className="flex gap-2 flex-wrap">
         <button
-          onClick={() => setFilter('ALL')}
+          onClick={() => handleStageFilter('ALL')}
           className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filter === 'ALL' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
         >
-          All ({applications.length})
+          All ({counts.ALL ?? meta.total})
         </button>
         {PIPELINE_STAGES.map((s) => (
           <button
             key={s}
-            onClick={() => setFilter(s)}
+            onClick={() => handleStageFilter(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
           >
-            {STATUS_LABELS[s]} ({countFor(s)})
+            {STATUS_LABELS[s]} ({counts[s] ?? 0})
           </button>
         ))}
       </div>
 
       {/* Applications table */}
-      {filtered.length === 0 ? (
+      {applications.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="text-base font-medium text-gray-500">No applications in this stage</p>
-          <p className="text-sm mt-1">Applications will appear here as candidates move through the pipeline.</p>
+          <p className="text-base font-medium text-gray-500">No applications found</p>
+          <p className="text-sm mt-1">
+            {debouncedSearch ? 'Try adjusting your search terms.' : 'Applications will appear here as candidates move through the pipeline.'}
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -134,7 +179,7 @@ export default function ApplicationsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map((app) => (
+              {applications.map((app) => (
                 <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <span className="text-xs font-mono text-gray-400">
@@ -147,11 +192,13 @@ export default function ApplicationsPage() {
                         <User className="w-3.5 h-3.5 text-brand-600" />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">
-                          {app.candidate
-                            ? `${app.candidate.firstName ?? ''} ${app.candidate.lastName ?? ''}`.trim() || '—'
-                            : '—'}
-                        </div>
+                        {app.candidate ? (
+                          <Link href={`/candidates/${app.candidate.id}`} className="font-medium text-gray-900 hover:text-brand-600">
+                            {`${app.candidate.firstName ?? ''} ${app.candidate.lastName ?? ''}`.trim() || '—'}
+                          </Link>
+                        ) : (
+                          <div className="font-medium text-gray-900">—</div>
+                        )}
                         <div className="text-xs text-gray-400">{app.candidate?.email ?? '—'}</div>
                       </div>
                     </div>
@@ -187,6 +234,31 @@ export default function ApplicationsPage() {
               ))}
             </tbody>
           </table>
+
+          {/* Pagination */}
+          {meta.totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+              <p className="text-sm text-gray-500">
+                Page {meta.page} of {meta.totalPages} ({meta.total} total)
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-40"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+                  disabled={page >= meta.totalPages}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-40"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

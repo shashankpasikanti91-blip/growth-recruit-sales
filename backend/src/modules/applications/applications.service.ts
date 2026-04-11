@@ -153,13 +153,21 @@ export class ApplicationsService {
 
   async findAll(
     tenantId: string,
-    filters: { jobId?: string; candidateId?: string; stage?: string; page?: number; limit?: number },
+    filters: { jobId?: string; candidateId?: string; stage?: string; search?: string; page?: number; limit?: number },
   ) {
-    const { jobId, candidateId, stage, page = 1, limit = 20 } = filters;
+    const { jobId, candidateId, stage, search, page = 1, limit = 20 } = filters;
     const where: any = { tenantId };
     if (jobId) where.jobId = jobId;
     if (candidateId) where.candidateId = candidateId;
     if (stage) where.stage = stage;
+    if (search) {
+      where.OR = [
+        { candidate: { firstName: { contains: search, mode: 'insensitive' } } },
+        { candidate: { lastName: { contains: search, mode: 'insensitive' } } },
+        { candidate: { email: { contains: search, mode: 'insensitive' } } },
+        { job: { title: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.application.findMany({

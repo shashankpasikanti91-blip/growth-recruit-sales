@@ -33,7 +33,8 @@ export default function GoogleCallbackPage() {
     }
 
     // Fetch the user profile using the new token
-    fetch('/api/v1/users/me', {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    fetch(`${apiUrl}/v1/users/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
       .then((res) => {

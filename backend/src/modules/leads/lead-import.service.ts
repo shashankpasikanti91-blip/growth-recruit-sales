@@ -449,7 +449,10 @@ export class LeadImportService {
   ) {
     const apiKey = process.env.APIFY_API_KEY;
     if (!apiKey) {
-      throw new ServiceUnavailableException('Lead generation service is temporarily unavailable. Contact support.');
+      this.logger.error('APIFY_API_KEY environment variable is not set. Google Search lead generation requires an Apify API key.');
+      throw new ServiceUnavailableException(
+        'Lead generation via Google Search is not configured. The APIFY_API_KEY environment variable must be set. Please contact your administrator.',
+      );
     }
 
     const searchQueries = titles.length > 0
@@ -598,7 +601,10 @@ export class LeadImportService {
   ) {
     const apifyKey = process.env.APIFY_API_KEY;
     if (!apifyKey) {
-      throw new ServiceUnavailableException('Lead generation service is temporarily unavailable. Contact support.');
+      this.logger.error('APIFY_API_KEY environment variable is not set. Apollo B2B fallback (Google Search B2B) requires an Apify API key.');
+      throw new ServiceUnavailableException(
+        'Lead generation via Apollo B2B is not configured. The APIFY_API_KEY environment variable must be set. Please contact your administrator.',
+      );
     }
 
     // Build optimized B2B search queries (LinkedIn + business directory focused)

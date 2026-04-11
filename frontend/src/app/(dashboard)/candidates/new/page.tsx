@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { useDropzone } from 'react-dropzone';
 import { candidatesApi, aiApi } from '@/lib/api-client';
-import { ArrowLeft, Upload, Loader2, UserPlus, Zap, FileText, X } from 'lucide-react';
+import { ArrowLeft, Upload, Loader2, UserPlus, Zap, FileText, X, AlertTriangle, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -32,6 +32,7 @@ export default function NewCandidatePage() {
   const router = useRouter();
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<{ id: string; businessId: string; matchField: string; matchValue: string } | null>(null);
 
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<CandidateForm>({
     defaultValues: { source: 'MANUAL' },
@@ -88,10 +89,19 @@ export default function NewCandidatePage() {
       return candidatesApi.create(payload);
     },
     onSuccess: (data) => {
+      setDuplicateInfo(null);
       toast.success('Candidate added successfully!');
       router.push(`/candidates/${data.id}`);
     },
-    onError: (err: any) => toast.error(err?.response?.data?.message ?? 'Failed to create candidate'),
+    onError: (err: any) => {
+      const resp = err?.response?.data;
+      if (err?.response?.status === 409 && resp?.duplicateOf) {
+        setDuplicateInfo(resp.duplicateOf);
+        toast.error(resp.message || 'A duplicate candidate was found.');
+      } else {
+        toast.error(resp?.message ?? 'Failed to create candidate');
+      }
+    },
   });
 
   return (
@@ -141,6 +151,36 @@ export default function NewCandidatePage() {
           </div>
         )}
       </div>
+
+      {/* Duplicate Warning Banner */}
+      {duplicateInfo && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-amber-800">Duplicate Candidate Detected</h3>
+              <p className="text-sm text-amber-700 mt-1">
+                A candidate with the same <strong>{duplicateInfo.matchField}</strong> ({duplicateInfo.matchValue}) already exists.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <Link
+                  href={`/candidates/${duplicateInfo.id}`}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-800 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> View Existing Candidate
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setDuplicateInfo(null)}
+                  className="text-sm text-amber-600 hover:text-amber-800 px-3 py-1.5"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Form */}
       <form onSubmit={handleSubmit((data) => createMutation.mutate(data))} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">

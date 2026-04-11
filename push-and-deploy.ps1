@@ -75,23 +75,49 @@ $files = @(
     @{ local = "backend\prisma\schema.prisma";                 remote = "backend/prisma/schema.prisma" },
     @{ local = "backend\prisma\seed.ts";                       remote = "backend/prisma/seed.ts" },
     @{ local = "backend\package.json";                         remote = "backend/package.json" },
+    # Backend — bug fix batch (April 2026)
+    @{ local = "backend\src\modules\candidates\candidates.service.ts"; remote = "backend/src/modules/candidates/candidates.service.ts" },
+    @{ local = "backend\src\modules\leads\lead-import.service.ts"; remote = "backend/src/modules/leads/lead-import.service.ts" },
+    @{ local = "backend\src\modules\contacts\contacts.service.ts"; remote = "backend/src/modules/contacts/contacts.service.ts" },
+    @{ local = "backend\src\modules\contacts\contacts.controller.ts"; remote = "backend/src/modules/contacts/contacts.controller.ts" },
+    @{ local = "backend\src\modules\applications\applications.service.ts"; remote = "backend/src/modules/applications/applications.service.ts" },
+    @{ local = "backend\src\modules\applications\applications.controller.ts"; remote = "backend/src/modules/applications/applications.controller.ts" },
+    # E2E tests (updated assertions)
+    @{ local = "backend\test\e2e\analytics.spec.ts"; remote = "backend/test/e2e/analytics.spec.ts" },
+    @{ local = "backend\test\e2e\documents.spec.ts"; remote = "backend/test/e2e/documents.spec.ts" },
+    @{ local = "backend\test\e2e\health.spec.ts";    remote = "backend/test/e2e/health.spec.ts" },
+    @{ local = "backend\test\e2e\leads.spec.ts";     remote = "backend/test/e2e/leads.spec.ts" },
+    @{ local = "backend\test\e2e\modules.spec.ts";   remote = "backend/test/e2e/modules.spec.ts" },
+    # Config
+    @{ local = "frontend\next.config.js"; remote = "frontend/next.config.js" },
+    @{ local = "DEPLOYMENT.md"; remote = "DEPLOYMENT.md" },
+    @{ local = "deploy.sh"; remote = "deploy.sh" },
     # Frontend core
+    @{ local = "frontend\src\lib\api.ts";                      remote = "frontend/src/lib/api.ts" },
     @{ local = "frontend\src\lib\api-client.ts";               remote = "frontend/src/lib/api-client.ts" },
     @{ local = "frontend\src\components\layout\sidebar.tsx";   remote = "frontend/src/components/layout/sidebar.tsx" },
+    @{ local = "frontend\src\components\GoogleLoginButton.tsx"; remote = "frontend/src/components/GoogleLoginButton.tsx" },
     @{ local = "frontend\src\app\page.tsx";                    remote = "frontend/src/app/page.tsx" },
+    @{ local = "frontend\src\app\login\page.tsx";              remote = "frontend/src/app/login/page.tsx" },
+    @{ local = "frontend\src\app\auth\callback\page.tsx";      remote = "frontend/src/app/auth/callback/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\imports\page.tsx"; remote = "frontend/src/app/(dashboard)/imports/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\ai\screen\page.tsx"; remote = "frontend/src/app/(dashboard)/ai/screen/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\billing\page.tsx"; remote = "frontend/src/app/(dashboard)/billing/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\candidates\[id]\page.tsx"; remote = "frontend/src/app/(dashboard)/candidates/[id]/page.tsx" },
+    @{ local = "frontend\src\app\(dashboard)\candidates\new\page.tsx"; remote = "frontend/src/app/(dashboard)/candidates/new/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\companies\page.tsx"; remote = "frontend/src/app/(dashboard)/companies/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\dashboard\page.tsx"; remote = "frontend/src/app/(dashboard)/dashboard/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\jobs\page.tsx";   remote = "frontend/src/app/(dashboard)/jobs/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\leads\page.tsx";  remote = "frontend/src/app/(dashboard)/leads/page.tsx" },
+    @{ local = "frontend\src\app\(dashboard)\applications\page.tsx"; remote = "frontend/src/app/(dashboard)/applications/page.tsx" },
+    @{ local = "frontend\src\app\(dashboard)\contacts\page.tsx"; remote = "frontend/src/app/(dashboard)/contacts/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\settings\page.tsx"; remote = "frontend/src/app/(dashboard)/settings/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\visa-guide\page.tsx"; remote = "frontend/src/app/(dashboard)/visa-guide/page.tsx" },
     # Docs
     @{ local = "readme.md";                                    remote = "readme.md" },
-    @{ local = "CHANGELOG.md";                                 remote = "CHANGELOG.md" }
+    @{ local = "CHANGELOG.md";                                 remote = "CHANGELOG.md" },
+    # Docker
+    @{ local = "docker-compose.prod.yml";                      remote = "docker-compose.prod.yml" }
 )
 
 # New files (need directory creation)
@@ -101,13 +127,13 @@ $newFiles = @(
     @{ local = "frontend\src\app\(dashboard)\leads\[id]\page.tsx"; remote = "frontend/src/app/(dashboard)/leads/[id]/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\leads\new\page.tsx"; remote = "frontend/src/app/(dashboard)/leads/new/page.tsx" },
     # New dashboard pages (v2)
-    @{ local = "frontend\src\app\(dashboard)\applications\page.tsx"; remote = "frontend/src/app/(dashboard)/applications/page.tsx" },
-    @{ local = "frontend\src\app\(dashboard)\contacts\page.tsx"; remote = "frontend/src/app/(dashboard)/contacts/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\workflows\page.tsx"; remote = "frontend/src/app/(dashboard)/workflows/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\integrations\page.tsx"; remote = "frontend/src/app/(dashboard)/integrations/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\errors\page.tsx"; remote = "frontend/src/app/(dashboard)/errors/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\users\page.tsx"; remote = "frontend/src/app/(dashboard)/users/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\linkedin\page.tsx"; remote = "frontend/src/app/(dashboard)/linkedin/page.tsx" },
+    # Lead generate page
+    @{ local = "frontend\src\app\(dashboard)\leads\generate\page.tsx"; remote = "frontend/src/app/(dashboard)/leads/generate/page.tsx" },
     # New backend modules
     @{ local = "backend\src\modules\health\health.controller.ts"; remote = "backend/src/modules/health/health.controller.ts" },
     @{ local = "backend\src\modules\health\health.module.ts"; remote = "backend/src/modules/health/health.module.ts" },
@@ -135,18 +161,27 @@ ssh "${SERVER_USER}@${SERVER}" @"
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/jobs/\[id\]
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/leads/\[id\]
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/leads/new
+mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/leads/generate
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/applications
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/contacts
+mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/candidates/new
+mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/candidates/\[id\]
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/workflows
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/integrations
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/errors
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/users
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/linkedin
+mkdir -p ${SERVER_APP}/frontend/src/app/auth/callback
+mkdir -p ${SERVER_APP}/frontend/src/components
 mkdir -p ${SERVER_APP}/backend/src/modules/health
 mkdir -p ${SERVER_APP}/backend/src/modules/cache
 mkdir -p ${SERVER_APP}/backend/src/modules/leads
 mkdir -p ${SERVER_APP}/backend/src/modules/tenants
+mkdir -p ${SERVER_APP}/backend/src/modules/candidates
+mkdir -p ${SERVER_APP}/backend/src/modules/contacts
+mkdir -p ${SERVER_APP}/backend/src/modules/applications
 mkdir -p ${SERVER_APP}/backend/src/filters
+mkdir -p ${SERVER_APP}/backend/test/e2e
 mkdir -p ${SERVER_APP}/scripts
 mkdir -p ${SERVER_APP}/backend/prisma/migrations/20260323000001_add_candidate_screening_workflow_type
 mkdir -p ${SERVER_APP}/backend/prisma/migrations/20260323000002_soft_delete_and_tenant_relations
@@ -228,6 +263,6 @@ Write-Host "══════════════════════�
 Write-Host "  ✅ Deployment complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  🌐 https://growth.srpailabs.com" -ForegroundColor White
-Write-Host "  📚 https://growth.srpailabs.com/api/docs" -ForegroundColor White
+Write-Host "  📚 https://growth.srpailabs.com/api/v1/docs" -ForegroundColor White
 Write-Host "  🔑 admin@srp-ai-labs.com / Admin@123" -ForegroundColor White
 Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor Green

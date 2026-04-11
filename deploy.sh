@@ -133,7 +133,7 @@ echo "════════════════════════�
 echo "  ✅ Deployment complete!"
 echo ""
 echo "  🌐 https://growth.srpailabs.com"
-echo "  📚 https://growth.srpailabs.com/api/docs"
+echo "  📚 https://growth.srpailabs.com/api/v1/docs"
 echo "  🔑 Login: admin@srp-ai-labs.com / Admin@123"
 echo ""
 echo "  Container logs:"

@@ -39,7 +39,7 @@ This starts five containers:
 |---------|------|---------|
 | `postgres` | 5432 | Primary database |
 | `redis` | 6379 | BullMQ queues + session cache |
-| `backend` | 4000 | NestJS API |
+| `backend` | 3001 | NestJS API |
 | `frontend` | 3000 | Next.js UI |
 | `n8n` | 5678 | Workflow automation |
 
@@ -62,7 +62,7 @@ The seed creates:
 | URL | What you should see |
 |-----|-------------------|
 | http://localhost:3000 | Frontend login page |
-| http://localhost:4000/api/docs | Swagger UI |
+| http://localhost:3001/api/v1/docs | Swagger UI |
 | http://localhost:5678 | n8n editor |
 
 ---
@@ -126,7 +126,7 @@ All variables live in the root `.env` file and are shared via `docker-compose.ym
 
 | Variable | Example |
 |----------|---------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:4000` (dev) or `https://api.yourdomain.com` (prod) |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:3001/api` (dev) or `https://growth.srpailabs.com/api` (prod) |
 
 ---
 
@@ -142,7 +142,7 @@ yourdomain.com {
 }
 
 api.yourdomain.com {
-    reverse_proxy localhost:4000
+    reverse_proxy localhost:3001
 }
 
 n8n.yourdomain.com {
@@ -243,6 +243,6 @@ docker compose down -v
 |---------|---------|
 | Backend fails to start | Check `DATABASE_URL` — postgres container may not be ready yet. Add `depends_on: postgres: condition: service_healthy` or wait 10s. |
 | Prisma migration fails | Run `docker compose exec backend npx prisma generate` first |
-| n8n can't reach backend | Use `http://backend:4000` not `http://localhost:4000` inside Docker network |
+| n8n can't reach backend | Use `http://backend:3001` not `http://localhost:3001` inside Docker network |
 | JWT errors after env change | Old refresh tokens in DB are now invalid — run `DELETE FROM refresh_tokens;` |
 | BullMQ jobs not processing | Check Redis connection and ensure processors are registered in `app.module.ts` |

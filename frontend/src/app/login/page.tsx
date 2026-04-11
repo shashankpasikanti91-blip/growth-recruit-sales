@@ -19,11 +19,13 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-const DEMO_CREDENTIALS = {
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+const DEMO_CREDENTIALS = DEMO_MODE ? {
   email: 'admin@srp-ai-labs.com',
   password: 'Admin@123',
   tenantSlug: 'srp-ai-labs',
-};
+} : null;
 
 export default function LoginPage() {
   return (
@@ -48,6 +50,7 @@ function LoginForm() {
   } = useForm<LoginForm>({ resolver: zodResolver(loginSchema), defaultValues: { rememberMe: false } });
 
   const fillDemo = () => {
+    if (!DEMO_CREDENTIALS) return;
     setValue('email', DEMO_CREDENTIALS.email);
     setValue('password', DEMO_CREDENTIALS.password);
     setValue('tenantSlug', DEMO_CREDENTIALS.tenantSlug);
@@ -95,6 +98,7 @@ function LoginForm() {
           <h2 className="text-lg font-semibold text-gray-900 mb-1">Sign in to your account</h2>
           <p className="text-gray-400 text-xs mb-5">Enter your credentials or try the demo</p>
 
+          {DEMO_CREDENTIALS && (
           <div className="bg-brand-50 border border-brand-200 rounded-xl p-3 mb-5">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -107,6 +111,7 @@ function LoginForm() {
               </button>
             </div>
           </div>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
