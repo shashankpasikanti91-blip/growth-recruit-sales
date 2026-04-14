@@ -113,21 +113,22 @@ async function main() {
 
   // Pricing plans
   const plans = [
-    { id: 'plan-starter', name: 'Starter (Beta)', tier: 'STARTER', description: 'Get started free — explore the platform with limited usage.', monthlyPrice: 0, annualPrice: 0, currency: 'USD', maxUsers: 2, maxCandidates: 100, maxLeads: 50, maxAiCalls: 50, maxImports: 2, features: ['2 team members', '100 candidates', '50 leads', '50 AI screenings/month', '2 imports/month', 'Email outreach', 'Basic analytics', 'CSV import', 'Community support'] },
-    { id: 'plan-growth', name: 'Growth (Early Access)', tier: 'GROWTH', description: 'For small teams ready to supercharge their hiring pipeline.', monthlyPrice: 19, annualPrice: 180, currency: 'USD', maxUsers: 5, maxCandidates: 1000, maxLeads: 500, maxAiCalls: 500, maxImports: 20, features: ['5 team members', '1,000 candidates', '500 leads', '500 AI screenings/month', '20 imports/month', 'All file formats (PDF, Word, Excel, CSV)', 'Advanced analytics', 'n8n workflow automation', 'Email support'] },
-    { id: 'plan-professional', name: 'Pro (Early Access)', tier: 'PROFESSIONAL', description: 'Full-featured platform for growing recruitment & sales teams.', monthlyPrice: 49, annualPrice: 468, currency: 'USD', maxUsers: 15, maxCandidates: 10000, maxLeads: 5000, maxAiCalls: 2000, maxImports: 100, features: ['15 team members', '10,000 candidates', '5,000 leads', '2,000 AI screenings/month', '100 imports/month', 'All file formats + bulk upload', 'Power BI-style analytics', 'Custom AI prompts', '5 n8n workflow templates', 'Priority support'] },
-    { id: 'plan-enterprise', name: 'Enterprise', tier: 'ENTERPRISE', description: 'Custom pricing for large teams. White-label, SSO & dedicated support.', monthlyPrice: 0, annualPrice: 0, currency: 'USD', maxUsers: 999, maxCandidates: 999999, maxLeads: 999999, maxAiCalls: 999999, maxImports: 9999, features: ['Unlimited team members', 'Unlimited candidates & leads', 'Unlimited AI screenings', 'Unlimited imports', 'Custom AI models (BYO key)', 'SSO / SAML', 'White-label option', 'Dedicated account manager', 'SLA guarantee'] },
+    { id: 'plan-free', name: 'Starter Trial', tier: 'FREE', description: 'Start free, scale as you grow. No credit card required.', monthlyPrice: 0, annualPrice: 0, currency: 'USD', maxUsers: 3, maxCandidates: 500, maxLeads: 250, maxAiCalls: 200, maxImports: 5, features: ['Up to 3 users', '500 candidates', '250 leads', '200 AI screenings/month', 'CSV / Excel imports', 'Basic analytics', 'Email outreach', 'Community support'] },
+    { id: 'plan-starter', name: 'Starter', tier: 'STARTER', description: 'For individuals and small teams starting to scale their pipeline.', monthlyPrice: 69, annualPrice: 55, currency: 'USD', maxUsers: 5, maxCandidates: 2000, maxLeads: 1000, maxAiCalls: 500, maxImports: 20, features: ['Up to 5 users', '2,000 candidates', '1,000 AI-generated leads', '500 AI screenings/month', 'All file formats (PDF, Word, CSV)', 'Full automation', 'n8n workflow automation', 'Email support'] },
+    { id: 'plan-growth', name: 'Growth', tier: 'GROWTH', description: 'Built for growing teams. Full automation and advanced capacity.', monthlyPrice: 149, annualPrice: 119, currency: 'USD', maxUsers: 15, maxCandidates: 10000, maxLeads: 2500, maxAiCalls: 1000, maxImports: 100, features: ['Up to 15 users', '10,000 candidates', '2,500 AI-generated leads', '1,000 AI screenings/month', 'All file formats + bulk upload', 'Advanced analytics', 'Custom AI prompts', 'Priority support'] },
+    { id: 'plan-professional', name: 'Enterprise', tier: 'PROFESSIONAL', description: 'Enterprise-ready automation. Custom pricing for your scale.', monthlyPrice: -1, annualPrice: -1, currency: 'USD', maxUsers: 999, maxCandidates: 999999, maxLeads: 999999, maxAiCalls: 999999, maxImports: 9999, features: ['High-volume / scalable limits', 'Custom workflows', 'API access', 'Dedicated support', 'Custom AI models (BYO key)', 'SSO / SAML', 'White-label option', 'SLA guarantee'] },
+    { id: 'plan-enterprise', name: 'Enterprise', tier: 'ENTERPRISE', description: 'Enterprise-ready automation. Custom pricing for your scale.', monthlyPrice: -1, annualPrice: -1, currency: 'USD', maxUsers: 999, maxCandidates: 999999, maxLeads: 999999, maxAiCalls: 999999, maxImports: 9999, features: ['High-volume / scalable limits', 'Custom workflows', 'API access', 'Dedicated support', 'Custom AI models (BYO key)', 'SSO / SAML', 'White-label option', 'SLA guarantee'] },
   ];
   for (const plan of plans) {
     await prisma.plan.upsert({
       where: { id: plan.id },
-      update: { monthlyPrice: plan.monthlyPrice, annualPrice: plan.annualPrice },
+      update: { name: plan.name, description: plan.description, monthlyPrice: plan.monthlyPrice, annualPrice: plan.annualPrice, maxUsers: plan.maxUsers, maxCandidates: plan.maxCandidates, maxLeads: plan.maxLeads, maxAiCalls: plan.maxAiCalls, maxImports: plan.maxImports, features: plan.features },
       create: plan,
     });
   }
   console.log(`✅ Seeded ${plans.length} pricing plans`);
 
-  const starterPlan = await prisma.plan.findUnique({ where: { id: 'plan-professional' } });
+  const starterPlan = await prisma.plan.findUnique({ where: { id: 'plan-starter' } });
   if (starterPlan) {
     const now = new Date();
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -140,7 +141,7 @@ async function main() {
         currentPeriodStart: now, currentPeriodEnd: periodEnd, trialEndsAt: trialEnd,
       },
     });
-    console.log(`✅ Seeded Professional trial subscription for ${tenant.name}`);
+    console.log(`✅ Seeded Starter Trial subscription for ${tenant.name}`);
   }
 
   // ─── Visa Rules ──────────────────────────────────────────────────────────────

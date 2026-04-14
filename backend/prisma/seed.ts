@@ -245,9 +245,9 @@ Context:
   const plans = [
     {
       id: 'plan-free',
-      name: 'Free',
+      name: 'Starter Trial',
       tier: 'FREE' as const,
-      description: 'Get started free — explore the platform with limited usage.',
+      description: 'Start free, scale as you grow. No credit card required.',
       monthlyPrice: 0,
       annualPrice: 0,
       currency: 'USD',
@@ -272,8 +272,8 @@ Context:
       name: 'Starter',
       tier: 'STARTER' as const,
       description: 'For individuals and small teams starting to scale their pipeline.',
-      monthlyPrice: 29,
-      annualPrice: 23,
+      monthlyPrice: 69,
+      annualPrice: 55,
       currency: 'USD',
       maxUsers: 5,
       maxCandidates: 2000,
@@ -283,10 +283,10 @@ Context:
       features: [
         'Up to 5 users',
         '2,000 candidates',
-        '1,000 leads',
+        '1,000 AI-generated leads',
         '500 AI screenings/month',
         'All file formats (PDF, Word, CSV)',
-        'Basic analytics',
+        'Full automation',
         'n8n workflow automation',
         'Email support',
       ],
@@ -295,9 +295,9 @@ Context:
       id: 'plan-growth',
       name: 'Growth',
       tier: 'GROWTH' as const,
-      description: 'For growing teams that need more capacity and advanced features.',
-      monthlyPrice: 69,
-      annualPrice: 55,
+      description: 'Built for growing teams. Full automation and advanced capacity.',
+      monthlyPrice: 149,
+      annualPrice: 119,
       currency: 'USD',
       maxUsers: 15,
       maxCandidates: 10000,
@@ -307,7 +307,7 @@ Context:
       features: [
         'Up to 15 users',
         '10,000 candidates',
-        '2,500 leads',
+        '2,500 AI-generated leads',
         '1,000 AI screenings/month',
         'All file formats + bulk upload',
         'Advanced analytics',
@@ -317,36 +317,11 @@ Context:
     },
     {
       id: 'plan-professional',
-      name: 'Professional',
-      tier: 'PROFESSIONAL' as const,
-      description: 'Full-featured platform for established recruitment & sales teams.',
-      monthlyPrice: 149,
-      annualPrice: 119,
-      currency: 'USD',
-      maxUsers: 30,
-      maxCandidates: 25000,
-      maxLeads: 10000,
-      maxAiCalls: 5000,
-      maxImports: 500,
-      features: [
-        'Up to 30 users',
-        '25,000 candidates',
-        '10,000 leads',
-        '5,000 AI screenings/month',
-        'All file formats + API access',
-        'Power BI analytics',
-        'Custom AI prompts',
-        'Unlimited imports',
-        'Phone + priority support',
-      ],
-    },
-    {
-      id: 'plan-enterprise',
       name: 'Enterprise',
-      tier: 'ENTERPRISE' as const,
-      description: 'Custom pricing for large teams. White-label, SSO & dedicated support.',
-      monthlyPrice: 0,
-      annualPrice: 0,
+      tier: 'PROFESSIONAL' as const,
+      description: 'Enterprise-ready automation. Custom pricing for your scale.',
+      monthlyPrice: -1,
+      annualPrice: -1,
       currency: 'USD',
       maxUsers: 999,
       maxCandidates: 999999,
@@ -354,14 +329,37 @@ Context:
       maxAiCalls: 999999,
       maxImports: 9999,
       features: [
-        'Unlimited users',
-        'Unlimited candidates & leads',
-        'Unlimited AI screenings',
-        'Unlimited imports',
+        'High-volume / scalable limits',
+        'Custom workflows',
+        'API access',
+        'Dedicated support',
         'Custom AI models (BYO key)',
         'SSO / SAML',
         'White-label option',
-        'Dedicated account manager',
+        'SLA guarantee',
+      ],
+    },
+    {
+      id: 'plan-enterprise',
+      name: 'Enterprise',
+      tier: 'ENTERPRISE' as const,
+      description: 'Enterprise-ready automation. Custom pricing for your scale.',
+      monthlyPrice: -1,
+      annualPrice: -1,
+      currency: 'USD',
+      maxUsers: 999,
+      maxCandidates: 999999,
+      maxLeads: 999999,
+      maxAiCalls: 999999,
+      maxImports: 9999,
+      features: [
+        'High-volume / scalable limits',
+        'Custom workflows',
+        'API access',
+        'Dedicated support',
+        'Custom AI models (BYO key)',
+        'SSO / SAML',
+        'White-label option',
         'SLA guarantee',
       ],
     },
@@ -370,14 +368,25 @@ Context:
   for (const plan of plans) {
     await prisma.plan.upsert({
       where: { id: plan.id },
-      update: { monthlyPrice: plan.monthlyPrice, annualPrice: plan.annualPrice },
+      update: {
+        name: plan.name,
+        description: plan.description,
+        monthlyPrice: plan.monthlyPrice,
+        annualPrice: plan.annualPrice,
+        maxUsers: plan.maxUsers,
+        maxCandidates: plan.maxCandidates,
+        maxLeads: plan.maxLeads,
+        maxAiCalls: plan.maxAiCalls,
+        maxImports: plan.maxImports,
+        features: plan.features,
+      },
       create: plan,
     });
   }
   console.log(`✅ Seeded ${plans.length} pricing plans`);
 
   // Seed starter subscription for demo tenant
-  const starterPlan = await prisma.plan.findUnique({ where: { id: 'plan-professional' } });
+  const starterPlan = await prisma.plan.findUnique({ where: { id: 'plan-starter' } });
   if (starterPlan) {
     const now = new Date();
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -395,7 +404,7 @@ Context:
         trialEndsAt: trialEnd,
       },
     });
-    console.log(`✅ Seeded Professional trial subscription for ${tenant.name}`);
+    console.log(`✅ Seeded Starter trial subscription for ${tenant.name}`);
   }
 
   // ─── Seed Visa Rules (per country) ──────────────────────────────────────────

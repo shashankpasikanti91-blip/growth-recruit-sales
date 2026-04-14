@@ -8,9 +8,10 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 
 const PLAN_COLORS: Record<string, string> = {
-  STARTER: 'bg-gray-100 text-gray-700',
-  GROWTH: 'bg-blue-100 text-blue-700',
-  PROFESSIONAL: 'bg-brand-100 text-brand-700',
+  FREE: 'bg-gray-100 text-gray-600',
+  STARTER: 'bg-blue-100 text-blue-700',
+  GROWTH: 'bg-brand-100 text-brand-700',
+  PROFESSIONAL: 'bg-purple-100 text-purple-700',
   ENTERPRISE: 'bg-purple-100 text-purple-700',
 };
 
@@ -252,9 +253,9 @@ export default function BillingPage() {
 
   function handlePlanClick(plan: any) {
     const price = cycle === 'ANNUAL' ? plan.annualPrice : plan.monthlyPrice;
-    if (price === 0 || plan.tier === 'STARTER') {
+    if (price === 0 || plan.tier === 'FREE') {
       changePlanMutation.mutate({ planId: plan.id, billingCycle: cycle });
-    } else if (plan.tier === 'ENTERPRISE') {
+    } else if (plan.tier === 'ENTERPRISE' || plan.tier === 'PROFESSIONAL') {
       window.open('mailto:sales@srpailabs.com?subject=Enterprise%20Plan%20Enquiry', '_blank');
     } else {
       setPendingPlan(plan);
@@ -390,7 +391,7 @@ export default function BillingPage() {
         <div>
           <p className="text-sm font-semibold text-blue-700 mb-0.5">How team seats work</p>
           <p className="text-xs text-blue-600 leading-relaxed">
-            Your plan includes a set number of <strong>team member logins</strong>. For example, the Starter plan ($29/mo) allows
+            Your plan includes a set number of <strong>team member logins</strong>. For example, the Starter plan ($69/mo) allows
             up to <strong>5 people</strong> in your company to log in — each with their own email and password.
             The <strong>company owner</strong> signs up first and then invites teammates from the{' '}
             <Link href="/users" className="underline font-semibold">Users page</Link>.
@@ -448,9 +449,9 @@ export default function BillingPage() {
                   <button
                     disabled={isCurrent || changePlanMutation.isPending}
                     onClick={() => handlePlanClick(plan)}
-                    className={`text-xs py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-1 ${isCurrent ? 'bg-gray-100 text-gray-400 cursor-default' : plan.tier === 'ENTERPRISE' ? 'bg-gray-800 text-white hover:bg-gray-900' : price === 0 ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-brand-600 text-white hover:bg-brand-700'}`}
+                    className={`text-xs py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-1 ${isCurrent ? 'bg-gray-100 text-gray-400 cursor-default' : (plan.tier === 'ENTERPRISE' || plan.tier === 'PROFESSIONAL') ? 'bg-gray-800 text-white hover:bg-gray-900' : price === 0 ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-brand-600 text-white hover:bg-brand-700'}`}
                   >
-                    {isCurrent ? 'Current' : plan.tier === 'ENTERPRISE' ? 'Contact Sales' : price === 0 ? 'Switch (Free)' : <><Lock className="w-3 h-3" /> Pay & Switch</>}
+                    {isCurrent ? 'Current' : (plan.tier === 'ENTERPRISE' || plan.tier === 'PROFESSIONAL') ? 'Contact Sales' : price === 0 ? 'Switch (Free)' : <><Lock className="w-3 h-3" /> Pay & Switch</>}
                   </button>
                 </div>
               );

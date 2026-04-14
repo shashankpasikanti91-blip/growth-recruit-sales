@@ -210,10 +210,10 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              { name: 'Free', badge: null, price: 'Free', period: '', color: 'border-gray-200', highlight: false, features: ['Up to 3 users', '500 candidates', '250 leads', '200 AI screenings/mo'] },
-              { name: 'Starter', badge: 'Popular', price: '$29', period: '/mo', color: 'border-brand-500 ring-2 ring-brand-500', highlight: true, features: ['Up to 5 users', '2,000 candidates', '1,000 AI-generated leads', '500 AI screenings/mo'] },
-              { name: 'Growth', badge: null, price: '$69', period: '/mo', color: 'border-blue-200', highlight: false, features: ['Up to 15 users', '10,000 candidates', '2,500 AI-generated leads', '1,000 AI screenings/mo'] },
-              { name: 'Professional', badge: null, price: '$149', period: '/mo', color: 'border-purple-200', highlight: false, features: ['Up to 30 users', '25,000 candidates', '10,000 AI-generated leads', '5,000 AI screenings/mo'] },
+              { name: 'Starter Trial', badge: null, price: 'Free', period: '', color: 'border-gray-200', highlight: false, cta: 'Start Free', href: '/signup', features: ['Up to 3 users', '500 candidates', '250 leads', '200 AI screenings/mo'] },
+              { name: 'Starter', badge: 'Most Popular', price: '$69', period: '/mo', color: 'border-brand-500 ring-2 ring-brand-500', highlight: true, cta: 'Get Started', href: '/signup', features: ['Up to 5 users', '2,000 candidates', '1,000 AI-generated leads', '500 AI screenings/mo'] },
+              { name: 'Growth', badge: null, price: '$149', period: '/mo', color: 'border-blue-200', highlight: false, cta: 'Get Started', href: '/signup', features: ['Up to 15 users', '10,000 candidates', '2,500 AI-generated leads', '1,000 AI screenings/mo'] },
+              { name: 'Enterprise', badge: null, price: 'Custom', period: '', color: 'border-gray-800', highlight: false, cta: 'Contact Sales', href: 'mailto:sales@srpailabs.com?subject=Enterprise%20Plan%20Enquiry', features: ['High-volume / scalable limits', 'Custom workflows', 'API access', 'Dedicated support'] },
             ].map(p => (
               <div key={p.name} className={`relative rounded-2xl border-2 p-6 bg-white shadow-sm ${p.color}`}>
                 {p.highlight && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-xs font-bold px-3 py-1 rounded-full">Most Popular</div>}
@@ -231,8 +231,8 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/login" className={`block text-center text-sm font-semibold py-2 rounded-lg transition-colors ${p.highlight ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-                  Get started
+                <Link href={p.href} className={`block text-center text-sm font-semibold py-2 rounded-lg transition-colors ${p.highlight ? 'bg-brand-600 text-white hover:bg-brand-700' : p.name === 'Enterprise' ? 'bg-gray-800 text-white hover:bg-gray-900' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                  {p.cta}
                 </Link>
               </div>
             ))}

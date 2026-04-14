@@ -103,6 +103,9 @@ $files = @(
     @{ local = "frontend\src\app\(dashboard)\imports\page.tsx"; remote = "frontend/src/app/(dashboard)/imports/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\ai\screen\page.tsx"; remote = "frontend/src/app/(dashboard)/ai/screen/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\billing\page.tsx"; remote = "frontend/src/app/(dashboard)/billing/page.tsx" },
+    @{ local = "frontend\src\app\pricing\page.tsx";            remote = "frontend/src/app/pricing/page.tsx" },
+    @{ local = "backend\src\config\plans.config.ts";           remote = "backend/src/config/plans.config.ts" },
+    @{ local = "backend\prisma\seed.js";                       remote = "backend/prisma/seed.js" },
     @{ local = "frontend\src\app\(dashboard)\candidates\[id]\page.tsx"; remote = "frontend/src/app/(dashboard)/candidates/[id]/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\candidates\new\page.tsx"; remote = "frontend/src/app/(dashboard)/candidates/new/page.tsx" },
     @{ local = "frontend\src\app\(dashboard)\companies\page.tsx"; remote = "frontend/src/app/(dashboard)/companies/page.tsx" },
@@ -166,6 +169,7 @@ mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/applications
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/contacts
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/candidates/new
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/candidates/\[id\]
+mkdir -p ${SERVER_APP}/frontend/src/app/pricing
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/workflows
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/integrations
 mkdir -p ${SERVER_APP}/frontend/src/app/\(dashboard\)/errors
