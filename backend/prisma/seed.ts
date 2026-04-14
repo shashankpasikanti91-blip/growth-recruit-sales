@@ -121,7 +121,13 @@ async function main() {
   // Seed demo tenant
   const tenant = await prisma.tenant.upsert({
     where: { slug: 'srp-ai-labs' },
-    update: {},
+    update: {
+      plan: 'STARTER',
+      currentLeadUsage: 0,
+      currentCandidateUsage: 0,
+      currentAiUsage: 0,
+      maxLeadsPerMonth: 1000,
+    },
     create: {
       businessId: bid('TEN', '2026', 1, 4),
       name: 'SRP AI Labs',
@@ -130,6 +136,8 @@ async function main() {
       timezone: 'Asia/Kuala_Lumpur',
       currency: 'MYR',
       locale: 'en-MY',
+      plan: 'STARTER',
+      maxLeadsPerMonth: 1000,
     },
   });
   console.log(`✅ Seeded tenant: ${tenant.name}`);
@@ -390,21 +398,25 @@ Context:
   if (starterPlan) {
     const now = new Date();
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     await prisma.subscription.upsert({
       where: { tenantId: tenant.id },
-      update: {},
+      update: {
+        planId: starterPlan.id,
+        status: 'ACTIVE',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        trialEndsAt: null,
+      },
       create: {
         tenantId: tenant.id,
         planId: starterPlan.id,
-        status: 'TRIALING',
+        status: 'ACTIVE',
         billingCycle: 'monthly',
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
-        trialEndsAt: trialEnd,
       },
     });
-    console.log(`✅ Seeded Starter trial subscription for ${tenant.name}`);
+    console.log(`✅ Seeded Starter ACTIVE subscription for ${tenant.name}`);
   }
 
   // ─── Seed Visa Rules (per country) ──────────────────────────────────────────

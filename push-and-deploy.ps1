@@ -120,7 +120,10 @@ $files = @(
     @{ local = "readme.md";                                    remote = "readme.md" },
     @{ local = "CHANGELOG.md";                                 remote = "CHANGELOG.md" },
     # Docker
-    @{ local = "docker-compose.prod.yml";                      remote = "docker-compose.prod.yml" }
+    @{ local = "docker-compose.prod.yml";                      remote = "docker-compose.prod.yml" },
+    # Demo reset — seed.js Starter plan fix
+    @{ local = "backend\prisma\seed.js";                       remote = "backend/prisma/seed.js" },
+    @{ local = "backend\src\modules\billing\usage.service.ts"; remote = "backend/src/modules/billing/usage.service.ts" }
 )
 
 # New files (need directory creation)
