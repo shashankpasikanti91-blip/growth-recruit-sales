@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bull';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -62,11 +63,12 @@ import storageConfig from './config/storage.config';
 
     // Bull queue root config
     BullModule.forRootAsync({
-      useFactory: () => ({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
         redis: {
-          host: process.env.REDIS_HOST || 'localhost',
-          port: parseInt(process.env.REDIS_PORT || '6379'),
-          password: process.env.REDIS_PASSWORD,
+          host: config.get<string>('redis.host', 'localhost'),
+          port: config.get<number>('redis.port', 6379),
+          ...(config.get<string>('redis.password') ? { password: config.get<string>('redis.password') } : {}),
         },
         defaultJobOptions: {
           attempts: 3,
@@ -117,6 +119,8 @@ import storageConfig from './config/storage.config';
     NotificationsModule,
   ],
   providers: [
+    // Global rate-limiting guard — enforces ThrottlerModule config on all routes
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Background processors — registered at root level since they depend on cross-module services
     DedupeProcessor,
     EnrichmentProcessor,

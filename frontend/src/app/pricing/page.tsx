@@ -115,7 +115,7 @@ export default function PricingPage() {
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">RecruiSales <span className="text-brand-600">AI</span></span>
+            <span className="font-bold text-gray-900">SRP AI <span className="text-brand-600">Labs</span></span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-brand-600">Sign in</Link>

@@ -1,28 +1,26 @@
 import { Controller, Get, Query, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../common/types/user-payload.type';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @ApiTags('owner')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.SUPER_ADMIN)
 @Controller({ path: 'owner', version: '1' })
 export class OwnerController {
   constructor(private readonly prisma: PrismaService) {}
-
-  private guard(user: any) {
-    if (user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Owner access only');
-    }
-  }
 
   // ── Platform Overview ────────────────────────────────────────────────────────
 
   @Get('overview')
   @ApiOperation({ summary: 'Platform-wide stats — SUPER_ADMIN only' })
-  async overview(@CurrentUser() user: any) {
-    this.guard(user);
+  async overview(@CurrentUser() user: UserPayload) {
 
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -70,12 +68,11 @@ export class OwnerController {
   @Get('tenants')
   @ApiOperation({ summary: 'List all tenants with usage — SUPER_ADMIN only' })
   async tenants(
-    @CurrentUser() user: any,
+    @CurrentUser() user: UserPayload,
     @Query('page') page = 1,
     @Query('limit') limit = 50,
     @Query('search') search?: string,
   ) {
-    this.guard(user);
 
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -113,7 +110,7 @@ export class OwnerController {
         subscription: t.subscription
           ? {
               status: t.subscription.status,
-              planName: (t.subscription as any).plan?.name ?? '—',
+              planName: (t.subscription as { plan?: { name?: string } }).plan?.name ?? '—',
               trialEndsAt: t.subscription.trialEndsAt,
               currentPeriodEnd: t.subscription.currentPeriodEnd,
             }
@@ -127,8 +124,7 @@ export class OwnerController {
 
   @Get('subscriptions')
   @ApiOperation({ summary: 'All subscriptions with tenant details — SUPER_ADMIN only' })
-  async subscriptions(@CurrentUser() user: any) {
-    this.guard(user);
+  async subscriptions(@CurrentUser() user: UserPayload) {
 
     const subs = await this.prisma.subscription.findMany({
       include: {
@@ -139,7 +135,7 @@ export class OwnerController {
     });
 
     const planBreakdown = subs.reduce<Record<string, number>>((acc, s) => {
-      const key = (s as any).plan?.name ?? 'Unknown';
+      const key = (s as { plan?: { name?: string } }).plan?.name ?? 'Unknown';
       acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     }, {});
@@ -156,8 +152,8 @@ export class OwnerController {
       list: subs.map((s) => ({
         id: s.id,
         tenantId: s.tenantId,
-        tenantName: (s as any).tenant?.name ?? '—',
-        planName: (s as any).plan?.name ?? '—',
+        tenantName: (s as { tenant?: { name?: string } }).tenant?.name ?? '—',
+        planName: (s as { plan?: { name?: string } }).plan?.name ?? '—',
         status: s.status,
         billingCycle: s.billingCycle,
         trialEndsAt: s.trialEndsAt,
@@ -171,8 +167,7 @@ export class OwnerController {
 
   @Get('signups')
   @ApiOperation({ summary: 'Recent signup feed — SUPER_ADMIN only' })
-  async signups(@CurrentUser() user: any, @Query('days') days = 30) {
-    this.guard(user);
+  async signups(@CurrentUser() user: UserPayload, @Query('days') days = 30) {
 
     const since = new Date(Date.now() - Number(days) * 24 * 60 * 60 * 1000);
 
@@ -196,7 +191,7 @@ export class OwnerController {
       createdAt: t.createdAt,
       admin: t.users[0] ?? null,
       subscription: t.subscription
-        ? { status: t.subscription.status, planName: (t.subscription as any).plan?.name }
+        ? { status: t.subscription.status, planName: (t.subscription as { plan?: { name?: string } }).plan?.name }
         : null,
     }));
   }
@@ -205,8 +200,7 @@ export class OwnerController {
 
   @Get('ai-usage')
   @ApiOperation({ summary: 'AI usage across all tenants — SUPER_ADMIN only' })
-  async aiUsage(@CurrentUser() user: any, @Query('days') days = 30) {
-    this.guard(user);
+  async aiUsage(@CurrentUser() user: UserPayload, @Query('days') days = 30) {
 
     const since = new Date(Date.now() - Number(days) * 24 * 60 * 60 * 1000);
 

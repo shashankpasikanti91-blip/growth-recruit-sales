@@ -1,17 +1,21 @@
 import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ContactsService, CreateContactDto } from './contacts.service';
 
 @ApiTags('Contacts')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('contacts')
 export class ContactsController {
   constructor(private readonly contactsService: ContactsService) {}
 
   @Post()
+  @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.SUPER_ADMIN)
   create(@CurrentUser('tenantId') tenantId: string, @Body() dto: CreateContactDto) {
     return this.contactsService.create(tenantId, dto);
   }
@@ -37,6 +41,7 @@ export class ContactsController {
   }
 
   @Put(':id')
+  @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.SUPER_ADMIN)
   update(
     @CurrentUser('tenantId') tenantId: string,
     @Param('id') id: string,

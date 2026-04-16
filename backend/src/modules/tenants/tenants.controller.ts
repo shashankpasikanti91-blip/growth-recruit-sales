@@ -8,6 +8,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../common/types/user-payload.type';
 
 @ApiTags('tenants')
 @ApiBearerAuth()
@@ -39,7 +40,7 @@ export class TenantsController {
   @Get(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN)
   @ApiOperation({ summary: 'Get tenant by ID' })
-  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+  findOne(@Param('id') id: string, @CurrentUser() user: UserPayload) {
     // TENANT_ADMIN can only view their own tenant
     if (user.role === UserRole.TENANT_ADMIN && user.tenantId !== id) {
       throw new ForbiddenException('Access denied: you can only view your own tenant');
@@ -50,7 +51,7 @@ export class TenantsController {
   @Put(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN)
   @ApiOperation({ summary: 'Update tenant' })
-  update(@Param('id') id: string, @Body() dto: UpdateTenantDto, @CurrentUser() user: any) {
+  update(@Param('id') id: string, @Body() dto: UpdateTenantDto, @CurrentUser() user: UserPayload) {
     // TENANT_ADMIN can only update their own tenant
     if (user.role === UserRole.TENANT_ADMIN && user.tenantId !== id) {
       throw new ForbiddenException('Access denied: you can only update your own tenant');
@@ -68,7 +69,7 @@ export class TenantsController {
   @Post(':id/onboard')
   @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN)
   @ApiOperation({ summary: 'Re-run tenant onboarding (idempotent — seeds missing defaults only)' })
-  onboard(@Param('id') id: string, @CurrentUser() user: any) {
+  onboard(@Param('id') id: string, @CurrentUser() user: UserPayload) {
     if (user.role === UserRole.TENANT_ADMIN && user.tenantId !== id) {
       throw new ForbiddenException('Access denied');
     }

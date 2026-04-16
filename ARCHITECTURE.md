@@ -16,14 +16,14 @@ The Recruitment + Sales Agentic Automation Platform is a multi-tenant SaaS syste
                          ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    Reverse Proxy (Nginx / Caddy)                     │
-│          yourdomain.com → :3000   api.yourdomain.com → :4000        │
+│          yourdomain.com → :3000   api.yourdomain.com → :3001        │
 └──────────────┬──────────────────────────────┬───────────────────────┘
                │                              │
                ▼                              ▼
 ┌──────────────────────┐        ┌─────────────────────────────────────┐
 │   Next.js 14 Frontend│        │        NestJS REST API (v1)          │
 │   (App Router, SSR)  │        │  /api/v1/*  Swagger: /api/docs       │
-│   Port 3000          │        │  Port 4000                           │
+│   Port 3000          │        │  Port 3001                           │
 │                      │        │                                       │
 │  TanStack Query      │◄──────►│  Modules:                            │
 │  Zustand Auth Store  │  JWT   │  Auth, Tenants, Users, Countries      │

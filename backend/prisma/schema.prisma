@@ -724,6 +724,9 @@ model OutreachMessage {
 
   @@index([tenantId])
   @@index([businessId])
+  @@index([sequenceId])
+  @@index([candidateId])
+  @@index([leadId])
   @@map("outreach_messages")
 }
 
@@ -816,6 +819,9 @@ model AiAnalysisResult {
   prompt    PromptTemplate? @relation(fields: [promptId], references: [id])
 
   @@index([tenantId])
+  @@index([candidateId])
+  @@index([leadId])
+  @@index([serviceType])
   @@map("ai_analysis_results")
 }
 
@@ -1013,6 +1019,7 @@ model Invoice {
   subscription Subscription @relation(fields: [subscriptionId], references: [id])
 
   @@index([tenantId])
+  @@index([subscriptionId])
   @@map("invoices")
 }
 
@@ -1029,6 +1036,7 @@ model UsageRecord {
   subscription Subscription @relation(fields: [subscriptionId], references: [id])
 
   @@index([tenantId])
+  @@index([subscriptionId])
   @@map("usage_records")
 }
 
@@ -1101,11 +1109,13 @@ model AuditLog {
   userAgent  String?
   createdAt  DateTime @default(now())
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   user   User?  @relation(fields: [userId], references: [id])
 
   @@index([tenantId])
   @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 

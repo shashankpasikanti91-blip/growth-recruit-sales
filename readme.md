@@ -23,8 +23,8 @@
 | **URL** | [https://growth.srpailabs.com](https://growth.srpailabs.com) |
 | **Backend API** | `https://growth.srpailabs.com/api/v1/` |
 | **Server** | Hetzner Cloud (Docker Compose) |
-| **SSL** | Let's Encrypt (auto-renew via Certbot) |
-| **Demo Login** | `admin@srp-ai-labs.com` / `Admin@123` |
+| **SSL** | Cloudflare Origin Certificate (auto-managed) |
+| **Demo Login** | See server `.env` or contact platform admin |
 
 ### Tech Stack
 

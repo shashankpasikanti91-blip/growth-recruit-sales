@@ -3,8 +3,12 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagg
 import { IsString, IsOptional, IsObject, IsEnum, IsNumber, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../common/types/user-payload.type';
 import { ResumeScreeningService } from './services/resume-screening.service';
 import { OutreachGenerationService } from './services/outreach-generation.service';
 import { LeadScoringService } from './services/lead-scoring.service';
@@ -116,7 +120,8 @@ class LinkedInDto {
 
 @ApiTags('ai')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.SUPER_ADMIN)
 @Controller({ path: 'ai', version: '1' })
 export class AiController {
   constructor(
@@ -132,7 +137,7 @@ export class AiController {
   @Post('screen-resume')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Screen a resume against a job description using AI' })
-  async screenResume(@CurrentUser() user: any, @Body() dto: ScreenResumeDto) {
+  async screenResume(@CurrentUser() user: UserPayload, @Body() dto: ScreenResumeDto) {
     // Resolve job description — use provided text or fetch from DB via jobId
     // SECURITY: scope job lookup to current tenant to prevent cross-tenant data exposure
     let jobDescription = dto.jobDescription;
@@ -189,7 +194,7 @@ export class AiController {
   @Post('linkedin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generate LinkedIn content using AI (posts, InMails, comments, etc.)' })
-  async generateLinkedIn(@CurrentUser() user: any, @Body() dto: LinkedInDto) {
+  async generateLinkedIn(@CurrentUser() user: UserPayload, @Body() dto: LinkedInDto) {
     const promptTemplate = LINKEDIN_PROMPT_MAP[dto.type];
     if (!promptTemplate) {
       throw new BadRequestException(`Unknown LinkedIn content type: ${dto.type}. Valid types: ${Object.keys(LINKEDIN_PROMPT_MAP).join(', ')}`);

@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
@@ -116,8 +116,11 @@ async function bootstrap() {
   }
 
   await app.listen(port);
-  console.log(`\n🚀 SRP Platform API running on http://localhost:${port}/api`);
-  console.log(`📚 Swagger docs at http://localhost:${port}/api/docs\n`);
+  const logger = new Logger('Bootstrap');
+  logger.log(`SRP Platform API running on http://localhost:${port}/api`);
+  if (nodeEnv !== 'production') {
+    logger.log(`Swagger docs at http://localhost:${port}/api/docs`);
+  }
 }
 
 bootstrap();

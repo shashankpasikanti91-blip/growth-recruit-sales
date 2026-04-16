@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, ServiceUnavailableException, ForbiddenException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BusinessIdService } from '../billing/business-id.service';
 import { UsageService } from '../billing/usage.service';
@@ -94,18 +95,27 @@ interface PlaceResult {
 
 @Injectable()
 export class LeadImportService {
+  private readonly googleMapsApiKey: string;
+  private readonly apifyApiKey: string;
+  private readonly apolloApiKey: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly businessIdService: BusinessIdService,
     private readonly usageService: UsageService,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    this.googleMapsApiKey = this.config.get<string>('GOOGLE_MAPS_API_KEY', '');
+    this.apifyApiKey = this.config.get<string>('APIFY_API_KEY', '');
+    this.apolloApiKey = this.config.get<string>('APOLLO_API_KEY', '');
+  }
 
   /**
    * Search Google Maps Places API and create leads from business results.
    * Requires GOOGLE_MAPS_API_KEY in environment.
    */
   async importFromGoogleMaps(tenantId: string, dto: GoogleMapsImportDto) {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const apiKey = this.googleMapsApiKey;
     if (!apiKey) {
       throw new ServiceUnavailableException(
         'GOOGLE_MAPS_API_KEY is not configured on this server. Add it to your .env file to use this feature.',
@@ -345,7 +355,9 @@ export class LeadImportService {
       await this.prisma.sourceImport.update({
         where: { id: sourceImport.id },
         data: { status: 'FAILED', errorReport: { message: (err as Error).message } },
-      }).catch(() => {});
+      }).catch((updateErr) => {
+        this.logger.warn(`Failed to mark import ${sourceImport.id} as FAILED: ${(updateErr as Error).message}`);
+      });
       throw err;
     }
   }
@@ -455,11 +467,11 @@ export class LeadImportService {
     limit: number,
     sourceImportId?: string,
   ) {
-    const apiKey = process.env.APIFY_API_KEY;
+    const apiKey = this.apifyApiKey;
     if (!apiKey) {
-      this.logger.error('APIFY_API_KEY environment variable is not set. Google Search lead generation requires an Apify API key.');
+      this.logger.error('APIFY_API_KEY is not configured. Google Search lead generation requires an Apify API key.');
       throw new ServiceUnavailableException(
-        'Lead generation via Google Search is not configured. The APIFY_API_KEY environment variable must be set. Please contact your administrator.',
+        'Lead generation via Google Search is not configured. The APIFY_API_KEY must be set. Please contact your administrator.',
       );
     }
 
@@ -527,7 +539,7 @@ export class LeadImportService {
     sourceImportId?: string,
   ) {
     // 1. Try native Apollo API (works on paid plans)
-    const apolloApiKey = process.env.APOLLO_API_KEY;
+    const apolloApiKey = this.apolloApiKey;
     if (apolloApiKey) {
       try {
         const people = await this.callApolloNativeApi(apolloApiKey, industry, location, titles, limit);
@@ -607,11 +619,11 @@ export class LeadImportService {
     limit: number,
     sourceImportId?: string,
   ) {
-    const apifyKey = process.env.APIFY_API_KEY;
+    const apifyKey = this.apifyApiKey;
     if (!apifyKey) {
-      this.logger.error('APIFY_API_KEY environment variable is not set. Apollo B2B fallback (Google Search B2B) requires an Apify API key.');
+      this.logger.error('APIFY_API_KEY is not configured. Apollo B2B fallback (Google Search B2B) requires an Apify API key.');
       throw new ServiceUnavailableException(
-        'Lead generation via Apollo B2B is not configured. The APIFY_API_KEY environment variable must be set. Please contact your administrator.',
+        'Lead generation via Apollo B2B is not configured. The APIFY_API_KEY must be set. Please contact your administrator.',
       );
     }
 
@@ -682,7 +694,7 @@ export class LeadImportService {
     limit: number,
     sourceImportId?: string,
   ) {
-    const apifyKey = process.env.APIFY_API_KEY;
+    const apifyKey = this.apifyApiKey;
     if (!apifyKey) {
       throw new ServiceUnavailableException(
         'LinkedIn lead generation requires APIFY_API_KEY. Please contact your administrator.',

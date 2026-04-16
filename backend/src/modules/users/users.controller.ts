@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../common/types/user-payload.type';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -35,7 +36,7 @@ export class UsersController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
-  getMe(@CurrentUser() user: any) {
+  getMe(@CurrentUser() user: UserPayload) {
     return this.usersService.findOne(user.tenantId, user.id);
   }
 
@@ -55,13 +56,13 @@ export class UsersController {
 
   @Patch('me')
   @ApiOperation({ summary: 'Update own profile (name, phone, job title)' })
-  updateMe(@CurrentUser() user: any, @Body() dto: UpdateMeDto) {
+  updateMe(@CurrentUser() user: UserPayload, @Body() dto: UpdateMeDto) {
     return this.usersService.updateMe(user.tenantId, user.id, dto);
   }
 
   @Patch('me/password')
   @ApiOperation({ summary: 'Change own password' })
-  changePassword(@CurrentUser() user: any, @Body() dto: ChangePasswordDto) {
+  changePassword(@CurrentUser() user: UserPayload, @Body() dto: ChangePasswordDto) {
     return this.usersService.changePassword(user.tenantId, user.id, dto);
   }
 }

@@ -1,4 +1,5 @@
 import { Injectable, ConflictException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInviteDto } from './dto/team.dto';
 import * as crypto from 'crypto';
@@ -7,7 +8,10 @@ import * as crypto from 'crypto';
 export class InviteService {
   private readonly INVITE_EXPIRY_DAYS = 7;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
 
   async createInvite(tenantId: string, invitedByUserId: string, dto: CreateInviteDto) {
     const email = dto.email.toLowerCase();
@@ -164,7 +168,7 @@ export class InviteService {
   }
 
   private getInviteLink(token: string): string {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
     return `${frontendUrl}/invite/accept?token=${token}`;
   }
 }

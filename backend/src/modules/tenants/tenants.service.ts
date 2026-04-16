@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto/tenant.dto';
 import { TenantOnboardingService } from './tenant-onboarding.service';
@@ -7,6 +7,8 @@ import { getPlanConfig } from '../../config/plans.config';
 
 @Injectable()
 export class TenantsService {
+  private readonly logger = new Logger(TenantsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly onboarding: TenantOnboardingService,
@@ -33,7 +35,9 @@ export class TenantsService {
     });
 
     // Idempotent onboarding: seed default data in background (don't fail tenant creation if seeding fails)
-    this.onboarding.setup(tenant.id).catch(() => {}); 
+    this.onboarding.setup(tenant.id).catch((err) => {
+      this.logger.warn(`Tenant onboarding setup failed for ${tenant.id}: ${err.message}`);
+    }); 
 
     return tenant;
   }

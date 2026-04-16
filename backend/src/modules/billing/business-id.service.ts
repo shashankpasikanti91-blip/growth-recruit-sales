@@ -45,6 +45,17 @@ const ENTITY_MAP: Record<string, EntityConfig> = {
   sourceImport:    { prefix: 'IMP', table: 'source_imports',    column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
 };
 
+// Whitelist of valid table/column identifiers used in raw SQL to prevent injection
+const VALID_IDENTIFIERS = new Set(
+  Object.values(ENTITY_MAP).flatMap(c => [c.table, c.column]),
+);
+
+function assertSafeIdentifier(name: string): void {
+  if (!VALID_IDENTIFIERS.has(name) || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+    throw new Error(`Invalid SQL identifier: ${name}`);
+  }
+}
+
 @Injectable()
 export class BusinessIdService {
   constructor(private readonly prisma: PrismaService) {}
@@ -61,6 +72,10 @@ export class BusinessIdService {
       : `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const prefix = `${config.prefix}-${datePart}-`;
+
+    // Validate identifiers against whitelist before using in raw SQL
+    assertSafeIdentifier(config.table);
+    assertSafeIdentifier(config.column);
 
     // Use raw query to atomically get the next sequence number
     const result = await this.prisma.$queryRawUnsafe<{ max_seq: string | null }[]>(
@@ -90,6 +105,9 @@ export class BusinessIdService {
       : `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const prefix = `${config.prefix}-${datePart}-`;
+
+    assertSafeIdentifier(config.table);
+    assertSafeIdentifier(config.column);
 
     const result = await this.prisma.$queryRawUnsafe<{ max_seq: string | null }[]>(
       `SELECT MAX("${config.column}") as max_seq FROM "${config.table}" WHERE "${config.column}" LIKE $1`,

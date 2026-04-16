@@ -46,7 +46,7 @@ export default function GoogleCallbackPage() {
         // Clear tokens from URL before redirecting
         window.history.replaceState({}, document.title, '/auth/callback');
         if (isNewTenant) {
-          toast.success(`Welcome to RecruiSales AI, ${user.firstName}! Your account is ready.`);
+          toast.success(`Welcome to SRP AI Labs, ${user.firstName}! Your account is ready.`);
         } else {
           toast.success(`Welcome back, ${user.firstName}!`);
         }

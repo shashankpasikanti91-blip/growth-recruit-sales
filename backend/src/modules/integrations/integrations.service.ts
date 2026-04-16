@@ -25,7 +25,10 @@ export class IntegrationsService {
   ) {
     // Derive a 32-byte AES-256 key from JWT_SECRET so no extra env var is needed.
     // scryptSync is deterministic — same key always produced for same secret+salt.
-    const secret = this.config.get<string>('auth.jwtSecret') || process.env.JWT_SECRET || '';
+    const secret = this.config.get<string>('auth.jwtSecret');
+    if (!secret) {
+      throw new Error('[IntegrationsService] auth.jwtSecret is not configured — cannot derive encryption key');
+    }
     this.encKey = scryptSync(secret, 'srp-integration-salt-v1', 32) as Buffer;
   }
 

@@ -7,8 +7,8 @@ import { Toaster } from 'react-hot-toast';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'RecruiSales AI Platform',
-  description: 'AI-Powered Recruitment & Sales Automation Platform',
+  title: 'SRP AI Labs Platform',
+  description: 'AI-Powered Recruitment & Sales Automation Platform by SRP AI Labs',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

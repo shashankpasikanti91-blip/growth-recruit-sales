@@ -18,7 +18,13 @@ export default registerAs('auth', () => ({
   jwtRefreshSecret: requireSecret('JWT_REFRESH_SECRET', process.env.JWT_REFRESH_SECRET),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  n8nWebhookSecret: process.env.N8N_WEBHOOK_SECRET || '',
+  n8nWebhookSecret: (() => {
+    const secret = process.env.N8N_WEBHOOK_SECRET || '';
+    if (process.env.NODE_ENV === 'production' && secret.length < 16) {
+      throw new Error('[Auth Config] N8N_WEBHOOK_SECRET must be at least 16 characters in production');
+    }
+    return secret;
+  })(),
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   googleCallbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/api/v1/auth/google/callback',

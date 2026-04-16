@@ -3,10 +3,13 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { IsString, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ImportSource } from '@prisma/client';
+import { ImportSource, UserRole } from '@prisma/client';
 import { ImportsService } from './imports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../common/types/user-payload.type';
 
 class CreateImportDto {
   @ApiProperty()
@@ -29,18 +32,20 @@ class CreateImportDto {
 
 @ApiTags('imports')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({ path: 'imports', version: '1' })
 export class ImportsController {
   constructor(private readonly importsService: ImportsService) {}
 
   @Post()
+  @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create a new import record' })
-  create(@CurrentUser() user: any, @Body() dto: CreateImportDto) {
+  create(@CurrentUser() user: UserPayload, @Body() dto: CreateImportDto) {
     return this.importsService.createImport(user.tenantId, { ...dto, importedById: user.id });
   }
 
   @Post(':id/upload')
+  @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Upload CSV/Excel/PDF/Word file and start processing' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', {
@@ -99,12 +104,14 @@ export class ImportsController {
   }
 
   @Post(':id/retry')
+  @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Retry failed rows in an import' })
   retry(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
     return this.importsService.retryFailedRows(tenantId, id);
   }
 
   @Post('bulk-resume')
+  @Roles(UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Upload up to 20 resume files (PDF/DOCX) as a single bulk import' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FilesInterceptor('files', 20, {
@@ -116,7 +123,7 @@ export class ImportsController {
     },
   }))
   bulkResume(
-    @CurrentUser() user: any,
+    @CurrentUser() user: UserPayload,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
     return this.importsService.bulkResumeUpload(user.tenantId, user.id, files);

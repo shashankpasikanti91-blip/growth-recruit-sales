@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CacheService } from '../cache/cache.service';
 import * as nodemailer from 'nodemailer';
@@ -145,10 +145,13 @@ export class OtpService {
     // Fallback: notify owner via Telegram (dev/misconfigured SMTP)
     if (this.botToken && this.chatId) {
       const text = `⚠️ *SMTP not configured — dev fallback*\n\n📧 To: ${to}\n📋 Subject: ${subject}\n\n🔑 OTP has been stored in Redis. User must retrieve it another way or configure SMTP.`;
-      await this.sendTelegram(text).catch(() => {});
+      await this.sendTelegram(text).catch((err) => {
+        this.logger.warn(`Telegram OTP fallback failed: ${err.message}`);
+      });
     }
 
     this.logger.warn(`OTP email to ${to} could not be sent — SMTP not configured. Subject: ${subject}`);
+    throw new ServiceUnavailableException('Unable to deliver verification code. Please contact support.');
   }
 
   private sendTelegram(text: string): Promise<void> {

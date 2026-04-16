@@ -4,7 +4,6 @@ import {
   Body,
   Headers,
   UnauthorizedException,
-  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiHeader } from '@nestjs/swagger';
@@ -15,6 +14,15 @@ import { LeadsService } from '../leads/leads.service';
 import { OutreachService } from '../outreach/outreach.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as crypto from 'crypto';
+import {
+  CandidateImportedDto,
+  LeadImportedDto,
+  TriggerScreeningDto,
+  TriggerOutreachDto,
+  ScoreLeadDto,
+  MessageStatusDto,
+  OptOutDto,
+} from './dto/webhook.dto';
 
 /**
  * Secured webhook endpoints for n8n to call back into the backend.
@@ -42,14 +50,10 @@ export class WebhooksController {
     if (!expected || !secret) {
       throw new UnauthorizedException('Invalid webhook secret');
     }
-    // Use timing-safe comparison to prevent timing attacks
-    try {
-      const a = Buffer.from(secret.padEnd(expected.length));
-      const b = Buffer.from(expected.padEnd(secret.length));
-      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-        throw new UnauthorizedException('Invalid webhook secret');
-      }
-    } catch {
+    // Timing-safe comparison: both buffers must be the same length
+    const secretBuf = Buffer.from(secret, 'utf8');
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    if (secretBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(secretBuf, expectedBuf)) {
       throw new UnauthorizedException('Invalid webhook secret');
     }
   }
@@ -61,7 +65,7 @@ export class WebhooksController {
   @ApiHeader({ name: 'X-N8N-Secret', required: true })
   async candidateImported(
     @Headers('x-n8n-secret') secret: string,
-    @Body() payload: { tenantId: string; candidateId: string; sourceImportId?: string },
+    @Body() payload: CandidateImportedDto,
   ) {
     this.verifySecret(secret);
     this.logger.log(`Candidate imported webhook: ${payload.candidateId}`);
@@ -81,7 +85,7 @@ export class WebhooksController {
   @ApiHeader({ name: 'X-N8N-Secret', required: true })
   async leadImported(
     @Headers('x-n8n-secret') secret: string,
-    @Body() payload: { tenantId: string; leadId: string },
+    @Body() payload: LeadImportedDto,
   ) {
     this.verifySecret(secret);
     this.logger.log(`Lead imported webhook: ${payload.leadId}`);
@@ -101,11 +105,9 @@ export class WebhooksController {
   @ApiHeader({ name: 'X-N8N-Secret', required: true })
   async triggerScreening(
     @Headers('x-n8n-secret') secret: string,
-    @Body() payload: { tenantId: string; applicationId: string; resumeText?: string },
+    @Body() payload: TriggerScreeningDto,
   ) {
     this.verifySecret(secret);
-    if (!payload.tenantId || !payload.applicationId) throw new BadRequestException('tenantId and applicationId required');
-
     return this.applicationsService.screenApplication(payload.tenantId, payload.applicationId, payload.resumeText);
   }
 
@@ -116,14 +118,7 @@ export class WebhooksController {
   @ApiHeader({ name: 'X-N8N-Secret', required: true })
   async triggerOutreach(
     @Headers('x-n8n-secret') secret: string,
-    @Body() payload: {
-      tenantId: string;
-      targetType: 'CANDIDATE' | 'LEAD';
-      targetId: string;
-      jobId?: string;
-      channel?: string;
-      sequenceSteps?: number;
-    },
+    @Body() payload: TriggerOutreachDto,
   ) {
     this.verifySecret(secret);
     return this.outreachService.generate(payload.tenantId, {
@@ -142,7 +137,7 @@ export class WebhooksController {
   @ApiHeader({ name: 'X-N8N-Secret', required: true })
   async scoreLead(
     @Headers('x-n8n-secret') secret: string,
-    @Body() payload: { tenantId: string; leadId: string },
+    @Body() payload: ScoreLeadDto,
   ) {
     this.verifySecret(secret);
     return this.leadsService.scoreLead(payload.tenantId, payload.leadId);
@@ -155,7 +150,7 @@ export class WebhooksController {
   @ApiHeader({ name: 'X-N8N-Secret', required: true })
   async messageStatus(
     @Headers('x-n8n-secret') secret: string,
-    @Body() payload: { tenantId: string; messageId: string; status: string },
+    @Body() payload: MessageStatusDto,
   ) {
     this.verifySecret(secret);
     return this.outreachService.updateMessageStatus(payload.tenantId, payload.messageId, payload.status);
@@ -168,7 +163,7 @@ export class WebhooksController {
   @ApiHeader({ name: 'X-N8N-Secret', required: true })
   async optOut(
     @Headers('x-n8n-secret') secret: string,
-    @Body() payload: { tenantId: string; email: string; reason?: string },
+    @Body() payload: OptOutDto,
   ) {
     this.verifySecret(secret);
     return this.outreachService.addToSuppression(payload.tenantId, payload.email, payload.reason);

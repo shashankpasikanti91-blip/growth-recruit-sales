@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserPayload } from '../../common/types/user-payload.type';
 import { UsageGuard, UsageLimit } from '../billing/usage.guard';
 
 @ApiTags('candidates')
@@ -65,7 +66,7 @@ export class CandidatesController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER)
   @ApiOperation({ summary: 'Add recruiter note to candidate' })
   addNote(
-    @CurrentUser() user: any,
+    @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Body('note') note: string,
   ) {

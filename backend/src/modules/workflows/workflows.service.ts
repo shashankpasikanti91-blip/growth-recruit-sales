@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { OnEvent } from '@nestjs/event-emitter';
 import { BusinessIdService } from '../billing/business-id.service';
+import { WorkflowType, WorkflowRunStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class WorkflowsService {
@@ -24,9 +25,9 @@ export class WorkflowsService {
       data: {
         businessId: await this.businessIdService.generate('workflowRun'),
         tenantId: params.tenantId,
-        workflowType: params.workflowType as any,
+        workflowType: params.workflowType as WorkflowType,
         triggeredBy: params.triggeredBy,
-        status: params.status as any,
+        status: params.status as WorkflowRunStatus,
         startedAt: new Date(),
         inputData: { entityId: params.entityId, ...(params.metadata ?? {}) },
       },
@@ -44,9 +45,9 @@ export class WorkflowsService {
     },
   ) {
     const { workflowType, status, isPaused, page = 1, limit = 50 } = filters ?? {};
-    const where: any = { tenantId };
-    if (workflowType) where.workflowType = workflowType as any;
-    if (status) where.status = status as any;
+    const where: Prisma.WorkflowRunWhereInput = { tenantId };
+    if (workflowType) where.workflowType = workflowType as WorkflowType;
+    if (status) where.status = status as WorkflowRunStatus;
     if (isPaused !== undefined) where.isPaused = isPaused;
 
     const [data, total] = await Promise.all([
@@ -72,7 +73,7 @@ export class WorkflowsService {
     return this.prisma.workflowRun.update({
       where: { id },
       data: {
-        status: 'SUCCESS' as any,
+        status: WorkflowRunStatus.SUCCESS,
         completedAt: new Date(),
         isPaused: false,
         outputData: result ?? {},
@@ -83,7 +84,7 @@ export class WorkflowsService {
   async markFailed(id: string, errorMessage: string) {
     return this.prisma.workflowRun.update({
       where: { id },
-      data: { status: 'FAILED' as any, completedAt: new Date(), errorMessage },
+      data: { status: WorkflowRunStatus.FAILED, completedAt: new Date(), errorMessage },
     });
   }
 
@@ -102,7 +103,7 @@ export class WorkflowsService {
     return this.prisma.workflowRun.update({
       where: { id },
       data: {
-        status: 'PAUSED' as any,
+        status: WorkflowRunStatus.PAUSED,
         isPaused: true,
         pausedAt: new Date(),
         pauseReason: reason,
@@ -123,7 +124,7 @@ export class WorkflowsService {
     return this.prisma.workflowRun.update({
       where: { id },
       data: {
-        status: 'QUEUED' as any,
+        status: WorkflowRunStatus.QUEUED,
         isPaused: false,
         resumedAt: new Date(),
         pauseReason: null,
@@ -143,7 +144,7 @@ export class WorkflowsService {
     return this.prisma.workflowRun.update({
       where: { id },
       data: {
-        status: 'RETRYING' as any,
+        status: WorkflowRunStatus.RETRYING,
         isPaused: false,
         retryCount: { increment: 1 },
         completedAt: null,
@@ -164,7 +165,7 @@ export class WorkflowsService {
     return this.prisma.workflowRun.update({
       where: { id },
       data: {
-        status: 'CANCELLED' as any,
+        status: WorkflowRunStatus.CANCELLED,
         isPaused: false,
         completedAt: new Date(),
         ...(reason ? { pauseReason: reason } : {}),
@@ -192,7 +193,7 @@ export class WorkflowsService {
         overriddenBy,
         overriddenAt: new Date(),
         isPaused: false,
-        ...(forceStatus ? { status: forceStatus as any } : {}),
+        ...(forceStatus ? { status: forceStatus as WorkflowRunStatus } : {}),
       },
     });
   }
@@ -220,7 +221,7 @@ export class WorkflowsService {
         }),
 
         this.prisma.workflowRun.findMany({
-          where: { tenantId, status: 'FAILED' as any, createdAt: { gte: since } },
+          where: { tenantId, status: WorkflowRunStatus.FAILED, createdAt: { gte: since } },
           orderBy: { createdAt: 'desc' },
           take: 5,
           select: {

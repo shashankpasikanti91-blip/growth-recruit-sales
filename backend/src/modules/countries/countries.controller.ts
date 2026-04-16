@@ -1,12 +1,16 @@
 import { Controller, Get, Param, Put, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { CountriesService } from './countries.service';
+import { UpsertTenantCountryConfigDto } from './dto/country.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('countries')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller({ path: 'countries', version: '1' })
 export class CountriesController {
   constructor(private readonly countriesService: CountriesService) {}
@@ -48,17 +52,18 @@ export class CountriesController {
   }
 
   @Put('tenant/:code')
+  @Roles(UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Upsert tenant country config' })
   upsertTenantConfig(
     @CurrentUser('tenantId') tenantId: string,
     @Param('code') code: string,
-    @Body() body: { customTemplates?: Record<string, any>; isDefault?: boolean },
+    @Body() dto: UpsertTenantCountryConfigDto,
   ) {
     return this.countriesService.upsertTenantCountryConfig(
       tenantId,
       code.toUpperCase(),
-      body.customTemplates || {},
-      body.isDefault || false,
+      dto.customTemplates || {},
+      dto.isDefault || false,
     );
   }
 }

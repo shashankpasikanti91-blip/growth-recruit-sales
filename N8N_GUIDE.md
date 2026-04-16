@@ -18,13 +18,9 @@ n8n **never accesses the database directly**. All interactions go through the Ne
 
 ## Accessing n8n
 
-n8n is already running in production at:
+n8n runs on the same server as the platform. Access it via the host-level n8n instance (typically port 5678). If you have a separate subdomain configured for n8n, use that.
 
-```
-https://n8n.srpailabs.com
-```
-
-Log in with your n8n owner account. If you haven't set one up, go to the URL above and follow the first-run setup wizard.
+Log in with your n8n owner account. If you haven't set one up, access n8n directly on the server and follow the first-run setup wizard.
 
 ---
 
@@ -35,7 +31,7 @@ n8n has a Variables feature (`Settings → Variables`) where you can store value
 | Variable Name | Where to find it | Production Value |
 |---------------|-----------------|---------|
 | `BACKEND_URL` | Server host → backend port | `http://host.docker.internal:8020` |
-| `N8N_WEBHOOK_SECRET` | Server `.env` → `N8N_WEBHOOK_SECRET` | `srp_n8n_growth_wh_2026` |
+| `N8N_WEBHOOK_SECRET` | Server `.env` → `N8N_WEBHOOK_SECRET` | *(copy from server .env)* |
 | `BACKEND_SERVICE_TOKEN` | Generate via login (see below) | `eyJhbGci...` |
 | `APOLLO_API_KEY` | Apollo.io dashboard | `sk_...` |
 | `CLEARBIT_KEY` | Clearbit dashboard | `sk_...` |
@@ -50,11 +46,11 @@ The service token is a long-lived JWT used by n8n to call authenticated backend 
 ```bash
 curl -X POST https://growth.srpailabs.com/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "pasikantishashank24@gmail.com", "password": "SRP@Owner2026!"}'
+  -d '{"email": "YOUR_ADMIN_EMAIL", "password": "YOUR_ADMIN_PASSWORD"}'
 # Copy the accessToken from the response and set it as BACKEND_SERVICE_TOKEN in n8n
 ```
 
-Or use the Swagger UI at `https://growth.srpailabs.com/api/v1/docs` → `POST /auth/login` → Authorize → copy token.
+Use the owner/admin credentials that were configured during initial deployment. Do **not** commit real credentials to this file.
 
 > **Note:** Access tokens expire in 15 minutes. For n8n workflows that run on a schedule, use the `POST /auth/login` node at the start of each workflow to refresh the token before making backend calls.
 

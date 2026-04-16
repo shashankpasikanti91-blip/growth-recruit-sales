@@ -62,7 +62,9 @@ function LoginForm() {
     try {
       await login(data.email, data.password, data.tenantSlug, data.rememberMe ?? false);
       const redirect = searchParams.get('redirect') || '/dashboard';
-      router.push(redirect);
+      // Prevent open redirect — only allow relative paths starting with /
+      const safePath = redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard';
+      router.push(safePath);
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Login failed';
       if (msg.toLowerCase().includes('verify your email')) {
@@ -90,7 +92,7 @@ function LoginForm() {
               <Zap className="w-6 h-6 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-white">RecruiSales AI</h1>
+          <h1 className="text-2xl font-bold text-white">SRP AI Labs</h1>
           <p className="mt-1 text-brand-100 text-sm">Recruitment &amp; Sales Automation Platform</p>
         </div>
 

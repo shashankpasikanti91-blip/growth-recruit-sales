@@ -5,7 +5,8 @@ import { LoginDto, SignupDto, RefreshTokenDto, VerifyEmailDto, ForgotPasswordDto
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import { Request, Response } from 'express';
+import { UserPayload } from '../../common/types/user-payload.type';
 
 @ApiTags('auth')
 @Controller({ path: 'auth', version: '1' })
@@ -41,7 +42,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout / invalidate refresh token' })
-  logout(@Req() req: any, @Body() body: Partial<RefreshTokenDto>) {
+  logout(@Req() req: Request & { user: UserPayload }, @Body() body: Partial<RefreshTokenDto>) {
     return this.authService.logout(req.user.id, body.refreshToken);
   }
 
@@ -78,7 +79,7 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback' })
-  async googleCallback(@Req() req: any, @Res() res: Response, @Query('state') state?: string) {
+  async googleCallback(@Req() req: Request & { user?: any }, @Res() res: Response, @Query('state') state?: string) {
     const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
 
     try {

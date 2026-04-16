@@ -64,9 +64,9 @@ export default function HomePage() {
           {/* Stats */}
           <div className="mt-16 grid grid-cols-3 gap-6 max-w-2xl mx-auto">
             {[
-              { value: '10x', label: 'Faster screening' },
-              { value: '45%', label: 'More placements' },
-              { value: '3x', label: 'More deals closed' },
+              { value: 'AI', label: 'Resume & lead scoring' },
+              { value: '7+', label: 'Countries supported' },
+              { value: '5', label: 'Automation workflows' },
             ].map(s => (
               <div key={s.label} className="bg-white/10 rounded-xl p-4">
                 <div className="text-3xl font-extrabold text-white">{s.value}</div>
@@ -159,9 +159,9 @@ export default function HomePage() {
             {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />)}
           </div>
           <blockquote className="text-xl font-medium text-gray-900 mb-4 max-w-2xl mx-auto">
-            "We cut our time-to-hire by 60% in the first month. The AI screening is scarily accurate."
+            &quot;AI-powered screening and lead scoring let our team focus on relationships instead of spreadsheets.&quot;
           </blockquote>
-          <p className="text-gray-500 text-sm">Sarah Chen, Head of Talent · Nexus Ventures</p>
+          <p className="text-gray-500 text-sm">Built for recruitment agencies &amp; B2B sales teams</p>
         </div>
       </section>
 

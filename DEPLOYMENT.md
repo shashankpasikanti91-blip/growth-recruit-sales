@@ -54,8 +54,11 @@ docker compose exec backend npx prisma db seed
 The seed creates:
 - 7 country configs (MY, IN, AU, SG, AE, GB, US)
 - Demo tenant: **SRP AI Labs**
-- Admin user: `admin@srp-ai-labs.com` / `Admin@123`
+- Admin user with the email and password defined in `seed.ts`
 - 5 default AI prompt templates
+- 16 visa rules across 7 countries
+- 5 pricing plans (Free through Enterprise)
+- Active subscription for the demo tenant
 
 ### 4. Verify
 
@@ -75,10 +78,10 @@ All variables live in the root `.env` file and are shared via `docker-compose.ym
 
 | Variable | Example | Notes |
 |----------|---------|-------|
-| `DATABASE_URL` | `postgresql://postgres:postgres@postgres:5432/recruitment_platform` | Use service name `postgres` inside Docker |
-| `POSTGRES_USER` | `postgres` | |
-| `POSTGRES_PASSWORD` | `postgres` | Change in production |
-| `POSTGRES_DB` | `recruitment_platform` | |
+| `DATABASE_URL` | `postgresql://growth_user:password@postgres:5432/growth_platform` | Use service name `postgres` inside Docker |
+| `DB_USER` | `growth_user` | |
+| `DB_PASSWORD` | *(strong random password)* | Change in production |
+| `DB_NAME` | `growth_platform` | |
 
 ### Redis
 
@@ -86,15 +89,17 @@ All variables live in the root `.env` file and are shared via `docker-compose.ym
 |----------|---------|
 | `REDIS_HOST` | `redis` |
 | `REDIS_PORT` | `6379` |
+| `REDIS_PASSWORD` | *(strong random password)* |
+| `REDIS_URL` | `redis://:PASSWORD@redis:6379` |
 
 ### Authentication
 
 | Variable | Example | Notes |
 |----------|---------|-------|
-| `JWT_ACCESS_SECRET` | 64-char random string | `openssl rand -hex 32` |
+| `JWT_SECRET` | 64-char random string | `openssl rand -hex 32` |
 | `JWT_REFRESH_SECRET` | 64-char random string | Different from access secret |
-| `JWT_ACCESS_EXPIRY` | `15m` | |
-| `JWT_REFRESH_EXPIRY` | `7d` | |
+| `JWT_EXPIRES_IN` | `15m` | |
+| `JWT_REFRESH_EXPIRES_IN` | `7d` | |
 
 ### AI Providers
 
@@ -116,11 +121,11 @@ All variables live in the root `.env` file and are shared via `docker-compose.ym
 
 | Variable | Example |
 |----------|---------|
-| `SMTP_HOST` | `smtp.sendgrid.net` |
+| `SMTP_HOST` | `smtp.gmail.com` |
 | `SMTP_PORT` | `587` |
-| `SMTP_USER` | `apikey` |
-| `SMTP_PASS` | `SG.xxx` |
-| `SMTP_FROM` | `noreply@yourdomain.com` |
+| `SMTP_USER` | `noreply@yourdomain.com` |
+| `SMTP_PASSWORD` | *(app password or API key)* |
+| `SMTP_FROM` | `SRP AI Labs <noreply@srp-ai-labs.com>` |
 
 ### Frontend
 
@@ -132,40 +137,35 @@ All variables live in the root `.env` file and are shared via `docker-compose.ym
 
 ## Production Deployment
 
-### Using a Reverse Proxy (Nginx / Caddy)
+### Using a Reverse Proxy (Nginx)
 
-Example Caddy configuration:
+The production deployment uses Nginx as a reverse proxy with path-based routing. API requests go to `/api/` and the frontend serves from `/`.
 
-```
-yourdomain.com {
-    reverse_proxy localhost:3000
-}
-
-api.yourdomain.com {
-    reverse_proxy localhost:3001
-}
-
-n8n.yourdomain.com {
-    reverse_proxy localhost:5678
-    basicauth {
-        admin $2a$...  # bcrypt hash
-    }
-}
-```
+See the bundled Nginx config in `nginx/growth.srpailabs.com` for the full production configuration including:
+- TLS 1.2/1.3 with Cloudflare Origin Certificate
+- Rate limiting on API (30 req/s) and auth (10 req/min) endpoints
+- WebSocket support on `/ws`
+- Security headers (HSTS, X-Frame-Options, X-Content-Type-Options)
+- 25MB upload limit
 
 ### SSL / TLS
 
-Let Caddy handle automatic TLS via ACME. For Nginx, use Certbot:
+Production uses Cloudflare Origin Certificates stored at:
+```
+/etc/ssl/cloudflare/growth.srpailabs.com.pem
+/etc/ssl/cloudflare/growth.srpailabs.com.key
+```
 
+For non-Cloudflare setups, use Certbot:
 ```bash
-certbot --nginx -d yourdomain.com -d api.yourdomain.com
+certbot --nginx -d yourdomain.com
 ```
 
 ### Secrets Management
 
 - Never commit `.env` to version control.
 - In production, use Docker secrets or a secrets manager (AWS Secrets Manager, HashiCorp Vault).
-- Rotate `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` periodically — all sessions will be invalidated.
+- Rotate `JWT_SECRET` and `JWT_REFRESH_SECRET` periodically — all sessions will be invalidated.
 
 ### Database Backups
 
