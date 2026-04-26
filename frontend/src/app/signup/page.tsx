@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useAuthStore } from '@/store/auth.store';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import { Zap, ArrowLeft, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, ArrowLeft, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { GoogleLoginButton } from '@/components/GoogleLoginButton';
 
 const INDUSTRIES = [
@@ -101,23 +101,29 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(150deg, #0f172a 0%, #0f1b2d 55%, #1e3a5f 100%)' }}>
       <div className="w-full max-w-lg">
         <Link
           href="/login"
-          className="flex items-center gap-1.5 text-brand-100 hover:text-white text-xs mb-6 transition-colors w-fit"
+          className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs mb-6 transition-colors w-fit"
         >
           <ArrowLeft className="w-3 h-3" /> Back to login
         </Link>
 
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <Zap className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}>
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="text-white font-bold leading-tight">Growth OS</div>
+                <div className="text-blue-400 text-[10px] font-medium">by SRP AI Labs</div>
+              </div>
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-white">Create your account</h1>
-          <p className="mt-1 text-brand-100 text-sm">Start your 14-day free trial — no credit card required</p>
+          <h1 className="text-xl font-bold text-white">Create your workspace</h1>
+          <p className="mt-1 text-slate-400 text-sm">Start your 14-day free trial — no credit card required</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-6">
@@ -286,6 +292,10 @@ export default function SignupPage() {
             <Link href="/login" className="text-brand-600 font-medium hover:underline">
               Sign in
             </Link>
+          </p>
+          <p className="text-center text-[10px] text-gray-300 mt-3">
+            Growth OS is a product of{' '}
+            <a href="https://srpailabs.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-600 underline">SRP AI Labs</a>
           </p>
         </div>
       </div>

@@ -1,29 +1,35 @@
 import Link from 'next/link';
-import { Zap, Users, Target, BarChart3, Upload, Mail, ArrowRight, Check, Star, Shield, Clock, TrendingUp, Linkedin, MapPin, Lock, FileText, Eye, Server } from 'lucide-react';
+import { TrendingUp, Users, Target, BarChart3, Upload, Mail, ArrowRight, Check, Star, Shield, Clock, Linkedin, MapPin, Lock, FileText, Eye, Server, ExternalLink, Zap, Building2 } from 'lucide-react';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* ── Nav ── */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
+      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}>
+              <TrendingUp className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">SRP AI <span className="text-brand-600">Labs</span></span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-bold text-gray-900">Growth OS</span>
+              <span className="text-[10px] font-medium text-gray-400 hidden sm:inline">by SRP AI Labs</span>
+            </div>
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-600">
             <Link href="#features" className="hover:text-brand-600 transition-colors">Features</Link>
             <Link href="#security" className="hover:text-brand-600 transition-colors">Security</Link>
             <Link href="#how-it-works" className="hover:text-brand-600 transition-colors">How it works</Link>
             <Link href="/pricing" className="hover:text-brand-600 transition-colors">Pricing</Link>
+            <a href="https://srpailabs.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors font-medium">
+              SRP AI Labs <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-brand-600 transition-colors">
               Sign in
             </Link>
-            <Link href="/login" className="inline-flex items-center gap-1.5 bg-brand-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-brand-700 transition-colors">
+            <Link href="/login" className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity" style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}>
               Get Started Free <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -31,46 +37,54 @@ export default function HomePage() {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 py-24 px-4">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMwLTkuOTQtOC4wNi0xOC0xOC0xOHY2YzYuNjMgMCAxMiA1LjM3IDEyIDEyaC02eiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjwvZz48L3N2Zz4=')] opacity-30" />
+      <section className="relative overflow-hidden py-24 px-4"
+        style={{ background: 'linear-gradient(150deg, #0f172a 0%, #0f1b2d 55%, #1e3a5f 100%)' }}
+      >
+        {/* Grid overlay */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+        {/* Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full opacity-10 blur-3xl pointer-events-none" style={{ background: 'radial-gradient(ellipse, #2563eb 0%, transparent 70%)' }} />
+
         <div className="relative max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-brand-500/30 text-brand-100 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-brand-400/40">
-            <Zap className="w-3 h-3" /> AI-Powered · Enterprise-Grade · Multi-Tenant SaaS
+          <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border"
+            style={{ background: 'rgba(37,99,235,0.15)', borderColor: 'rgba(37,99,235,0.3)', color: '#93c5fd' }}>
+            <TrendingUp className="w-3 h-3" /> Growth OS · Part of SRP AI Labs
           </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-6">
+          <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-6 tracking-tight">
             Hire Faster.<br />
-            <span className="text-brand-200">Close More Deals.</span>
+            <span style={{ background: 'linear-gradient(135deg, #60a5fa, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Close More Deals.</span>
           </h1>
-          <p className="text-lg md:text-xl text-brand-100 mb-10 max-w-2xl mx-auto leading-relaxed">
-            The AI-powered Recruitment, CRM, and Workflow Automation platform that streamlines
+          <p className="text-lg md:text-xl text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed">
+            The AI-powered Recruitment, CRM &amp; Workflow Automation platform that streamlines
             screening, scoring, and outreach — using your own data, CSV imports, and authorised APIs.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-bold px-8 py-3.5 rounded-xl hover:bg-brand-50 transition-colors shadow-lg text-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-gray-900 font-bold px-8 py-3.5 rounded-xl hover:bg-gray-50 transition-colors shadow-lg text-sm"
             >
               Start Free Trial <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/pricing"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-white/10 transition-colors text-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 font-semibold px-8 py-3.5 rounded-xl transition-colors text-sm"
+              style={{ border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.85)' }}
             >
               View Pricing
             </Link>
           </div>
-          <p className="mt-5 text-brand-200 text-xs">No credit card required · 14-day free trial · Cancel anytime</p>
+          <p className="mt-5 text-slate-500 text-xs">No credit card required · 14-day free trial · Cancel anytime</p>
 
           {/* Stats */}
-          <div className="mt-16 grid grid-cols-3 gap-6 max-w-2xl mx-auto">
+          <div className="mt-16 grid grid-cols-3 gap-4 max-w-2xl mx-auto">
             {[
               { value: 'AI', label: 'Resume & lead scoring' },
               { value: '7+', label: 'Countries supported' },
               { value: '5', label: 'Automation workflows' },
             ].map(s => (
-              <div key={s.label} className="bg-white/10 rounded-xl p-4">
+              <div key={s.label} className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div className="text-3xl font-extrabold text-white">{s.value}</div>
-                <div className="text-brand-200 text-xs mt-1">{s.label}</div>
+                <div className="text-slate-400 text-xs mt-1">{s.label}</div>
               </div>
             ))}
           </div>
@@ -153,7 +167,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Social proof ── */}
-      <section className="py-16 px-4 bg-brand-50">
+      <section className="py-16 px-4" style={{ background: '#f0f4ff' }}>
         <div className="max-w-4xl mx-auto text-center">
           <div className="flex items-center justify-center gap-1 mb-4">
             {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />)}
@@ -246,31 +260,58 @@ export default function HomePage() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="py-20 px-4 bg-gradient-to-r from-brand-700 to-brand-500">
-        <div className="max-w-2xl mx-auto text-center">
+      <section className="py-20 px-4 relative overflow-hidden"
+        style={{ background: 'linear-gradient(150deg, #0f172a 0%, #0f1b2d 55%, #1e3a5f 100%)' }}
+      >
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+        <div className="relative max-w-2xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}>
+              <TrendingUp className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-white font-bold">Growth OS</span>
+            <span className="text-slate-500 text-sm">·</span>
+            <a href="https://srpailabs.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 text-xs hover:text-blue-300 flex items-center gap-1">
+              SRP AI Labs <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
           <h2 className="text-3xl font-bold text-white mb-4">Ready to transform your hiring?</h2>
-          <p className="text-brand-100 mb-8">Join teams already using SRP AI Labs to place better candidates and close more deals.</p>
-          <Link href="/login" className="inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-8 py-3.5 rounded-xl hover:bg-brand-50 transition-colors shadow-lg">
+          <p className="text-slate-400 mb-8">Join teams already using Growth OS to hire better candidates and close more deals.</p>
+          <Link href="/login" className="inline-flex items-center gap-2 bg-white text-gray-900 font-bold px-8 py-3.5 rounded-xl hover:bg-gray-100 transition-colors shadow-lg">
             Start your free trial <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="py-10 px-4 bg-gray-900">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-brand-600 rounded flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
+      <footer className="py-10 px-4" style={{ background: '#0a0f1e' }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-white/[0.06]">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}>
+                  <TrendingUp className="w-3.5 h-3.5 text-white" />
+                </div>
+                <span className="text-white font-bold text-sm">Growth OS</span>
+              </div>
+              <p className="text-slate-500 text-xs">Recruitment &amp; Sales Automation Platform</p>
             </div>
-            <span className="text-white font-bold text-sm">SRP AI Labs</span>
+            <div className="flex items-center gap-6 text-slate-500 text-xs">
+              <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+              <Link href="/login" className="hover:text-white transition-colors">Login</Link>
+            </div>
           </div>
-          <div className="flex items-center gap-6 text-gray-400 text-xs">
-            <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
-            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-            <Link href="/login" className="hover:text-white transition-colors">Login</Link>
-            <span>© 2026 SRP AI Labs. All rights reserved.</span>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6">
+            <p className="text-slate-600 text-xs">© 2026 Growth OS. All rights reserved.</p>
+            <a href="https://srpailabs.com" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 text-slate-600 hover:text-slate-400 transition-colors text-xs">
+              <span>Part of the</span>
+              <span className="text-blue-500 font-semibold">SRP AI Labs</span>
+              <span>product suite</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         </div>
       </footer>
