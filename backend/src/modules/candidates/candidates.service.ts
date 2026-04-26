@@ -147,9 +147,14 @@ export class CandidatesService {
     const candidate = await this.prisma.candidate.findFirst({
       where: { id, tenantId },
       include: {
-        resumes: true,
-        applications: { include: { job: { select: { id: true, title: true } } } },
-        scorecards: { orderBy: { createdAt: 'desc' }, take: 5 },
+        resumes: { orderBy: { createdAt: 'desc' }, take: 1 },
+        applications: {
+          include: {
+            job: { select: { id: true, title: true, department: true, location: true, jobType: true, businessId: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        scorecards: { orderBy: { createdAt: 'desc' }, take: 10 },
         activities: { orderBy: { createdAt: 'desc' }, take: 20 },
         outreachMessages: { orderBy: { createdAt: 'desc' }, take: 10 },
         aiAnalyses: { orderBy: { createdAt: 'desc' }, take: 5 },

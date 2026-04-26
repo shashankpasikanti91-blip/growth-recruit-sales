@@ -50,6 +50,20 @@ export async function authPost(path: string, token: string, body?: any): Promise
 }
 
 /**
+ * Helper: Make an authenticated PATCH request
+ */
+export async function authPatch(path: string, token: string, body: any): Promise<Response> {
+  return fetch(`${API_URL}${path}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+/**
  * Helper: Make an authenticated PUT request
  */
 export async function authPut(path: string, token: string, body: any): Promise<Response> {
