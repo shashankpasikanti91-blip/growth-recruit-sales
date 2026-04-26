@@ -152,7 +152,7 @@ export class CandidatesService {
           include: {
             job: { select: { id: true, title: true, department: true, location: true, jobType: true, businessId: true } },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { appliedAt: 'desc' },
         },
         scorecards: { orderBy: { createdAt: 'desc' }, take: 10 },
         activities: { orderBy: { createdAt: 'desc' }, take: 20 },
