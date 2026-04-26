@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, User, Briefcase, Calendar, Search, ChevronLeft, ChevronRight, ArrowUpDown, Filter, X } from 'lucide-react';
+import { ClipboardList, User, Briefcase, Calendar, Search, ChevronLeft, ChevronRight, Filter, X, LayoutGrid, List, GripVertical } from 'lucide-react';
+import { format } from 'date-fns';
 import Link from 'next/link';
 import api from '@/lib/api';
 
@@ -52,6 +53,7 @@ function displayStage(status: string): string {
 const normalise = (s: string) => ({ SOURCED: 'APPLIED', SCREENED: 'SCREENING' }[s] ?? s);
 
 export default function ApplicationsPage() {
+  const [viewMode, setViewMode] = useState<'table' | 'board'>('table');
   const [filter, setFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -131,9 +133,12 @@ export default function ApplicationsPage() {
             Track every candidate-job application across your pipeline stages.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <ClipboardList className="w-4 h-4" />
-          <span className="font-semibold text-gray-700">{meta.total}</span> total
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500"><span className="font-semibold text-gray-700">{meta.total}</span> total</span>
+          <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+            <button onClick={() => setViewMode('table')} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${viewMode === 'table' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><List className="w-3.5 h-3.5" /> Table</button>
+            <button onClick={() => setViewMode('board')} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${viewMode === 'board' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}><LayoutGrid className="w-3.5 h-3.5" /> Board</button>
+          </div>
         </div>
       </div>
 
@@ -188,8 +193,56 @@ export default function ApplicationsPage() {
         ))}
       </div>
 
+      {/* Board View */}
+      {viewMode === 'board' && (
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-4 min-w-max">
+            {PIPELINE_STAGES.map(stage => {
+              const stageApps = applications.filter((a: Application) => normalise(a.status) === stage);
+              const all = (allData as any);
+              return (
+                <div key={stage} className="w-72 flex-shrink-0">
+                  <div className={`flex items-center justify-between px-3 py-2 rounded-t-xl border border-b-0 ${STATUS_COLORS[stage] ?? 'bg-gray-100'}`}>
+                    <span className="text-xs font-bold uppercase tracking-wide">{STATUS_LABELS[stage]}</span>
+                    <span className="text-xs font-semibold bg-white/60 rounded-full px-2 py-0.5">{all?.[stage] ?? stageApps.length}</span>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-b-xl min-h-[200px] p-2 space-y-2">
+                    {stageApps.length === 0 
+                      ? <div className="flex items-center justify-center h-20 text-xs text-gray-300">No applications</div>
+                      : stageApps.map((app: Application) => (
+                          <div key={app.id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm hover:shadow-md transition-shadow cursor-default">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
+                                <User className="w-3 h-3 text-brand-600" />
+                              </div>
+                              {app.candidate ? (
+                                <a href={`/candidates/${app.candidate.id}`} className="font-medium text-sm text-gray-900 hover:text-brand-600 truncate">
+                                  {`${app.candidate.firstName ?? ''} ${app.candidate.lastName ?? ''}`.trim() || '—'}
+                                </a>
+                              ) : <span className="text-sm text-gray-400">—</span>}
+                            </div>
+                            {app.job && <div className="mt-1.5 text-xs text-gray-500 flex items-center gap-1"><Briefcase className="w-3 h-3 text-gray-300" />{app.job.title}</div>}
+                            {app.matchScore != null && (
+                              <div className="mt-1.5 flex items-center gap-1">
+                                <div className="flex-1 bg-gray-100 h-1 rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full ${app.matchScore >= 75 ? 'bg-green-500' : app.matchScore >= 55 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: app.matchScore + '%' }} />
+                                </div>
+                                <span className={`text-[10px] font-bold ${app.matchScore >= 75 ? 'text-green-600' : app.matchScore >= 55 ? 'text-amber-600' : 'text-red-500'}`}>{app.matchScore}</span>
+                              </div>
+                            )}
+                            <div className="mt-1 text-[10px] text-gray-400">{app.createdAt ? format(new Date(app.createdAt), 'dd MMM yyyy') : '—'}</div>
+                          </div>
+                        ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Applications table */}
-      {applications.length === 0 ? (
+      {viewMode === 'table' && applications.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p className="text-base font-medium text-gray-500">No applications found</p>
@@ -197,7 +250,7 @@ export default function ApplicationsPage() {
             {debouncedSearch ? 'Try adjusting your search terms.' : 'Applications will appear here as candidates move through the pipeline.'}
           </p>
         </div>
-      ) : (
+      ) : viewMode === 'table' ? (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">

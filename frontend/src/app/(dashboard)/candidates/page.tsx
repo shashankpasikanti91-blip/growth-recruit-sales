@@ -1,327 +1,223 @@
-'use client';
-import { useState } from 'react';
+﻿'use client';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { candidatesApi } from '@/lib/api-client';
 import Link from 'next/link';
-import { UserPlus, Search, Briefcase, Copy, Check, X, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { UserPlus, Search, Briefcase, Copy, Check, X, ChevronLeft, ChevronRight, Zap, Star, Filter, MapPin, ChevronDown } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { BulkScreenModal } from '@/components/candidates/BulkScreenModal';
 
-const STAGE_BADGE: Record<string, string> = {
-  SOURCED: 'badge-gray', SCREENED: 'badge-purple', INTERVIEWING: 'badge-blue',
-  OFFERED: 'badge-green', PLACED: 'badge-green', REJECTED: 'badge-red', WITHDRAWN: 'badge-yellow',
+const STAGE_CONFIG: Record<string, { label: string; color: string }> = {
+  SOURCED:      { label: 'Sourced',      color: 'bg-gray-100 text-gray-700' },
+  SCREENED:     { label: 'Screened',     color: 'bg-purple-100 text-purple-700' },
+  INTERVIEWING: { label: 'Interviewing', color: 'bg-blue-100 text-blue-700' },
+  OFFERED:      { label: 'Offered',      color: 'bg-emerald-100 text-emerald-700' },
+  PLACED:       { label: 'Placed',       color: 'bg-green-100 text-green-700' },
+  REJECTED:     { label: 'Rejected',     color: 'bg-red-100 text-red-700' },
+  WITHDRAWN:    { label: 'Withdrawn',    color: 'bg-amber-100 text-amber-700' },
 };
+const VISA_CONFIG: Record<string, string> = {
+  CITIZEN:'bg-emerald-50 text-emerald-700', PR:'bg-green-50 text-green-700',
+  VALID:'bg-blue-50 text-blue-700', EXPIRING_SOON:'bg-amber-50 text-amber-700', EXPIRED:'bg-red-50 text-red-700',
+};
+const SCORE_COLOR = (s: number) => s >= 75 ? 'text-green-600' : s >= 55 ? 'text-amber-600' : 'text-red-500';
+const SCORE_BAR   = (s: number) => s >= 75 ? 'bg-green-500' : s >= 55 ? 'bg-amber-400' : 'bg-red-400';
+const SCORE_LABEL = (s: number) => s >= 75 ? 'Hire-Ready' : s >= 55 ? 'KIV' : 'Reject';
+const noticePeriodLabel = (d?: number | null) => { if (d == null) return null; if (d===0) return 'Immediate'; if (d<=14) return d+'d'; if (d<=60) return Math.round(d/7)+'w'; return Math.round(d/30)+'mo'; };
+const EXP_FILTERS = ['Any','0-2 yrs','2-5 yrs','5-10 yrs','10+ yrs'];
+const SOURCE_OPTS = ['MANUAL','LINKEDIN','REFERRAL','JOB_BOARD','CSV','APOLLO','SCRAPER','EMAIL'];
 
-const ROLE_FILTERS = [
-  'Engineer / Developer',
-  'Manager / Director',
-  'Analyst',
-  'Sales / BD',
-  'HR / Recruitment',
-  'Marketing',
-  'Finance / Accounting',
-  'Operations',
-  'Designer / Creative',
-  'Executive / C-Suite',
-  'Other',
-];
+function StarRating({ rating }: { rating: number }) {
+  if (!rating) return <span className="text-gray-300 text-xs">-</span>;
+  return <div className="flex gap-0.5">{[1,2,3,4,5].map(i=><Star key={i} className={"w-3 h-3 "+(i<=rating?'fill-amber-400 text-amber-400':'text-gray-200')} />)}</div>;
+}
+function SkeletonRow() {
+  return <tr className="animate-pulse">{Array.from({length:17}).map((_,i)=><td key={i} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded w-20" /></td>)}</tr>;
+}
 
 export default function CandidatesPage() {
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [page, setPage] = useState(1);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [search, setSearch]           = useState('');
+  const [stageFilter, setStage]       = useState('');
+  const [visaFilter, setVisa]         = useState('');
+  const [expFilter, setExp]           = useState('');
+  const [sourceFilter, setSource]     = useState('');
+  const [skillsFilter, setSkills]     = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage]               = useState(1);
+  const [copiedId, setCopiedId]       = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkScreen, setShowBulkScreen] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['candidates', search, roleFilter, page],
-    queryFn: () => candidatesApi.list({ search: search || undefined, page, limit: 20 }),
+    queryKey: ['candidates', search, stageFilter, visaFilter, expFilter, sourceFilter, skillsFilter, page],
+    queryFn: () => candidatesApi.list({ search: search || undefined, skills: skillsFilter || undefined, page, limit: 25 }),
     placeholderData: (prev: any) => prev,
   });
 
-  // Client-side role filter applied on top of search results
-  const ROLE_KEYWORDS: Record<string, string[]> = {
-    'Engineer / Developer': ['engineer', 'developer', 'dev', 'software', 'programmer', 'architect', 'devops', 'sre', 'fullstack', 'frontend', 'backend'],
-    'Manager / Director': ['manager', 'director', 'head of', 'lead', 'supervisor'],
-    'Analyst': ['analyst', 'analysis', 'data', 'business analyst', 'research'],
-    'Sales / BD': ['sales', 'business development', 'account executive', 'bd', 'revenue'],
-    'HR / Recruitment': ['hr', 'human resource', 'recruiter', 'talent', 'people'],
-    'Marketing': ['marketing', 'growth', 'seo', 'content', 'brand', 'digital'],
-    'Finance / Accounting': ['finance', 'accounting', 'accountant', 'cfo', 'financial', 'audit'],
-    'Operations': ['operations', 'ops', 'logistics', 'supply chain', 'procurement'],
-    'Designer / Creative': ['designer', 'design', 'ux', 'ui', 'creative', 'graphic'],
-    'Executive / C-Suite': ['ceo', 'cto', 'coo', 'cmo', 'chief', 'president', 'founder', 'executive'],
-    'Other': [],
-  };
-
-  const filteredData = (() => {
-    if (!roleFilter || !data?.data) return data?.data ?? [];
-    const keywords = ROLE_KEYWORDS[roleFilter] ?? [];
-    if (keywords.length === 0) {
-      // "Other" = doesn't match any known keyword set
-      const allKeywords = Object.values(ROLE_KEYWORDS).flat();
-      return data.data.filter((c: any) => {
-        const title = (c.currentTitle ?? '').toLowerCase();
-        return !allKeywords.some(k => title.includes(k));
-      });
-    }
-    return data.data.filter((c: any) => {
-      const title = (c.currentTitle ?? '').toLowerCase();
-      return keywords.some(k => title.includes(k));
+  const candidates: any[] = (() => {
+    const list = data?.data ?? [];
+    return list.filter((c: any) => {
+      if (stageFilter && c.stage !== stageFilter) return false;
+      if (visaFilter && c.visaStatus !== visaFilter) return false;
+      if (sourceFilter && (c.sourceName ?? c.source ?? '').toUpperCase() !== sourceFilter) return false;
+      if (expFilter && expFilter !== 'Any') {
+        const y = c.yearsExperience ?? 0;
+        if (expFilter === '0-2 yrs' && y > 2) return false;
+        if (expFilter === '2-5 yrs' && (y < 2 || y > 5)) return false;
+        if (expFilter === '5-10 yrs' && (y < 5 || y > 10)) return false;
+        if (expFilter === '10+ yrs' && y < 10) return false;
+      }
+      return true;
     });
   })();
 
+  const activeCount = [stageFilter, visaFilter, (expFilter && expFilter !== 'Any') ? expFilter : '', sourceFilter, skillsFilter].filter(Boolean).length;
+  const clearFilters = useCallback(() => { setStage(''); setVisa(''); setExp(''); setSource(''); setSkills(''); setPage(1); }, []);
+  const allSelected = candidates.length > 0 && candidates.every((c:any) => selectedIds.has(c.id));
+  const toggleAll = () => allSelected ? setSelectedIds(new Set()) : setSelectedIds(new Set(candidates.map((c:any)=>c.id)));
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {showBulkScreen && (
-        <BulkScreenModal
-          selectedCandidates={filteredData.filter((c: any) => selectedIds.has(c.id))}
-          onClose={() => setShowBulkScreen(false)}
-        />
+        <BulkScreenModal selectedCandidates={candidates.filter((c:any)=>selectedIds.has(c.id))} onClose={()=>{setShowBulkScreen(false);setSelectedIds(new Set());}} />
       )}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Candidates</h1>
-          <p className="text-gray-500 mt-1">{data?.meta?.total ?? 0} total candidates</p>
+          <p className="text-gray-500 text-sm mt-0.5">{data?.meta?.total ?? '-'} total {activeCount > 0 && '· '+activeCount+' filter'+(activeCount>1?'s':'')+' active'}</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedIds.size > 0 && (
-            <button
-              onClick={() => setShowBulkScreen(true)}
-              className="btn-primary flex items-center gap-2"
-            >
-              <Zap className="w-4 h-4" />
-              Screen {selectedIds.size} against JD
-            </button>
-          )}
-          <Link href="/candidates/new" className="btn-secondary">
-            <UserPlus className="w-4 h-4" /> Add Candidate
-          </Link>
+          {selectedIds.size > 0 && <button onClick={()=>setShowBulkScreen(true)} className="btn-primary flex items-center gap-2 text-sm"><Zap className="w-4 h-4" /> Screen {selectedIds.size} vs JD</button>}
+          <Link href="/candidates/new" className="btn-secondary flex items-center gap-1.5 text-sm"><UserPlus className="w-4 h-4" /> Add Candidate</Link>
         </div>
       </div>
-
-      {/* Search + Role Filter */}
       <div className="card p-4 space-y-3">
         <div className="flex gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
+          <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              className="input pl-9"
-              placeholder="Search by name, email, title, company..."
-              value={search}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }}
-            />
+            <input className="input pl-9 text-sm" placeholder="Name, email, title, company..." value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} />
           </div>
-          <select
-            className="input w-52"
-            value={roleFilter}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => { setRoleFilter(e.target.value); setPage(1); }}
-          >
-            <option value="">All roles / titles</option>
-            {ROLE_FILTERS.map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
-          {(search || roleFilter) && (
-            <button
-              onClick={() => { setSearch(''); setRoleFilter(''); setPage(1); }}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-3 py-2 border border-gray-200 rounded-lg"
-            >
-              <X className="w-3 h-3" /> Clear
-            </button>
-          )}
+          <button onClick={()=>setShowFilters(f=>!f)} className={"flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border transition-colors "+(showFilters||activeCount>0?'border-brand-400 text-brand-600 bg-brand-50':'border-gray-200 text-gray-600 hover:border-brand-300')}>
+            <Filter className="w-4 h-4" /> Filters {activeCount>0&&<span className="ml-1 bg-brand-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{activeCount}</span>}
+            <ChevronDown className={"w-3.5 h-3.5 transition-transform "+(showFilters?'rotate-180':'')} />
+          </button>
+          {(search||activeCount>0)&&<button onClick={()=>{setSearch('');clearFilters();}} className="flex items-center gap-1 text-xs text-gray-500 px-3 py-2 border border-gray-200 rounded-lg"><X className="w-3 h-3" /> Clear</button>}
         </div>
-        {roleFilter && (
-          <div className="flex flex-wrap gap-2">
-            {ROLE_FILTERS.map(r => (
-              <button
-                key={r}
-                onClick={() => setRoleFilter(roleFilter === r ? '' : r)}
-                className={`text-xs px-3 py-1 rounded-full border transition-colors ${roleFilter === r ? 'bg-brand-600 text-white border-brand-600' : 'border-gray-200 text-gray-600 hover:border-brand-400 hover:text-brand-600'}`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-        )}
-        {!roleFilter && (
-          <div className="flex flex-wrap gap-2">
-            {ROLE_FILTERS.map(r => (
-              <button
-                key={r}
-                onClick={() => setRoleFilter(r)}
-                className="text-xs px-3 py-1 rounded-full border border-gray-200 text-gray-600 hover:border-brand-400 hover:text-brand-600 transition-colors"
-              >
-                {r}
-              </button>
-            ))}
+        {showFilters && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-2 border-t border-gray-100">
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Stage</label>
+              <select className="input text-sm w-full" value={stageFilter} onChange={e=>{setStage(e.target.value);setPage(1);}}>
+                <option value="">All stages</option>{Object.entries(STAGE_CONFIG).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Visa</label>
+              <select className="input text-sm w-full" value={visaFilter} onChange={e=>{setVisa(e.target.value);setPage(1);}}>
+                <option value="">All</option>{Object.keys(VISA_CONFIG).map(k=><option key={k} value={k}>{k.replace('_',' ')}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Experience</label>
+              <select className="input text-sm w-full" value={expFilter} onChange={e=>{setExp(e.target.value);setPage(1);}}>
+                {EXP_FILTERS.map(f=><option key={f} value={f}>{f}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Source</label>
+              <select className="input text-sm w-full" value={sourceFilter} onChange={e=>{setSource(e.target.value);setPage(1);}}>
+                <option value="">All</option>{SOURCE_OPTS.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Skills</label>
+              <input className="input text-sm w-full" placeholder="React, Python..." value={skillsFilter} onChange={e=>{setSkills(e.target.value);setPage(1);}} /></div>
           </div>
         )}
       </div>
-
-      {/* Table */}
-      <div className="card p-0 overflow-hidden">
-        {roleFilter && (
-          <div className="px-6 py-2 bg-brand-50 border-b border-brand-100 text-xs text-brand-700 font-medium">
-            Showing {filteredData.length} candidate{filteredData.length !== 1 ? 's' : ''} matching &ldquo;{roleFilter}&rdquo;
-          </div>
-        )}
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="px-4 py-3 w-8">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                  checked={filteredData.length > 0 && filteredData.every((c: any) => selectedIds.has(c.id))}
-                  onChange={e => {
-                    if (e.target.checked) setSelectedIds(new Set(filteredData.map((c: any) => c.id)));
-                    else setSelectedIds(new Set());
-                  }}
-                  title="Select all"
-                />
-              </th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">ID</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[160px]">Name</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[160px]">Title / Company</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Phone</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Location</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Nationality / Visa</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Applications</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap" title="Match Score — candidate fit for a specific role (0–100). Analyzes skill match, experience relevance, role alignment, and stability.">Match Score</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date Added</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {isLoading ? (
-              <tr><td colSpan={11} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
-            ) : filteredData.length === 0 ? (
-              <tr><td colSpan={11} className="px-6 py-12 text-center text-gray-400">No candidates found{roleFilter ? ` for "${roleFilter}"` : ''}</td></tr>
-            ) : (
-              filteredData.map((c: any) => (
-                <tr key={c.id} className={`hover:bg-brand-50/40 transition-colors group ${selectedIds.has(c.id) ? 'bg-brand-50/60' : ''}`}>
-                  {/* Checkbox */}
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                      checked={selectedIds.has(c.id)}
-                      onChange={e => {
-                        const next = new Set(selectedIds);
-                        e.target.checked ? next.add(c.id) : next.delete(c.id);
-                        setSelectedIds(next);
-                      }}
-                    />
-                  </td>
-                  {/* ID */}
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(c.businessId ?? c.id); setCopiedId(c.id); setTimeout(() => setCopiedId(null), 2000); }}
-                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand-600 font-mono group/btn"
-                      title="Click to copy ID"
-                    >
-                      <span className="whitespace-nowrap">{c.businessId ?? c.id.slice(0, 12) + '…'}</span>
-                      {copiedId === c.id
-                        ? <Check className="w-3 h-3 text-green-500 shrink-0" />
-                        : <Copy className="w-3 h-3 opacity-0 group-hover/btn:opacity-100 transition-opacity shrink-0" />}
-                    </button>
-                  </td>
-                  {/* Name */}
-                  <td className="px-4 py-3">
-                    <Link href={`/candidates/${c.id}`} className="font-medium text-gray-900 hover:text-brand-600 transition-colors">
-                      {c.firstName} {c.lastName}
-                    </Link>
-                    <div className="text-xs text-gray-400 mt-0.5">{c.email ?? '—'}</div>
-                  </td>
-                  {/* Title / Company */}
-                  <td className="px-4 py-3 text-gray-600">
-                    <div className="text-sm">{c.currentTitle ?? <span className="text-gray-300">—</span>}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">{c.currentCompany ?? '—'}</div>
-                  </td>
-                  {/* Phone */}
-                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                    {c.phone ?? <span className="text-gray-300">—</span>}
-                  </td>
-                  {/* Location */}
-                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                    {c.location ?? <span className="text-gray-300">—</span>}
-                  </td>
-                  {/* Nationality / Visa */}
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-gray-600">{c.nationality ?? <span className="text-gray-300">—</span>}</div>
-                    {c.visaStatus && (
-                      <span className={`inline-flex items-center mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                        c.visaStatus === 'CITIZEN' || c.visaStatus === 'PR'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : c.visaStatus === 'VALID'
-                          ? 'bg-blue-50 text-blue-700'
-                          : c.visaStatus === 'EXPIRING_SOON'
-                          ? 'bg-amber-50 text-amber-700'
-                          : 'bg-red-50 text-red-700'
-                      }`}>
-                        {c.visaType ? `${c.visaType} · ` : ''}{c.visaStatus.replace('_', ' ')}
-                      </span>
-                    )}
-                  </td>
-                  {/* Source */}
-                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                    {c.sourceName ?? <span className="text-gray-300">—</span>}
-                  </td>
-                  {/* Applications */}
-                  <td className="px-4 py-3">
-                    <Link href={`/candidates/${c.id}`} className="flex items-center gap-1 text-sm text-gray-600 hover:text-brand-600">
-                      <Briefcase className="w-3.5 h-3.5" />
-                      {c._count?.applications ?? 0}
-                    </Link>
-                  </td>
-                  {/* Match Score */}
-                  <td className="px-4 py-3">
-                    {c.scorecards?.[0]?.score != null ? (
-                      <div>
-                        <span className={`font-semibold text-sm ${c.scorecards[0].score >= 75 ? 'text-green-600' : c.scorecards[0].score >= 55 ? 'text-amber-600' : 'text-red-500'}`}>
-                          {c.scorecards[0].score}<span className="text-xs font-normal text-gray-400">/100</span>
-                        </span>
-                        <div className="text-[10px] text-gray-400 mt-0.5">
-                          {c.scorecards[0].score >= 75 ? 'Shortlisted' : c.scorecards[0].score >= 55 ? 'KIV' : 'Rejected'}
-                        </div>
-                      </div>
-                    ) : <span className="text-gray-300">—</span>}
-                  </td>
-                  {/* Date Added */}
-                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap"
-                    title={c.createdAt ? formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }) : ''}>
-                    {c.createdAt ? format(new Date(c.createdAt), 'dd MMM yyyy') : '—'}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-brand-50 border border-brand-200 rounded-xl text-sm">
+          <span className="font-medium text-brand-700">{selectedIds.size} selected</span>
+          <button onClick={()=>setShowBulkScreen(true)} className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-brand-600 text-white text-xs font-medium"><Zap className="w-3.5 h-3.5" /> Bulk Screen</button>
+          <button onClick={()=>setSelectedIds(new Set())} className="ml-auto text-brand-500"><X className="w-4 h-4" /></button>
         </div>
-
-        {/* Pagination */}
-        {data?.meta && data.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50">
-            <span className="text-xs text-gray-500">
-              Showing {((page - 1) * 20) + 1}–{Math.min(page * 20, data.meta.total)} of {data.meta.total} candidates
-            </span>
+      )}
+      <div className="card p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[1300px]">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 w-10"><input type="checkbox" className="rounded border-gray-300 text-brand-600" checked={allSelected} onChange={toggleAll} /></th>
+                {['Candidate ID','Name','Title / Company','Stage','Exp','Skills','Location','Visa','Notice','Source','Apps','AI Score','Rating','Last Activity','Created',''].map((h,i)=>(
+                  <th key={i} className={"text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"+(h===''?' w-10':'')}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {isLoading ? Array.from({length:8}).map((_,i)=><SkeletonRow key={i}/>) :
+               candidates.length === 0 ? (
+                <tr><td colSpan={17} className="px-6 py-16 text-center">
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <Briefcase className="w-10 h-10 opacity-30" />
+                    <p className="font-medium">No candidates found</p>
+                    <p className="text-xs">Adjust search or filters</p>
+                  </div>
+                </td></tr>
+               ) : candidates.map((c:any) => {
+                const score = c.overallScore ?? c.scorecards?.[0]?.score ?? null;
+                return (
+                  <tr key={c.id} className={"hover:bg-brand-50/40 transition-colors group "+(selectedIds.has(c.id)?'bg-brand-50/60':'')}>
+                    <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300 text-brand-600" checked={selectedIds.has(c.id)} onChange={e=>{const n=new Set(selectedIds);e.target.checked?n.add(c.id):n.delete(c.id);setSelectedIds(n);}} /></td>
+                    <td className="px-4 py-3">
+                      <button onClick={()=>{navigator.clipboard.writeText(c.businessId??c.id);setCopiedId(c.id);setTimeout(()=>setCopiedId(null),2000);}} className="flex items-center gap-1 text-xs text-gray-400 hover:text-brand-600 font-mono" title="Copy ID">
+                        <span>{(c.businessId??c.id).slice(0,12)}</span>
+                        {copiedId===c.id?<Check className="w-3 h-3 text-green-500 shrink-0"/>:<Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 shrink-0"/>}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link href={'/candidates/'+c.id} className="font-semibold text-gray-900 hover:text-brand-600">{c.firstName} {c.lastName}</Link>
+                      <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[180px]">{c.email??'-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-800 font-medium truncate max-w-[180px]">{c.currentTitle??<span className="text-gray-300">-</span>}</div>
+                      <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[180px]">{c.currentCompany??'-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.stage?<span className={"inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full "+(STAGE_CONFIG[c.stage]?.color??'bg-gray-100 text-gray-600')}>{STAGE_CONFIG[c.stage]?.label??c.stage}</span>:<span className="text-gray-300 text-xs">-</span>}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{c.yearsExperience!=null?c.yearsExperience+'yr':<span className="text-gray-300 text-xs">-</span>}</td>
+                    <td className="px-4 py-3">
+                      {c.skills?.length>0?(
+                        <div className="flex flex-wrap gap-1">
+                          {c.skills.slice(0,3).map((s:string)=><span key={s} className="text-[10px] px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 whitespace-nowrap">{s}</span>)}
+                          {c.skills.length>3&&<span className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500">+{c.skills.length-3}</span>}
+                        </div>
+                      ):<span className="text-gray-300 text-xs">-</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{c.location?<span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-300"/>{c.location}</span>:<span className="text-gray-300">-</span>}</td>
+                    <td className="px-4 py-3">{c.visaStatus?<span className={"inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded "+(VISA_CONFIG[c.visaStatus]??'bg-gray-100 text-gray-600')}>{c.visaType??c.visaStatus.replace('_',' ')}</span>:<span className="text-gray-300 text-xs">-</span>}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{noticePeriodLabel(c.noticePeriodDays)??<span className="text-gray-300">-</span>}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{c.sourceName??c.source??<span className="text-gray-300">-</span>}</td>
+                    <td className="px-4 py-3">
+                      <Link href={'/candidates/'+c.id} className="flex items-center gap-1 text-sm text-gray-600 hover:text-brand-600">
+                        <Briefcase className="w-3.5 h-3.5 text-gray-300"/><span className="font-medium">{c._count?.applications??0}</span>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">{score!=null?(
+                      <div>
+                        <div className="flex items-center gap-1"><span className={"font-bold text-sm "+SCORE_COLOR(score)}>{score}</span><span className="text-[10px] text-gray-400">/100</span></div>
+                        <div className="w-16 h-1 bg-gray-100 rounded-full mt-0.5 overflow-hidden"><div className={"h-full rounded-full "+SCORE_BAR(score)} style={{width:score+'%'}} /></div>
+                        <div className={"text-[10px] mt-0.5 "+SCORE_COLOR(score)}>{SCORE_LABEL(score)}</div>
+                      </div>
+                    ):<span className="text-gray-300 text-xs">-</span>}</td>
+                    <td className="px-4 py-3"><StarRating rating={c.starRating??0} /></td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap" title={c.lastActivityAt?format(new Date(c.lastActivityAt),'dd MMM yyyy')+' · '+formatDistanceToNow(new Date(c.lastActivityAt),{addSuffix:true}):''}>
+                      {c.lastActivityAt?format(new Date(c.lastActivityAt),'dd MMM yyyy'):'-'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap" title={c.createdAt?format(new Date(c.createdAt),'dd MMM yyyy')+' · '+formatDistanceToNow(new Date(c.createdAt),{addSuffix:true}):''}>
+                      {c.createdAt?format(new Date(c.createdAt),'dd MMM yyyy'):'-'}
+                    </td>
+                    <td className="px-4 py-3"><Link href={'/candidates/'+c.id} className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 text-xs text-brand-600 font-medium">View <ChevronRight className="w-3 h-3"/></Link></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {data?.meta && data.meta.total > 25 && (
+          <div className="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 bg-gray-50">
+            <span className="text-xs text-gray-500">Showing {((page-1)*25)+1}-{Math.min(page*25,data.meta.total)} of {data.meta.total}</span>
             <div className="flex items-center gap-2">
-              <button
-                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-brand-400 hover:text-brand-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
-              >
-                <ChevronLeft className="w-3.5 h-3.5" /> Previous
-              </button>
-              <span className="text-xs text-gray-500 px-1">Page {page} of {data.meta.totalPages}</span>
-              <button
-                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-brand-400 hover:text-brand-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                disabled={page >= data.meta.totalPages}
-                onClick={() => setPage(p => p + 1)}
-              >
-                Next <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              <button className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed" disabled={page===1} onClick={()=>setPage(p=>p-1)}><ChevronLeft className="w-3.5 h-3.5"/> Previous</button>
+              <span className="text-xs text-gray-600 font-medium px-2">{page} / {Math.ceil(data.meta.total/25)}</span>
+              <button className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40 disabled:cursor-not-allowed" disabled={page>=Math.ceil(data.meta.total/25)} onClick={()=>setPage(p=>p+1)}>Next <ChevronRight className="w-3.5 h-3.5"/></button>
             </div>
           </div>
         )}

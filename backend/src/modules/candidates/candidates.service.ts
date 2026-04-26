@@ -107,10 +107,13 @@ export class CandidatesService {
     return candidate;
   }
 
-  async findAll(tenantId: string, filters: { search?: string; skills?: string; stage?: string; page?: number; limit?: number }) {
-    const { search, skills, page = 1, limit = 20 } = filters;
+  async findAll(tenantId: string, filters: { search?: string; skills?: string; stage?: string; visaStatus?: string; sourceName?: string; page?: number; limit?: number }) {
+    const { search, skills, stage, visaStatus, sourceName, page = 1, limit = 25 } = filters;
 
     const where: any = { tenantId, isActive: true, isDuplicate: false };
+    if (stage) { where.stage = stage; }
+    if (visaStatus) { where.visaStatus = visaStatus; }
+    if (sourceName) { where.sourceName = sourceName; }
     if (search) {
       where.OR = [
         { businessId: { equals: search, mode: 'insensitive' } },
@@ -131,10 +134,10 @@ export class CandidatesService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ lastActivityAt: 'desc' }, { createdAt: 'desc' }],
         include: {
           _count: { select: { applications: true, resumes: true } },
-          scorecards: { orderBy: { createdAt: 'desc' }, take: 1, select: { score: true } },
+          scorecards: { orderBy: { createdAt: 'desc' }, take: 1, select: { score: true, recommendation: true } },
         },
       }),
       this.prisma.candidate.count({ where }),

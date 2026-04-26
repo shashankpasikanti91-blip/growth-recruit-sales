@@ -29,16 +29,22 @@ export class CandidatesController {
   @ApiOperation({ summary: 'List candidates with filters' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'skills', required: false, description: 'Comma-separated skill names' })
+  @ApiQuery({ name: 'stage', required: false })
+  @ApiQuery({ name: 'visaStatus', required: false })
+  @ApiQuery({ name: 'sourceName', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   findAll(
     @CurrentUser('tenantId') tenantId: string,
     @Query('search') search?: string,
     @Query('skills') skills?: string,
+    @Query('stage') stage?: string,
+    @Query('visaStatus') visaStatus?: string,
+    @Query('sourceName') sourceName?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query('limit', new DefaultValuePipe(25), ParseIntPipe) limit?: number,
   ) {
-    return this.candidatesService.findAll(tenantId, { search, skills, page, limit });
+    return this.candidatesService.findAll(tenantId, { search, skills, stage, visaStatus, sourceName, page, limit });
   }
 
   @Get(':id')

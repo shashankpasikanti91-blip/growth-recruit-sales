@@ -358,11 +358,24 @@ model Candidate {
   skills          String[]  @default([])
   languages       String[]  @default([])
   summary         String?
-  nationality     String? // e.g. "Indian", "Malaysian", "Australian"
-  visaType        String? // current visa type e.g. "EP", "H-1B", "482"
-  visaExpiry      DateTime? // visa expiry date
-  visaStatus      String? // VALID, EXPIRING_SOON, EXPIRED, CITIZEN, PR
-  isForeigner     Boolean   @default(false) // true if candidate is a foreigner in work country
+  nationality        String? // e.g. "Indian", "Malaysian", "Australian"
+  visaType           String? // current visa type e.g. "EP", "H-1B", "482"
+  visaExpiry         DateTime? // visa expiry date
+  visaStatus         String? // VALID, EXPIRING_SOON, EXPIRED, CITIZEN, PR
+  isForeigner        Boolean   @default(false) // true if candidate is a foreigner in work country
+  // ── Enterprise ATS fields ──────────────────────────────────────
+  stage              String    @default("SOURCED") // CandidateStage as string for flexibility
+  overallScore       Float?    // cached latest AI score 0-100
+  expectedSalary     Float?    // candidate expected salary
+  currentSalary      Float?    // candidate current salary
+  salaryCurrency     String?   @default("MYR")
+  noticePeriodDays   Int?      // notice period in days
+  lastActivityAt     DateTime? // last touch point
+  assignedToId       String?   // FK to users.id (recruiter owner)
+  starRating         Int       @default(0) // 0-5 star rating by recruiter
+  source             String?   // explicit source override
+  recruiterNotes     String?   // internal notes
+  // ───────────────────────────────────────────────────────────────
   sourceImportId  String?
   sourceName      String?
   rawData         Json?
@@ -427,12 +440,19 @@ model Job {
   skills         String[]  @default([])
   experience     String?
   educationLevel String?
-  parsedData     Json?
-  isActive       Boolean   @default(true)
-  closingDate    DateTime?
-  deletedAt      DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  parsedData        Json?
+  isActive          Boolean   @default(true)
+  closingDate       DateTime?
+  deletedAt         DateTime?
+  // ── Enterprise fields ──────────────────────────────────────────
+  hiringManagerId   String?   // FK to users.id
+  priority          String    @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  openings          Int       @default(1)
+  postedByUserId    String?   // FK to users.id
+  lastActivityAt    DateTime?
+  // ───────────────────────────────────────────────────────────────
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   applications Application[]
@@ -456,10 +476,16 @@ model Application {
   matchScore     Float?
   scoreDetails   Json?
   recruiterNotes String?
-  isShortlisted  Boolean        @default(false)
-  isInterview    Boolean        @default(false)
-  appliedAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  isShortlisted   Boolean        @default(false)
+  isInterview     Boolean        @default(false)
+  appliedAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  // ── Enterprise fields ──────────────────────────────────────────
+  interviewDate   DateTime?
+  offerStatus     String?   // PENDING, EXTENDED, ACCEPTED, DECLINED
+  rejectionReason String?
+  lastActivityAt  DateTime?
+  // ───────────────────────────────────────────────────────────────
 
   candidate  Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   job        Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -497,6 +523,16 @@ model Lead {
   rawData        Json?
   isDuplicate    Boolean   @default(false)
   isActive       Boolean   @default(true)
+  // ── Enterprise CRM fields ──────────────────────────────────────
+  priority          String    @default("NORMAL") // LOW, NORMAL, HIGH
+  lastContactedAt   DateTime?
+  nextFollowUpAt    DateTime?
+  assignedToId      String?   // FK to users.id
+  companyName       String?   // denormalized for quick display
+  industry          String?
+  countryCode       String?
+  lastActivityAt    DateTime?
+  // ───────────────────────────────────────────────────────────────
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

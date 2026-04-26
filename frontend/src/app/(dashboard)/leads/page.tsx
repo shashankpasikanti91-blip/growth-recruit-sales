@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leadsApi } from '@/lib/api-client';
 import Link from 'next/link';
-import { Users, Search, Zap, Info, ChevronLeft, ChevronRight, Copy, Check, X } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { Users, Search, Zap, Info, ChevronLeft, ChevronRight, Copy, Check, X, AlertCircle, Clock } from 'lucide-react';
+import { format, formatDistanceToNow, isAfter } from 'date-fns';
 import toast from 'react-hot-toast';
 
 const STAGE_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
@@ -59,6 +59,12 @@ const ROLE_KEYWORDS: Record<string, string[]> = {
   'Finance':        ['finance', 'cfo', 'accountant', 'financial', 'audit'],
 };
 const ROLE_OPTIONS = Object.keys(ROLE_KEYWORDS);
+
+const PRIORITY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  HIGH:   { bg: 'bg-red-50',    text: 'text-red-700',    border: 'border-red-200' },
+  MEDIUM: { bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200' },
+  LOW:    { bg: 'bg-gray-100',  text: 'text-gray-600',   border: 'border-gray-200' },
+};
 
 export default function LeadsPage() {
   const [search, setSearch]           = useState('');
@@ -244,6 +250,7 @@ export default function LeadsPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[160px]">Name</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[170px]">Title / Company</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Phone</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Priority</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Pipeline Stage</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   <span className="flex items-center gap-1" title="ICP Fit Score — 0–100 match against your Ideal Customer Profile">
@@ -251,6 +258,8 @@ export default function LeadsPage() {
                   </span>
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Last Contacted</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Next Follow-up</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date Added</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Last Updated</th>
                 <th className="px-4 py-3 w-20"></th>
@@ -258,10 +267,10 @@ export default function LeadsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <tr><td colSpan={10} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={12} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
               ) : allLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-16 text-center">
+                  <td colSpan={12} className="px-6 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-14 h-14 rounded-2xl bg-purple-50 flex items-center justify-center">
                         <Users className="w-7 h-7 text-purple-400" />
@@ -311,10 +320,23 @@ export default function LeadsPage() {
                       <td className="px-4 py-3">
                         <div className="text-sm text-gray-700">{lead.title ?? <span className="text-gray-300">—</span>}</div>
                         <div className="text-xs text-gray-400 mt-0.5">{lead.company?.name ?? lead.companyName ?? '—'}</div>
+                        {lead.industry && <div className="text-xs text-purple-500 mt-0.5 capitalize">{lead.industry.replace(/_/g, ' ')}</div>}
                       </td>
                       {/* Phone */}
                       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                         {lead.phone ?? <span className="text-gray-300">—</span>}
+                      </td>
+                      {/* Priority */}
+                      <td className="px-4 py-3">
+                        {lead.priority ? (() => {
+                          const pc = PRIORITY_COLORS[lead.priority] ?? PRIORITY_COLORS['MEDIUM'];
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${pc.bg} ${pc.text} ${pc.border}`}>
+                              {lead.priority === 'HIGH' && <AlertCircle className="w-3 h-3" />}
+                              {lead.priority.charAt(0) + lead.priority.slice(1).toLowerCase()}
+                            </span>
+                          );
+                        })() : <span className="text-gray-300 text-xs">—</span>}
                       </td>
                       {/* Pipeline Stage — inline select */}
                       <td className="px-4 py-3">
@@ -356,6 +378,27 @@ export default function LeadsPage() {
                       {/* Source */}
                       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap capitalize">
                         {(lead.sourceName ?? '—').replace(/_/g, ' ')}
+                      </td>
+                      {/* Last Contacted */}
+                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                        {lead.lastContactedAt ? (
+                          <span title={format(new Date(lead.lastContactedAt), 'dd MMM yyyy HH:mm')}>
+                            {formatDistanceToNow(new Date(lead.lastContactedAt), { addSuffix: true })}
+                          </span>
+                        ) : <span className="text-gray-300">—</span>}
+                      </td>
+                      {/* Next Follow-up */}
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        {lead.nextFollowUpAt ? (() => {
+                          const isOverdue = isAfter(new Date(), new Date(lead.nextFollowUpAt));
+                          return (
+                            <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}
+                              title={format(new Date(lead.nextFollowUpAt), 'dd MMM yyyy HH:mm')}>
+                              {isOverdue && <Clock className="w-3.5 h-3.5 text-red-500" />}
+                              {format(new Date(lead.nextFollowUpAt), 'dd MMM yyyy')}
+                            </span>
+                          );
+                        })() : <span className="text-gray-300">—</span>}
                       </td>
                       {/* Date Added */}
                       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap"
