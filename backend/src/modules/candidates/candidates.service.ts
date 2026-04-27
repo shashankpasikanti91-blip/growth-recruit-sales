@@ -140,7 +140,7 @@ export class CandidatesService {
         orderBy: [{ lastActivityAt: 'desc' }, { createdAt: 'desc' }],
         include: {
           _count: { select: { applications: true, resumes: true } },
-          scorecards: { orderBy: { createdAt: 'desc' }, take: 1, select: { score: true, recommendation: true } },
+          scorecards: { orderBy: { createdAt: 'desc' }, take: 1, select: { score: true, explanation: true } },
         },
       }),
       this.prisma.candidate.count({ where }),
