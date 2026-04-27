@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe, DefaultValuePipe, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiConsumes } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { CandidatesService, CreateCandidateDto } from './candidates.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -77,5 +78,37 @@ export class CandidatesController {
     @Body('note') note: string,
   ) {
     return this.candidatesService.addNote(user.tenantId, id, user.id, note);
+  }
+
+  @Post(':id/resume')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER)
+  @ApiOperation({ summary: 'Upload resume for a candidate' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('resume', { limits: { fileSize: 10_485_760 } }))
+  uploadResume(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new Error('No resume file provided');
+    return this.candidatesService.uploadResume(tenantId, id, file);
+  }
+
+  @Get(':id/resumes')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.VIEWER)
+  @ApiOperation({ summary: 'List all resumes for a candidate' })
+  listResumes(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
+    return this.candidatesService.listResumes(tenantId, id);
+  }
+
+  @Get(':id/resumes/:resumeId/download-url')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.VIEWER)
+  @ApiOperation({ summary: 'Get signed download URL for a resume' })
+  getResumeDownloadUrl(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @Param('resumeId') resumeId: string,
+  ) {
+    return this.candidatesService.getResumeDownloadUrl(tenantId, id, resumeId);
   }
 }

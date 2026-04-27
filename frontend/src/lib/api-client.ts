@@ -9,6 +9,16 @@ export const candidatesApi = {
   update: (id: string, data: any) => api.put(`/candidates/${id}`, data).then(r => r.data),
   archive: (id: string) => api.patch(`/candidates/${id}/archive`).then(r => r.data),
   addNote: (id: string, note: string) => api.post(`/candidates/${id}/notes`, { note }).then(r => r.data),
+  uploadResume: (id: string, file: File) => {
+    const form = new FormData();
+    form.append('resume', file);
+    return api.post(`/candidates/${id}/resume`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data);
+  },
+  listResumes: (id: string) => api.get(`/candidates/${id}/resumes`).then(r => r.data),
+  getResumeDownloadUrl: (id: string, resumeId: string) =>
+    api.get(`/candidates/${id}/resumes/${resumeId}/download-url`).then(r => r.data),
 };
 
 // ─── Jobs ────────────────────────────────────────────────────────────────────

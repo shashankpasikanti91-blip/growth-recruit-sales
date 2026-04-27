@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BusinessIdService } from '../billing/business-id.service';
 import { UsageService } from '../billing/usage.service';
 import { DuplicateDetectionService } from '../search/duplicate-detection.service';
+import { StorageService } from '../documents/storage.service';
 import { IsString, IsOptional, IsArray, IsNumber, IsBoolean } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -36,6 +38,7 @@ export class CandidatesService {
     private readonly businessIdService: BusinessIdService,
     private readonly usageService: UsageService,
     private readonly duplicateDetection: DuplicateDetectionService,
+    private readonly storageService: StorageService,
   ) {}
 
   async create(tenantId: string, dto: CreateCandidateDto, allowDuplicate = false) {
@@ -184,6 +187,108 @@ export class CandidatesService {
     const businessId = await this.businessIdService.generate('activity');
     return this.prisma.activity.create({
       data: { tenantId, businessId, userId, candidateId, type: 'NOTE', title: 'Recruiter Note', description: note },
+    });
+  }
+
+  async uploadResume(tenantId: string, candidateId: string, file: Express.Multer.File) {
+    // Validate candidate belongs to tenant
+    await this.findOne(tenantId, candidateId);
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+    ];
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Only PDF, Word documents, and text files are supported');
+    }
+    const maxSize = 10 * 1024 * 1024; // 10 MB
+    if (file.size > maxSize) {
+      throw new BadRequestException('File too large. Maximum 10 MB allowed');
+    }
+
+    // Duplicate detection by hash within this candidate
+    const hash = createHash('sha256').update(file.buffer).digest('hex');
+    const existing = await this.prisma.resume.findFirst({
+      where: { candidateId, parsedData: { path: ['hash'], equals: hash } },
+    });
+    if (existing) {
+      return { duplicate: true, resume: existing };
+    }
+
+    // Extract raw text for AI screening
+    let rawText: string | undefined;
+    try {
+      if (file.mimetype === 'application/pdf') {
+        const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
+        const parsed = await pdfParse(file.buffer);
+        rawText = parsed.text;
+      } else if (file.mimetype === 'text/plain') {
+        rawText = file.buffer.toString('utf-8');
+      }
+    } catch { /* ignore parse errors */ }
+
+    // Upload to object storage
+    const businessId = await this.businessIdService.generate('resume');
+    const safeFilename = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storageKey = `${tenantId}/candidates/${candidateId}/resumes/${businessId}/${safeFilename}`;
+    await this.storageService.upload(storageKey, file.buffer, file.mimetype);
+
+    // Mark previous primary resumes as not primary
+    await this.prisma.resume.updateMany({
+      where: { candidateId, isPrimary: true },
+      data: { isPrimary: false },
+    });
+
+    // Create Resume record
+    const resume = await this.prisma.resume.create({
+      data: {
+        businessId,
+        candidateId,
+        fileName: file.originalname,
+        fileUrl: storageKey,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        rawText: rawText ?? null,
+        isPrimary: true,
+        parsedData: { hash } as any,
+      },
+    });
+
+    return { duplicate: false, resume };
+  }
+
+  async getResumeDownloadUrl(tenantId: string, candidateId: string, resumeId: string) {
+    // Validate candidate belongs to tenant
+    await this.findOne(tenantId, candidateId);
+
+    const resume = await this.prisma.resume.findFirst({
+      where: { id: resumeId, candidateId },
+    });
+    if (!resume) throw new NotFoundException('Resume not found');
+
+    const url = await this.storageService.getSignedDownloadUrl(resume.fileUrl);
+    return { url, fileName: resume.fileName, mimeType: resume.mimeType };
+  }
+
+  async listResumes(tenantId: string, candidateId: string) {
+    await this.findOne(tenantId, candidateId);
+    return this.prisma.resume.findMany({
+      where: { candidateId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        businessId: true,
+        fileName: true,
+        fileSize: true,
+        mimeType: true,
+        isPrimary: true,
+        createdAt: true,
+        rawText: false, // exclude large text from listing
+        parsedData: false,
+        fileUrl: false, // don't expose storage key directly
+      },
     });
   }
 }

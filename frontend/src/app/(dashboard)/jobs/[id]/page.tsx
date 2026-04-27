@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jobsApi, applicationsApi, candidatesApi } from '@/lib/api-client';
 import { useParams, useRouter } from 'next/navigation';
@@ -7,10 +7,20 @@ import Link from 'next/link';
 import {
   Briefcase, MapPin, DollarSign, Users, Clock, ArrowLeft,
   Zap, ChevronRight, CheckCircle, XCircle, ChevronDown, ChevronUp, X,
+  UserPlus, Calendar, Search, Loader2,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { BusinessIdBadge } from '@/components/layout/business-id-badge';
+
+function dualDate(d: string | Date | null | undefined): { abs: string; rel: string } {
+  if (!d) return { abs: '—', rel: '' };
+  const dt = new Date(d);
+  return {
+    abs: format(dt, 'dd MMM yyyy, HH:mm'),
+    rel: formatDistanceToNow(dt, { addSuffix: true }),
+  };
+}
 
 const STAGE_COLORS: Record<string, string> = {
   SOURCED: 'bg-gray-100 text-gray-700',
@@ -29,6 +39,8 @@ export default function JobDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [showFullJD, setShowFullJD] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkSearch, setLinkSearch] = useState('');
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', id],
@@ -67,6 +79,23 @@ export default function JobDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['job', id] });
     },
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to close job'),
+  });
+
+  const linkCandidateMutation = useMutation({
+    mutationFn: (candidateId: string) => applicationsApi.create({ candidateId, jobId: id, stage: 'SOURCED' }),
+    onSuccess: () => {
+      toast.success('Candidate linked to job');
+      queryClient.invalidateQueries({ queryKey: ['applications', 'job', id] });
+      setShowLinkModal(false);
+      setLinkSearch('');
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to link candidate'),
+  });
+
+  const { data: candidateSearchData } = useQuery({
+    queryKey: ['candidates', 'search', linkSearch],
+    queryFn: () => candidatesApi.list({ search: linkSearch, limit: 10 }),
+    enabled: showLinkModal && linkSearch.length >= 2,
   });
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Loading...</div>;
@@ -115,7 +144,7 @@ export default function JobDetailPage() {
                   )}
                   <span className="flex items-center gap-1 text-gray-400">
                     <Clock className="w-3.5 h-3.5" />
-                    {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
+                    {dualDate(job.createdAt).abs} · {dualDate(job.createdAt).rel}
                   </span>
                 </div>
               </div>
@@ -157,9 +186,24 @@ export default function JobDetailPage() {
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Users className="w-4 h-4 text-gray-400" /> Candidates ({applications.length})
               </h2>
+              <button
+                onClick={() => setShowLinkModal(true)}
+                className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"
+              >
+                <UserPlus className="w-3.5 h-3.5" /> Link Candidate
+              </button>
             </div>
             {applications.length === 0 ? (
-              <div className="py-12 text-center text-gray-400 text-sm">No applications yet</div>
+              <div className="py-12 text-center">
+                <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-gray-400 text-sm mb-3">No candidates linked to this job yet</p>
+                <button
+                  onClick={() => setShowLinkModal(true)}
+                  className="btn-primary text-sm inline-flex items-center gap-2"
+                >
+                  <UserPlus className="w-4 h-4" /> Link First Candidate
+                </button>
+              </div>
             ) : (
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
@@ -200,8 +244,13 @@ export default function JobDetailPage() {
                           </span>
                         ) : <span className="text-gray-300">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-gray-400 text-xs">
-                        {app.appliedAt ? formatDistanceToNow(new Date(app.appliedAt), { addSuffix: true }) : '—'}
+                      <td className="px-4 py-3 text-xs">
+                        {app.appliedAt ? (
+                          <div>
+                            <div className="text-gray-700">{dualDate(app.appliedAt).abs}</div>
+                            <div className="text-gray-400">{dualDate(app.appliedAt).rel}</div>
+                          </div>
+                        ) : <span className="text-gray-300">—</span>}
                       </td>
                       <td className="px-4 py-3">
                         <button
@@ -354,16 +403,95 @@ export default function JobDetailPage() {
                 { label: 'Employment', value: job.employmentType },
                 { label: 'Experience', value: job.experienceMin != null ? `${job.experienceMin}+ yrs` : null },
                 { label: 'Headcount', value: job.headcount },
-              ].filter(d => d.value).map(({ label, value }) => (
+                { label: 'Openings', value: job.openings ?? 1 },
+              ].filter(d => d.value != null && d.value !== '').map(({ label, value }) => (
                 <div key={label} className="flex justify-between">
                   <dt className="text-gray-500">{label}</dt>
                   <dd className="font-medium text-gray-900">{value}</dd>
                 </div>
               ))}
+              <div className="border-t border-gray-100 pt-2 space-y-2">
+                <div className="flex justify-between">
+                  <dt className="text-gray-500 flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Created</dt>
+                  <dd className="text-right">
+                    <div className="font-medium text-gray-900 text-xs">{dualDate(job.createdAt).abs}</div>
+                    <div className="text-gray-400 text-xs">{dualDate(job.createdAt).rel}</div>
+                  </dd>
+                </div>
+                {job.updatedAt && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Updated</dt>
+                    <dd className="text-right">
+                      <div className="font-medium text-gray-900 text-xs">{dualDate(job.updatedAt).abs}</div>
+                      <div className="text-gray-400 text-xs">{dualDate(job.updatedAt).rel}</div>
+                    </dd>
+                  </div>
+                )}
+              </div>
             </dl>
           </div>
         </div>
       </div>
+
+      {/* Link Candidate Modal */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-16">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-brand-600" /> Link Candidate to Job
+              </h2>
+              <button onClick={() => { setShowLinkModal(false); setLinkSearch(''); }} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4">
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or title…"
+                  value={linkSearch}
+                  onChange={e => setLinkSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  autoFocus
+                />
+              </div>
+              {linkSearch.length < 2 ? (
+                <p className="text-center text-gray-400 text-sm py-6">Type at least 2 characters to search candidates</p>
+              ) : (candidateSearchData?.data ?? []).length === 0 ? (
+                <p className="text-center text-gray-400 text-sm py-6">No candidates found</p>
+              ) : (
+                <ul className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                  {(candidateSearchData?.data ?? []).map((c: any) => {
+                    const alreadyLinked = applications.some((a: any) => a.candidateId === c.id);
+                    return (
+                      <li key={c.id} className="flex items-center justify-between py-3 px-1 hover:bg-gray-50 rounded-lg">
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">{c.firstName} {c.lastName}</div>
+                          {c.currentTitle && <div className="text-xs text-gray-400">{c.currentTitle}</div>}
+                          {c.email && <div className="text-xs text-gray-400">{c.email}</div>}
+                        </div>
+                        {alreadyLinked ? (
+                          <span className="text-xs text-green-600 font-medium px-2 py-1 bg-green-50 rounded-full">Linked</span>
+                        ) : (
+                          <button
+                            onClick={() => linkCandidateMutation.mutate(c.id)}
+                            disabled={linkCandidateMutation.isPending}
+                            className="btn-primary text-xs py-1 px-3"
+                          >
+                            {linkCandidateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Link'}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

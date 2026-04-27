@@ -1,16 +1,17 @@
 'use client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { candidatesApi, applicationsApi, outreachApi, aiApi, jobsApi } from '@/lib/api-client';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Zap, Mail, FileText, ChevronRight, AlertTriangle, X, Copy,
   Plus, Calendar, Briefcase, CheckCircle, Loader2, ChevronDown, ChevronUp,
   Star, Clock, MessageSquare, Activity, MapPin, Phone, Globe,
+  Upload, Download, FileCheck, File, Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format, formatDistanceToNow } from 'date-fns';
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { BusinessIdBadge } from '@/components/layout/business-id-badge';
 
 const STAGE_COLORS: Record<string, string> = {
@@ -41,10 +42,11 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-type TabId = 'overview' | 'applications' | 'screening' | 'notes' | 'timeline';
+type TabId = 'overview' | 'resume' | 'applications' | 'screening' | 'notes' | 'timeline';
 
 const TABS: { id: TabId; label: string; icon: any }[] = [
   { id: 'overview',     label: 'Overview',     icon: FileText },
+  { id: 'resume',       label: 'Resume',       icon: FileCheck },
   { id: 'applications', label: 'Applications', icon: Briefcase },
   { id: 'screening',    label: 'AI Screening', icon: Zap },
   { id: 'notes',        label: 'Notes',        icon: MessageSquare },
@@ -53,11 +55,14 @@ const TABS: { id: TabId; label: string; icon: any }[] = [
 
 export default function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activeTab, setActiveTab] = useState<TabId>((searchParams.get('tab') as TabId) || 'overview');
   const [outreachModal, setOutreachModal] = useState(false);
   const [outreachResult, setOutreachResult] = useState<any>(null);
   const [linkJobModal, setLinkJobModal] = useState(false);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
+  const [resumeUploading, setResumeUploading] = useState(false);
   const [linkJobId, setLinkJobId] = useState('');
   const [screenJdModal, setScreenJdModal] = useState(false);
   const [screenJdText, setScreenJdText] = useState('');
@@ -72,6 +77,42 @@ export default function CandidateDetailPage() {
     queryKey: ['candidate', id],
     queryFn: () => candidatesApi.get(id),
   });
+
+  const { data: resumes, refetch: refetchResumes } = useQuery({
+    queryKey: ['candidate-resumes', id],
+    queryFn: () => candidatesApi.listResumes(id),
+    enabled: !!id,
+  });
+
+  const handleResumeUpload = useCallback(async (file: File) => {
+    setResumeUploading(true);
+    try {
+      const result = await candidatesApi.uploadResume(id, file);
+      if (result.duplicate) {
+        toast('Resume already exists — using existing version', { icon: 'ℹ️' });
+      } else {
+        toast.success('Resume uploaded successfully');
+      }
+      refetchResumes();
+      queryClient.invalidateQueries({ queryKey: ['candidate', id] });
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? 'Upload failed');
+    } finally {
+      setResumeUploading(false);
+    }
+  }, [id, queryClient, refetchResumes]);
+
+  const handleResumeFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleResumeUpload(file);
+    e.target.value = '';
+  };
+
+  const handleResumeDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleResumeUpload(file);
+  };
 
   const { data: jobsData } = useQuery({
     queryKey: ['jobs-for-link'],
@@ -428,7 +469,8 @@ export default function CandidateDetailPage() {
           {TABS.map(tab => {
             const Icon = tab.icon;
             const count =
-              tab.id === 'applications' ? (candidate.applications?.length ?? 0)
+              tab.id === 'resume' ? ((resumes as any[])?.length ?? candidate.resumes?.length ?? 0)
+              : tab.id === 'applications' ? (candidate.applications?.length ?? 0)
               : tab.id === 'screening' ? (candidate.scorecards?.length ?? 0)
               : tab.id === 'notes' ? notes.length
               : tab.id === 'timeline' ? allActivities.length
@@ -588,6 +630,85 @@ export default function CandidateDetailPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Tab: Resume */}
+      {activeTab === 'resume' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Resumes ({(resumes as any[])?.length ?? 0})</h2>
+            <div>
+              <input
+                ref={resumeInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.txt"
+                className="hidden"
+                onChange={handleResumeFileSelect}
+              />
+              <button
+                onClick={() => resumeInputRef.current?.click()}
+                disabled={resumeUploading}
+                className="btn-primary text-sm flex items-center gap-1.5"
+              >
+                {resumeUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {resumeUploading ? 'Uploading…' : 'Upload Resume'}
+              </button>
+            </div>
+          </div>
+
+          {/* Drop zone */}
+          <div
+            onDragOver={e => e.preventDefault()}
+            onDrop={handleResumeDrop}
+            className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-brand-300 transition-colors"
+          >
+            <File className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+            <p className="text-sm text-gray-500">Drag &amp; drop a resume here, or click <button onClick={() => resumeInputRef.current?.click()} className="text-brand-600 font-medium">browse</button></p>
+            <p className="text-xs text-gray-400 mt-1">PDF, Word, or TXT · Max 10 MB</p>
+          </div>
+
+          {/* Resume list */}
+          {!((resumes as any[])?.length) ? (
+            <div className="card text-center py-10">
+              <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm text-gray-400">No resumes uploaded yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(resumes as any[]).map((r: any) => (
+                <div key={r.id} className="card flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 text-sm truncate">{r.fileName}</div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
+                      {r.isPrimary && <span className="text-emerald-600 font-semibold">Primary</span>}
+                      {r.fileSize && <span>{(r.fileSize / 1024).toFixed(0)} KB</span>}
+                      {r.mimeType && <span>{r.mimeType.split('/')[1]?.toUpperCase()}</span>}
+                      <span>{format(new Date(r.createdAt), 'dd MMM yyyy, HH:mm')}</span>
+                      <span className="text-gray-300">·</span>
+                      <span>{formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { url } = await candidatesApi.getResumeDownloadUrl(id, r.id);
+                        window.open(url, '_blank');
+                      } catch {
+                        toast.error('Failed to get download link');
+                      }
+                    }}
+                    className="btn-secondary text-xs flex items-center gap-1.5 flex-shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -770,7 +891,7 @@ export default function CandidateDetailPage() {
                 <div key={n.id} className="card">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">{n.description ?? n.title}</p>
                   <p className="text-xs text-gray-400 mt-2">
-                    {n.createdAt ? formatDistanceToNow(new Date(n.createdAt), { addSuffix: true }) : ''}
+                    {n.createdAt ? `${format(new Date(n.createdAt), 'dd MMM yyyy, HH:mm')} · ${formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}` : ''}
                   </p>
                 </div>
               ))}
@@ -797,8 +918,8 @@ export default function CandidateDetailPage() {
                     <div className="text-sm font-medium text-gray-800">{a.title ?? a.type}</div>
                     {a.description && <p className="text-xs text-gray-500 mt-0.5">{a.description}</p>}
                   </div>
-                  <div className="text-xs text-gray-400 shrink-0">
-                    {a.createdAt ? format(new Date(a.createdAt), 'dd MMM yyyy') : ''}
+                  <div className="text-xs text-gray-400 shrink-0 text-right">
+                    {a.createdAt ? (<><div>{format(new Date(a.createdAt), 'dd MMM yyyy, HH:mm')}</div><div className="text-[10px]">{formatDistanceToNow(new Date(a.createdAt), {addSuffix: true})}</div></>) : ''}
                   </div>
                 </div>
               ))}
