@@ -197,29 +197,89 @@ export default function LeadDetailPage() {
 
       {/* ── AI ICP Score ── */}
       {scoreValue != null && (
-        <div className="card bg-purple-50 border-purple-100">
-          <h2 className="font-semibold text-purple-900 mb-3 text-sm">AI ICP Score</h2>
-          <div className="flex items-start gap-4">
-            <div className={`text-4xl font-extrabold ${scoreValue >= 70 ? 'text-green-600' : scoreValue >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
+        <div className="card bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-100">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-purple-900 text-sm">AI ICP Score</h2>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+              scoreValue >= 70 ? 'bg-green-100 text-green-700' :
+              scoreValue >= 50 ? 'bg-amber-100 text-amber-700' :
+              'bg-red-100 text-red-600'
+            }`}>
+              {scoreValue >= 70 ? 'Strong Fit' : scoreValue >= 50 ? 'Moderate Fit' : 'Low Priority'}
+            </span>
+          </div>
+
+          {/* Score bar */}
+          <div className="flex items-center gap-4 mb-5">
+            <div className={`text-5xl font-extrabold tabular-nums ${
+              scoreValue >= 70 ? 'text-green-600' : scoreValue >= 50 ? 'text-amber-600' : 'text-red-500'
+            }`}>
               {scoreValue}<span className="text-lg text-gray-400 font-normal">/100</span>
             </div>
-            {scoreBreakdown && typeof scoreBreakdown === 'object' && (
-              <div className="flex-1 grid grid-cols-2 gap-2 text-xs text-purple-800">
-                {Object.entries(scoreBreakdown).map(([k, v]) => (
-                  <div key={k} className="flex justify-between">
-                    <span className="capitalize">{k.replace(/_/g, ' ')}</span>
-                    <span className="font-semibold">{String(v)}</span>
-                  </div>
-                ))}
+            <div className="flex-1">
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    scoreValue >= 70 ? 'bg-green-500' : scoreValue >= 50 ? 'bg-amber-400' : 'bg-red-400'
+                  }`}
+                  style={{ width: `${scoreValue}%` }}
+                />
               </div>
-            )}
+              <p className="text-xs text-gray-400 mt-1">
+                {scoreValue >= 70 ? 'High fit — prioritize outreach' :
+                 scoreValue >= 50 ? 'Medium fit — qualify further before investing' :
+                 'Low fit — deprioritize or nurture long-term'}
+              </p>
+            </div>
           </div>
-          {scoreExplanation && (
-            <p className="text-sm text-purple-700 mt-3 leading-relaxed">{scoreExplanation}</p>
+
+          {/* Breakdown bars */}
+          {scoreBreakdown && typeof scoreBreakdown === 'object' && Object.keys(scoreBreakdown).length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-purple-900 mb-3">Score Breakdown</p>
+              <div className="space-y-2.5">
+                {[
+                  { key: 'industry_fit', label: 'Industry Fit' },
+                  { key: 'title_relevance', label: 'Title Relevance' },
+                  { key: 'size_fit', label: 'Company Size Fit' },
+                  { key: 'intent_signals', label: 'Engagement / Intent' },
+                ].map(({ key, label }) => {
+                  const val = (scoreBreakdown as Record<string, unknown>)[key];
+                  if (val == null) return null;
+                  const numVal = Number(val);
+                  return (
+                    <div key={key} className="flex items-center gap-3">
+                      <span className="text-xs text-purple-700 w-36 shrink-0">{label}</span>
+                      <div className="flex-1 bg-purple-100 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            numVal >= 70 ? 'bg-green-500' : numVal >= 50 ? 'bg-amber-400' : 'bg-red-400'
+                          }`}
+                          style={{ width: `${numVal}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-bold w-8 text-right tabular-nums ${
+                        numVal >= 70 ? 'text-green-600' : numVal >= 50 ? 'text-amber-600' : 'text-red-500'
+                      }`}>{numVal}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
+
+          {/* Why this score */}
+          {scoreExplanation && (
+            <div className="bg-white/60 rounded-lg px-3 py-2.5 mb-3">
+              <p className="text-xs font-semibold text-purple-900 mb-1">Why this score</p>
+              <p className="text-sm text-purple-800 leading-relaxed">{scoreExplanation}</p>
+            </div>
+          )}
+
+          {/* Recommended action */}
           {scoreNextAction && (
-            <div className="mt-3 bg-white/60 rounded-lg px-3 py-2">
-              <p className="text-xs font-semibold text-purple-800 mb-0.5">Suggested Next Action</p>
+            <div className="bg-purple-100/60 rounded-lg px-3 py-2.5 border border-purple-200/50">
+              <p className="text-xs font-semibold text-purple-900 mb-0.5">Recommended Next Action</p>
               <p className="text-sm text-purple-700">{scoreNextAction}</p>
             </div>
           )}

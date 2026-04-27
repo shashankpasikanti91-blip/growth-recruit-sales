@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Phone, Building2, Mail, Search, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { TableWrapper } from '@/components/ui/table-wrapper';
 
 type Contact = {
   id: string;
@@ -85,6 +86,7 @@ export default function ContactsPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <TableWrapper>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -128,6 +130,7 @@ export default function ContactsPage() {
               ))}
             </tbody>
           </table>
+          </TableWrapper>
 
           {/* Pagination */}
           {meta.totalPages > 1 && (

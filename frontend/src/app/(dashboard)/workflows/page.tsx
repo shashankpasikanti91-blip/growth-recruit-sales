@@ -360,7 +360,12 @@ export default function WorkflowsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                        {run.createdAt ? formatDistanceToNow(new Date(run.createdAt), { addSuffix: true }) : '—'}
+                        {run.createdAt ? (
+                          <div>
+                            <div>{format(new Date(run.createdAt), 'dd MMM yyyy, HH:mm')}</div>
+                            <div className="text-[10px] text-gray-400">{formatDistanceToNow(new Date(run.createdAt), { addSuffix: true })}</div>
+                          </div>
+                        ) : '—'}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">
                         {duration(run.startedAt, run.completedAt)}

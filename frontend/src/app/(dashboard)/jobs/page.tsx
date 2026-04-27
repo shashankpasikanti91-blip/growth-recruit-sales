@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { jobsApi } from '@/lib/api-client';
 import Link from 'next/link';
 import { Briefcase, Search, Copy, Check, ChevronLeft, ChevronRight, Calendar, LayoutGrid, List, MapPin, Users } from 'lucide-react';
+import { TableWrapper } from '@/components/ui/table-wrapper';
 import { format, formatDistanceToNow } from 'date-fns';
 
 export default function JobsPage() {
@@ -105,7 +106,7 @@ export default function JobsPage() {
 
       {/* Table */}
       {viewMode === 'table' && <div className="card p-0 overflow-hidden">
-        <div className="overflow-x-scroll" style={{scrollbarGutter:'stable'}}>
+        <TableWrapper>
           <table className="w-full text-sm min-w-[1100px]">
             <thead style={{position:'sticky',top:0,zIndex:10}}>
               <tr className="bg-gray-50 border-b border-gray-100">
@@ -244,7 +245,7 @@ export default function JobsPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </TableWrapper>
 
         {/* Pagination */}
         {data?.meta && data.meta.totalPages > 1 && (

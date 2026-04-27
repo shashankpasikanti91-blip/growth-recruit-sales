@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { UserPlus, Search, Briefcase, Copy, Check, X, ChevronLeft, ChevronRight, Zap, Star, Filter, MapPin, ChevronDown } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { BulkScreenModal } from '@/components/candidates/BulkScreenModal';
+import { TableWrapper } from '@/components/ui/table-wrapper';
 
 const STAGE_CONFIG: Record<string, { label: string; color: string }> = {
   SOURCED:      { label: 'Sourced',      color: 'bg-gray-100 text-gray-700' },
@@ -130,7 +131,7 @@ export default function CandidatesPage() {
         </div>
       )}
       <div className="card p-0 overflow-hidden">
-        <div className="overflow-x-scroll" style={{scrollbarGutter:'stable'}}>
+        <TableWrapper>
           <table className="w-full text-sm min-w-[1400px]">
             <thead className="bg-gray-50 border-b border-gray-200" style={{position:'sticky',top:0,zIndex:20}}>
               <tr>
@@ -234,7 +235,7 @@ export default function CandidatesPage() {
               })}
             </tbody>
           </table>
-        </div>
+        </TableWrapper>
         {data?.meta && data.meta.total > 25 && (
           <div className="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 bg-gray-50">
             <span className="text-xs text-gray-500">Showing {((page-1)*25)+1}-{Math.min(page*25,data.meta.total)} of {data.meta.total}</span>

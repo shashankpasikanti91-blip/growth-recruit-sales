@@ -381,11 +381,12 @@ export default function LeadsPage() {
                         {(lead.sourceName ?? '—').replace(/_/g, ' ')}
                       </td>
                       {/* Last Contacted */}
-                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                         {lead.lastContactedAt ? (
-                          <span title={format(new Date(lead.lastContactedAt), 'dd MMM yyyy HH:mm')}>
-                            {formatDistanceToNow(new Date(lead.lastContactedAt), { addSuffix: true })}
-                          </span>
+                          <div>
+                            <div>{format(new Date(lead.lastContactedAt), 'dd MMM yyyy, HH:mm')}</div>
+                            <div className="text-[10px] text-gray-400">{formatDistanceToNow(new Date(lead.lastContactedAt), { addSuffix: true })}</div>
+                          </div>
                         ) : <span className="text-gray-300">—</span>}
                       </td>
                       {/* Next Follow-up */}
@@ -402,14 +403,22 @@ export default function LeadsPage() {
                         })() : <span className="text-gray-300">—</span>}
                       </td>
                       {/* Date Added */}
-                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap"
-                        title={lead.createdAt ? formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true }) : ''}>
-                        {lead.createdAt ? format(new Date(lead.createdAt), 'dd MMM yyyy') : '—'}
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                        {lead.createdAt ? (
+                          <div>
+                            <div>{format(new Date(lead.createdAt), 'dd MMM yyyy')}</div>
+                            <div className="text-[10px] text-gray-400">{formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true })}</div>
+                          </div>
+                        ) : '—'}
                       </td>
                       {/* Last Updated */}
-                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap"
-                        title={lead.updatedAt ? format(new Date(lead.updatedAt), 'dd MMM yyyy HH:mm') : ''}>
-                        {lead.updatedAt ? formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true }) : '—'}
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                        {lead.updatedAt ? (
+                          <div>
+                            <div>{format(new Date(lead.updatedAt), 'dd MMM yyyy, HH:mm')}</div>
+                            <div className="text-[10px] text-gray-400">{formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true })}</div>
+                          </div>
+                        ) : '—'}
                       </td>
                       {/* Actions */}
                       <td className="px-4 py-3">

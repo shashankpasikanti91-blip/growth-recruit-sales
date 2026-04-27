@@ -328,8 +328,13 @@ export default function ImportsPage() {
                       <span className="ml-1 text-red-500">{imp.failedRows}✗</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
-                    {imp.createdAt ? formatDistanceToNow(new Date(imp.createdAt), { addSuffix: true }) : '—'}
+                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                    {imp.createdAt ? (
+                      <div>
+                        <div>{format(new Date(imp.createdAt), 'dd MMM yyyy, HH:mm')}</div>
+                        <div className="text-[10px] text-gray-400">{formatDistanceToNow(new Date(imp.createdAt), { addSuffix: true })}</div>
+      </div>
+                    ) : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">

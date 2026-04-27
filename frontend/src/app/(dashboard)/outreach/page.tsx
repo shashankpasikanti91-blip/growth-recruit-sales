@@ -465,7 +465,12 @@ export default function OutreachPage() {
                     <td className="px-4 py-3 text-gray-900 max-w-xs truncate text-xs">{msg.subject ?? msg.body?.slice(0, 60) ?? '—'}</td>
                     <td className="px-4 py-3"><span className={STATUS_BADGE[msg.status] ?? 'badge-gray'}>{msg.status}</span></td>
                     <td className="px-4 py-3 text-gray-500 text-xs">Step {msg.stepNumber}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      <div>
+                        <div>{format(new Date(msg.createdAt), 'dd MMM yyyy, HH:mm')}</div>
+                        <div className="text-[10px] text-gray-400">{formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}</div>
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       {msg.channel === 'EMAIL' && msg.status === 'DRAFT' && (
                         <button
