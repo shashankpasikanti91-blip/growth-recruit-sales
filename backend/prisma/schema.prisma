@@ -109,6 +109,64 @@ enum WorkflowType {
   INTEGRATION_ALERT
 }
 
+// ─── Sales CRM Enums ──────────────────────────────────────────────────────────
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+  ON_HOLD
+  CLOSED
+}
+
+enum OpportunityStage {
+  DISCOVERY
+  PROPOSAL
+  NEGOTIATION
+  VERBAL_COMMIT
+  CLOSED_WON
+  CLOSED_LOST
+  ON_HOLD
+}
+
+enum FollowUpType {
+  CALL
+  EMAIL
+  MEETING
+  LINKEDIN
+  WHATSAPP
+  OTHER
+}
+
+enum FollowUpStatus {
+  PENDING
+  DONE
+  CANCELLED
+  RESCHEDULED
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  REVISED
+}
+
+enum SubmissionStage {
+  DRAFT
+  INTERNAL_REVIEW
+  SUBMITTED_TO_SALES
+  SUBMITTED_TO_CLIENT
+  CLIENT_REVIEW
+  INTERVIEW
+  OFFER
+  JOINED
+  REJECTED
+  WITHDRAWN
+}
+
 enum IntegrationStatus {
   ACTIVE
   INACTIVE
@@ -194,6 +252,11 @@ model Tenant {
   leads            Lead[]
   companies        Company[]
   contacts         Contact[]
+  clients          Client[]
+  opportunities    Opportunity[]
+  followUps        FollowUp[]
+  proposals        Proposal[]
+  submissions      Submission[]
   icpProfiles      IcpProfile[]
   scorecards       Scorecard[]
   activities       Activity[]
@@ -394,6 +457,7 @@ model Candidate {
   outreachMessages OutreachMessage[]
   aiAnalyses       AiAnalysisResult[]
   documents        Document[]
+  submissions      Submission[]
 
   @@index([tenantId])
   @@index([tenantId, email])
@@ -444,7 +508,18 @@ model Job {
   isActive          Boolean   @default(true)
   closingDate       DateTime?
   deletedAt         DateTime?
-  // ── Enterprise fields ──────────────────────────────────────────
+  // ── Enterprise JD fields ──────────────────────────────────────
+  clientId              String?   // FK to clients.id (JD belongs to client)
+  billingRate           Float?    // client billing rate
+  candidatePayRate      Float?    // candidate pay rate
+  targetSubmissionDate  DateTime?
+  jobReceivedDate       DateTime?
+  visaRequirement       String?   // e.g. "Any", "EP", "No Restriction"
+  booleanSearch         String?   // boolean search string
+  secondarySkills       String[]  @default([])
+  recruitmentManagerId  String?   // FK to users.id
+  assignedRecruiterId   String?   // FK to users.id (primary recruiter)
+  // ── Standard enterprise fields ─────────────────────────────────
   hiringManagerId   String?   // FK to users.id
   priority          String    @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
   openings          Int       @default(1)
@@ -455,9 +530,11 @@ model Job {
   updatedAt         DateTime  @updatedAt
 
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client       Client?       @relation(fields: [clientId], references: [id])
   applications Application[]
   scorecards   Scorecard[]
   documents    Document[]
+  submissions  Submission[]
 
   @@index([tenantId])
   @@index([businessId])
@@ -532,6 +609,9 @@ model Lead {
   industry          String?
   countryCode       String?
   lastActivityAt    DateTime?
+  // Client conversion
+  convertedToClientId String? // FK to clients.id once converted
+  convertedAt         DateTime?
   // ───────────────────────────────────────────────────────────────
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -541,11 +621,15 @@ model Lead {
   contact          Contact?           @relation(fields: [contactId], references: [id])
   sourceImport     SourceImport?      @relation(fields: [sourceImportId], references: [id])
   icp              IcpProfile?        @relation(fields: [icpId], references: [id])
+  convertedToClient Client?           @relation(fields: [convertedToClientId], references: [id])
   activities       Activity[]
   outreachMessages OutreachMessage[]
   aiAnalyses       AiAnalysisResult[]
   scorecards       Scorecard[]
   documents        Document[]
+  followUps        FollowUp[]
+  opportunities    Opportunity[]
+  proposals        Proposal[]
 
   @@index([tenantId])
   @@index([tenantId, email])
@@ -573,6 +657,9 @@ model Company {
   techStack          String[]  @default([])
   painPoints         String[]  @default([])
   enrichedData       Json?
+  // Client conversion
+  isClient           Boolean   @default(false)
+  clientId           String?   // FK to clients.id once converted
   deletedAt          DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -582,6 +669,7 @@ model Company {
   leads      Lead[]
   activities Activity[]
   documents  Document[]
+  client     Client?    @relation(fields: [clientId], references: [id])
 
   @@index([tenantId])
   @@index([businessId])
@@ -612,6 +700,7 @@ model Contact {
   leads            Lead[]
   outreachMessages OutreachMessage[]
   documents        Document[]
+  followUps        FollowUp[]
 
   @@index([tenantId])
   @@index([businessId])
@@ -790,18 +879,24 @@ model Activity {
   leadId        String?
   companyId     String?
   applicationId String?
+  clientId      String?
+  submissionId  String?
+  opportunityId String?
   type          ActivityType
   title         String
   description   String?
   metadata      Json?
   createdAt     DateTime     @default(now())
 
-  tenant      Tenant       @relation(fields: [tenantId], references: [id])
-  user        User?        @relation(fields: [userId], references: [id])
-  candidate   Candidate?   @relation(fields: [candidateId], references: [id])
-  lead        Lead?        @relation(fields: [leadId], references: [id])
-  company     Company?     @relation(fields: [companyId], references: [id])
-  application Application? @relation(fields: [applicationId], references: [id])
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  user        User?         @relation(fields: [userId], references: [id])
+  candidate   Candidate?    @relation(fields: [candidateId], references: [id])
+  lead        Lead?         @relation(fields: [leadId], references: [id])
+  company     Company?      @relation(fields: [companyId], references: [id])
+  application Application?  @relation(fields: [applicationId], references: [id])
+  client      Client?       @relation(fields: [clientId], references: [id])
+  submission  Submission?   @relation(fields: [submissionId], references: [id])
+  opportunity Opportunity?  @relation(fields: [opportunityId], references: [id])
 
   @@index([tenantId])
   @@index([candidateId])
@@ -1104,6 +1199,7 @@ model Document {
   companyId       String?
   contactId       String?
   jobId           String?
+  clientId        String?
 
   // Audit
   uploadedByUserId String
@@ -1117,6 +1213,7 @@ model Document {
   company     Company?   @relation(fields: [companyId], references: [id])
   contact     Contact?   @relation(fields: [contactId], references: [id])
   job         Job?       @relation(fields: [jobId], references: [id])
+  client      Client?    @relation(fields: [clientId], references: [id])
 
   @@index([tenantId])
   @@index([businessId])
@@ -1127,6 +1224,7 @@ model Document {
   @@index([companyId])
   @@index([contactId])
   @@index([jobId])
+  @@index([clientId])
   @@map("documents")
 }
 
@@ -1198,4 +1296,192 @@ model TenantOnboarding {
 
   @@index([tenantId])
   @@map("tenant_onboardings")
+}
+
+// ─── Client Master ────────────────────────────────────────────────────────────
+// When a lead/company is qualified + converted to real business, they become a Client.
+
+model Client {
+  id                    String       @id @default(uuid())
+  businessId            String       @unique
+  tenantId              String
+  name                  String
+  industry              String?
+  website               String?
+  countryCode           String?
+  state                 String?
+  city                  String?
+  address               String?
+  // Contacts
+  primaryContactId      String?      // FK to contacts.id
+  billingContactName    String?
+  billingContactEmail   String?
+  // Ownership
+  status                ClientStatus @default(ACTIVE)
+  salesOwnerId          String?      // FK to users.id
+  recruitmentManagerId  String?      // FK to users.id
+  // Commercial
+  paymentTerms          String?      // e.g. "Net 30", "Net 45"
+  submissionFormat      String?      // e.g. "Word", "PDF"
+  requiredDocuments     String[]     @default([])
+  notes                 String?
+  // Source reference
+  sourceLeadId          String?      // lead that converted to this client
+  sourceCompanyId       String?      // company that converted
+  deletedAt             DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  tenant               Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobs                 Job[]
+  submissions          Submission[]
+  opportunities        Opportunity[]
+  followUps            FollowUp[]
+  proposals            Proposal[]
+  activities           Activity[]
+  sourceLeads          Lead[]
+  sourceCompanies      Company[]
+  documents            Document[]
+
+  @@index([tenantId])
+  @@index([businessId])
+  @@index([status])
+  @@map("clients")
+}
+
+// ─── Opportunity ──────────────────────────────────────────────────────────────
+
+model Opportunity {
+  id            String           @id @default(uuid())
+  businessId    String           @unique
+  tenantId      String
+  clientId      String?
+  leadId        String?
+  title         String
+  value         Float?
+  currency      String           @default("USD")
+  stage         OpportunityStage @default(DISCOVERY)
+  probability   Int              @default(0)   // 0–100 %
+  expectedCloseDate DateTime?
+  ownerId       String?          // FK to users.id
+  notes         String?
+  lostReason    String?
+  closedAt      DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client     Client?     @relation(fields: [clientId], references: [id])
+  lead       Lead?       @relation(fields: [leadId], references: [id])
+  activities Activity[]
+
+  @@index([tenantId])
+  @@index([businessId])
+  @@index([clientId])
+  @@map("opportunities")
+}
+
+// ─── Follow Up ────────────────────────────────────────────────────────────────
+
+model FollowUp {
+  id          String         @id @default(uuid())
+  businessId  String         @unique
+  tenantId    String
+  clientId    String?
+  leadId      String?
+  contactId   String?
+  type        FollowUpType   @default(CALL)
+  status      FollowUpStatus @default(PENDING)
+  subject     String?
+  notes       String?
+  scheduledAt DateTime
+  completedAt DateTime?
+  ownerId     String?        // FK to users.id
+  reminderAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client  Client?  @relation(fields: [clientId], references: [id])
+  lead    Lead?    @relation(fields: [leadId], references: [id])
+  contact Contact? @relation(fields: [contactId], references: [id])
+
+  @@index([tenantId])
+  @@index([businessId])
+  @@index([clientId])
+  @@index([scheduledAt])
+  @@map("follow_ups")
+}
+
+// ─── Proposal ─────────────────────────────────────────────────────────────────
+
+model Proposal {
+  id          String         @id @default(uuid())
+  businessId  String         @unique
+  tenantId    String
+  clientId    String?
+  leadId      String?
+  title       String
+  status      ProposalStatus @default(DRAFT)
+  value       Float?
+  currency    String         @default("USD")
+  validUntil  DateTime?
+  sentAt      DateTime?
+  acceptedAt  DateTime?
+  rejectedAt  DateTime?
+  notes       String?
+  fileUrl     String?        // link to proposal document
+  ownerId     String?        // FK to users.id
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client  Client? @relation(fields: [clientId], references: [id])
+  lead    Lead?   @relation(fields: [leadId], references: [id])
+
+  @@index([tenantId])
+  @@index([businessId])
+  @@index([clientId])
+  @@map("proposals")
+}
+
+// ─── Submission ───────────────────────────────────────────────────────────────
+// A recruiter submits a candidate for a specific JD (Job) under a Client.
+
+model Submission {
+  id              String          @id @default(uuid())
+  businessId      String          @unique
+  tenantId        String
+  clientId        String
+  jobId           String
+  candidateId     String
+  recruiterId     String?         // FK to users.id
+  salesOwnerId    String?         // FK to users.id
+  stage           SubmissionStage @default(DRAFT)
+  aiScore         Float?
+  aiScoreDetails  Json?
+  recruiterNotes  String?
+  clientFeedback  String?
+  interviewDate   DateTime?
+  offerStatus     String?         // PENDING, EXTENDED, ACCEPTED, DECLINED
+  submittedAt     DateTime?
+  lastActivityAt  DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client     Client      @relation(fields: [clientId], references: [id])
+  job        Job         @relation(fields: [jobId], references: [id])
+  candidate  Candidate   @relation(fields: [candidateId], references: [id])
+  activities Activity[]
+
+  @@unique([clientId, jobId, candidateId])
+  @@index([tenantId])
+  @@index([businessId])
+  @@index([clientId])
+  @@index([jobId])
+  @@index([candidateId])
+  @@map("submissions")
 }

@@ -218,3 +218,61 @@ export const ownerApi = {
   signups: (days?: number) => api.get('/owner/signups', { params: { days } }).then(r => r.data),
   aiUsage: (days?: number) => api.get('/owner/ai-usage', { params: { days } }).then(r => r.data),
 };
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
+
+export const clientsApi = {
+  list:    (params?: Record<string, any>) => api.get('/clients', { params }).then(r => r.data),
+  get:     (id: string) => api.get(`/clients/${id}`).then(r => r.data),
+  create:  (data: any) => api.post('/clients', data).then(r => r.data),
+  update:  (id: string, data: any) => api.patch(`/clients/${id}`, data).then(r => r.data),
+  remove:  (id: string) => api.delete(`/clients/${id}`).then(r => r.data),
+  convert: (data: { leadId?: string; companyId?: string; salesOwnerId?: string; paymentTerms?: string; notes?: string }) =>
+    api.post('/clients/convert', data).then(r => r.data),
+  stats:   () => api.get('/clients/stats').then(r => r.data),
+};
+
+// ─── Opportunities ────────────────────────────────────────────────────────────
+
+export const opportunitiesApi = {
+  list:     (params?: Record<string, any>) => api.get('/opportunities', { params }).then(r => r.data),
+  get:      (id: string) => api.get(`/opportunities/${id}`).then(r => r.data),
+  create:   (data: any) => api.post('/opportunities', data).then(r => r.data),
+  update:   (id: string, data: any) => api.patch(`/opportunities/${id}`, data).then(r => r.data),
+  remove:   (id: string) => api.delete(`/opportunities/${id}`).then(r => r.data),
+  pipeline: () => api.get('/opportunities/pipeline').then(r => r.data),
+};
+
+// ─── Follow Ups ───────────────────────────────────────────────────────────────
+
+export const followUpsApi = {
+  list:     (params?: Record<string, any>) => api.get('/follow-ups', { params }).then(r => r.data),
+  get:      (id: string) => api.get(`/follow-ups/${id}`).then(r => r.data),
+  create:   (data: any) => api.post('/follow-ups', data).then(r => r.data),
+  update:   (id: string, data: any) => api.patch(`/follow-ups/${id}`, data).then(r => r.data),
+  remove:   (id: string) => api.delete(`/follow-ups/${id}`).then(r => r.data),
+  markDone: (id: string) => api.patch(`/follow-ups/${id}/done`).then(r => r.data),
+  today:    () => api.get('/follow-ups/today').then(r => r.data),
+};
+
+// ─── Submissions ──────────────────────────────────────────────────────────────
+
+export const submissionsApi = {
+  list:   (params?: Record<string, any>) => api.get('/submissions', { params }).then(r => r.data),
+  get:    (id: string) => api.get(`/submissions/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/submissions', data).then(r => r.data),
+  update: (id: string, data: any) => api.patch(`/submissions/${id}`, data).then(r => r.data),
+  remove: (id: string) => api.delete(`/submissions/${id}`).then(r => r.data),
+  stats:  () => api.get('/submissions/stats').then(r => r.data),
+};
+
+// ─── Proposals ────────────────────────────────────────────────────────────────
+
+export const proposalsApi = {
+  list:   (params?: Record<string, any>) => api.get('/proposals', { params }).then(r => r.data),
+  get:    (id: string) => api.get(`/proposals/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/proposals', data).then(r => r.data),
+  update: (id: string, data: any) => api.patch(`/proposals/${id}`, data).then(r => r.data),
+  remove: (id: string) => api.delete(`/proposals/${id}`).then(r => r.data),
+  stats:  () => api.get('/proposals/stats').then(r => r.data),
+};

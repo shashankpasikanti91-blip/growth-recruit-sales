@@ -102,8 +102,8 @@ function LoginForm() {
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
             <div>
-              <div className="text-white font-bold text-xl tracking-tight leading-tight">Growth OS</div>
-              <div className="text-blue-400 text-xs font-medium">by SRP AI Labs</div>
+              <div className="text-white font-bold text-xl tracking-tight leading-tight">SRP AI Growth</div>
+              <div className="text-blue-400 text-xs font-medium">Powered by SRP AI Labs</div>
             </div>
           </div>
 
@@ -158,8 +158,8 @@ function LoginForm() {
               <TrendingUp className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="font-bold text-gray-900 text-lg leading-tight">Growth OS</div>
-              <div className="text-blue-600 text-xs font-medium">by SRP AI Labs</div>
+              <div className="font-bold text-gray-900 text-lg leading-tight">SRP AI Growth</div>
+              <div className="text-blue-600 text-xs font-medium">Powered by SRP AI Labs</div>
             </div>
           </div>
         </div>

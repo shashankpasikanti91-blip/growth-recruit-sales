@@ -32,6 +32,11 @@ import { TeamModule } from './modules/team/team.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ClientsModule } from './modules/clients/clients.module';
+import { OpportunitiesModule } from './modules/opportunities/opportunities.module';
+import { FollowUpsModule } from './modules/follow-ups/follow-ups.module';
+import { SubmissionsModule } from './modules/submissions/submissions.module';
+import { ProposalsModule } from './modules/proposals/proposals.module';
 import { DedupeProcessor } from './processors/dedupe.processor';
 import { EnrichmentProcessor } from './processors/enrichment.processor';
 import { OutreachProcessor } from './processors/outreach.processor';
@@ -117,6 +122,11 @@ import storageConfig from './config/storage.config';
     OnboardingModule,
     DocumentsModule,
     NotificationsModule,
+    ClientsModule,
+    OpportunitiesModule,
+    FollowUpsModule,
+    SubmissionsModule,
+    ProposalsModule,
   ],
   providers: [
     // Global rate-limiting guard — enforces ThrottlerModule config on all routes

@@ -30,12 +30,15 @@ import {
   Shield,
   Lock,
   ExternalLink,
+  Handshake,
+  CalendarClock,
+  SendHorizonal,
+  ScrollText,
+  DollarSign,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 type NavItem = { label: string; href: string; icon: React.ElementType };
-type NavGroup = { label: string; items: NavItem[] };
-type NavSection = NavItem | { group: string; items: NavItem[] };
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN'];
 
@@ -47,51 +50,57 @@ const navConfig = (role: string) => {
     {
       item: { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     },
+    // ── SALES CRM ────────────────────────────────────────────────────────────
+    {
+      group: 'Sales CRM',
+      items: [
+        { label: 'Leads',           href: '/leads',          icon: Target },
+        { label: 'Generate Leads',  href: '/leads/generate', icon: Sparkles },
+        { label: 'Companies',       href: '/companies',       icon: Building2 },
+        { label: 'Clients',         href: '/clients',         icon: Handshake },
+        { label: 'Contacts',        href: '/contacts',        icon: Phone },
+        { label: 'Opportunities',   href: '/opportunities',   icon: TrendingUp },
+        { label: 'Follow Ups',      href: '/follow-ups',      icon: CalendarClock },
+        { label: 'Outreach',        href: '/outreach',        icon: Mail },
+        { label: 'Proposals',       href: '/proposals',       icon: ScrollText },
+        ...(isAdmin ? [{ label: 'Billing', href: '/billing', icon: DollarSign }] : []),
+      ],
+    },
+    // ── RECRUITMENT ──────────────────────────────────────────────────────────
     {
       group: 'Recruitment',
       items: [
-        { label: 'Candidates', href: '/candidates', icon: UserPlus },
-        { label: 'Jobs', href: '/jobs', icon: Briefcase },
-        { label: 'Applications', href: '/applications', icon: ClipboardList },
-        { label: 'Candidate Match Analysis', href: '/ai/screen', icon: Sparkles },
+        { label: 'Candidates',        href: '/candidates',    icon: UserPlus },
+        { label: 'Jobs / JDs',        href: '/jobs',          icon: Briefcase },
+        { label: 'Applications',      href: '/applications',  icon: ClipboardList },
+        { label: 'Submissions',       href: '/submissions',   icon: SendHorizonal },
+        { label: 'AI Match Analysis', href: '/ai/screen',     icon: Sparkles },
       ],
     },
-    {
-      group: 'Sales',
-      items: [
-        { label: 'Leads', href: '/leads', icon: Target },
-        { label: 'Generate Leads', href: '/leads/generate', icon: Sparkles },
-        { label: 'Companies', href: '/companies', icon: Building2 },
-        { label: 'Contacts', href: '/contacts', icon: Phone },
-        { label: 'Outreach', href: '/outreach', icon: Mail },
-      ],
-    },
+    // ── OPERATIONS ───────────────────────────────────────────────────────────
     {
       group: 'Operations',
       items: [
-        { label: 'Documents', href: '/documents', icon: FileText },
-        { label: 'Imports', href: '/imports', icon: Upload },
-        { label: 'Workflows', href: '/workflows', icon: GitBranch },
+        { label: 'Analytics',    href: '/analytics',    icon: BarChart3 },
+        { label: 'Documents',    href: '/documents',    icon: FileText },
+        { label: 'Imports',      href: '/imports',      icon: Upload },
+        { label: 'Workflows',    href: '/workflows',    icon: GitBranch },
         { label: 'Integrations', href: '/integrations', icon: Plug },
       ],
     },
-    {
-      item: { label: 'Analytics', href: '/analytics', icon: BarChart3 },
-    },
+    // ── SETTINGS ─────────────────────────────────────────────────────────────
     {
       group: 'Settings',
       items: [
-        ...(isAdmin ? [{ label: 'Audit Logs', href: '/audit', icon: Shield }] : []),
-        ...(isAdmin ? [{ label: 'Billing', href: '/billing', icon: CreditCard }] : []),
-        { label: 'Settings', href: '/settings', icon: Settings },
-        ...(isAdmin ? [{ label: 'Users & Roles', href: '/users', icon: UserCog }] : []),
+        ...(isAdmin ? [{ label: 'Users & Roles', href: '/users',    icon: UserCog }] : []),
+        ...(isAdmin ? [{ label: 'Audit Logs',    href: '/audit',    icon: Shield }] : []),
+        { label: 'Settings',   href: '/settings',   icon: Settings },
         { label: 'Visa Guide', href: '/visa-guide', icon: Globe },
       ],
     },
-    ...(isSuperAdmin ? [{
-      group: 'Owner',
-      items: [{ label: 'Owner Control Panel', href: '/owner', icon: Lock }],
-    }] : []),
+    ...(isSuperAdmin
+      ? [{ group: 'Owner', items: [{ label: 'Owner Control Panel', href: '/owner', icon: Lock }] }]
+      : []),
   ];
 };
 
@@ -155,9 +164,9 @@ export function Sidebar() {
             <TrendingUp className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0">
-            <div className="text-white font-bold text-sm leading-tight tracking-tight">Growth OS</div>
+            <div className="text-white font-bold text-sm leading-tight tracking-tight">SRP AI Growth</div>
             <div className="text-[10px] font-medium text-blue-400 flex items-center gap-1">
-              by SRP AI Labs
+              Powered by SRP AI Labs
             </div>
           </div>
         </div>
