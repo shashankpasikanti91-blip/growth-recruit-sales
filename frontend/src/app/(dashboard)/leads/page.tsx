@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leadsApi } from '@/lib/api-client';
 import Link from 'next/link';
+import { TableWrapper } from '@/components/ui/table-wrapper';
 import { Users, Search, Zap, Info, ChevronLeft, ChevronRight, Copy, Check, X, AlertCircle, Clock } from 'lucide-react';
 import { format, formatDistanceToNow, isAfter } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -242,7 +243,7 @@ export default function LeadsPage() {
 
       {/* ── Table ── */}
       <div className="card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
+        <TableWrapper>
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
@@ -427,7 +428,7 @@ export default function LeadsPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </TableWrapper>
 
         {/* Pagination */}
         {data?.meta && data.meta.totalPages > 1 && (

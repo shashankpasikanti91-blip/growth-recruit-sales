@@ -63,7 +63,6 @@ const navConfig = (role: string) => {
         { label: 'Follow Ups',      href: '/follow-ups',      icon: CalendarClock },
         { label: 'Outreach',        href: '/outreach',        icon: Mail },
         { label: 'Proposals',       href: '/proposals',       icon: ScrollText },
-        ...(isAdmin ? [{ label: 'Billing', href: '/billing', icon: DollarSign }] : []),
       ],
     },
     // ── RECRUITMENT ──────────────────────────────────────────────────────────
@@ -92,6 +91,7 @@ const navConfig = (role: string) => {
     {
       group: 'Settings',
       items: [
+        ...(isAdmin ? [{ label: 'Billing',       href: '/billing',  icon: DollarSign }] : []),
         ...(isAdmin ? [{ label: 'Users & Roles', href: '/users',    icon: UserCog }] : []),
         ...(isAdmin ? [{ label: 'Audit Logs',    href: '/audit',    icon: Shield }] : []),
         { label: 'Settings',   href: '/settings',   icon: Settings },

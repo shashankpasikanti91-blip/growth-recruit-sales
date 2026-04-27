@@ -5,6 +5,7 @@ import { ClipboardList, User, Briefcase, Calendar, Search, ChevronLeft, ChevronR
 import { format } from 'date-fns';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { TableWrapper } from '@/components/ui/table-wrapper';
 
 type Application = {
   id: string;
@@ -253,6 +254,7 @@ export default function ApplicationsPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <TableWrapper>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
@@ -320,6 +322,7 @@ export default function ApplicationsPage() {
               ))}
             </tbody>
           </table>
+          </TableWrapper>
 
           {/* Pagination */}
           {meta.totalPages > 1 && (
