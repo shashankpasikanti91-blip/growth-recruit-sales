@@ -1,14 +1,14 @@
 'use client';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { clientsApi } from '@/lib/api-client';
 import Link from 'next/link';
+import { TableWrapper } from '@/components/ui/table-wrapper';
 import {
   Handshake, Search, Plus, ChevronLeft, ChevronRight,
-  Building2, Globe, MapPin, ExternalLink, ArrowRightLeft,
+  Building2, Globe, MapPin, ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   ACTIVE:   { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
@@ -34,7 +34,6 @@ export default function ClientsPage() {
   const [search, setSearch]   = useState('');
   const [status, setStatus]   = useState('');
   const [page, setPage]       = useState(1);
-  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['clients', search, status, page],
@@ -115,7 +114,7 @@ export default function ClientsPage() {
 
       {/* ── Table ─────────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <TableWrapper>
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -207,7 +206,7 @@ export default function ClientsPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </TableWrapper>
 
         {/* Pagination */}
         {pages > 1 && (

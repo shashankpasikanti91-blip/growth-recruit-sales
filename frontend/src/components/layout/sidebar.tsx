@@ -131,7 +131,7 @@ function NavGroupSection({ group, items, pathname, defaultOpen = true }: { group
     <div>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between w-full px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-200 transition-colors"
+        className="flex items-center justify-between w-full px-3 py-2 text-[11px] font-extrabold text-slate-200 uppercase tracking-widest hover:text-white transition-colors border-l-2 border-blue-500 mb-0.5"
       >
         {group}
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}

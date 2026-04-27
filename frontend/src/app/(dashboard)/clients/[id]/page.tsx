@@ -1,16 +1,15 @@
 'use client';
 import { useState } from 'react';
-import { use } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { clientsApi } from '@/lib/api-client';
 import Link from 'next/link';
 import {
-  Handshake, Building2, Globe, MapPin, Phone, Mail,
-  ChevronLeft, Briefcase, SendHorizonal, TrendingUp,
-  CalendarClock, FileText, Clock, Edit2, Plus, Check,
+  Building2, Globe, MapPin,
+  ChevronLeft, Briefcase, TrendingUp,
+  CalendarClock, Edit2, Plus,
+  SendHorizonal,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
-import toast from 'react-hot-toast';
 
 const TABS = ['Overview', 'JDs', 'Submissions', 'Opportunities', 'Notes', 'Timeline'] as const;
 type Tab = (typeof TABS)[number];
@@ -30,10 +29,9 @@ const fmtShort = (d?: string | Date | null) =>
 const fmtAgo = (d?: string | Date | null) =>
   d ? formatDistanceToNow(new Date(d), { addSuffix: true }) : '';
 
-export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ClientDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const [tab, setTab] = useState<Tab>('Overview');
-  const qc = useQueryClient();
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', id],
