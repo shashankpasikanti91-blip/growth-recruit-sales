@@ -242,7 +242,8 @@ export default function ApplicationsPage() {
       )}
 
       {/* Applications table */}
-      {viewMode === 'table' && applications.length === 0 ? (
+      {viewMode === 'table' && (
+        applications.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p className="text-base font-medium text-gray-500">No applications found</p>
@@ -250,7 +251,7 @@ export default function ApplicationsPage() {
             {debouncedSearch ? 'Try adjusting your search terms.' : 'Applications will appear here as candidates move through the pipeline.'}
           </p>
         </div>
-      ) : viewMode === 'table' ? (
+      ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
@@ -345,7 +346,7 @@ export default function ApplicationsPage() {
             </div>
           )}
         </div>
-      )}
+      ))}
     </div>
   );
 }
