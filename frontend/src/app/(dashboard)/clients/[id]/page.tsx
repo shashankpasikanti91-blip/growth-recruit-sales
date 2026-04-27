@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Building2, Globe, MapPin,
   ChevronLeft, Briefcase, TrendingUp,
-  CalendarClock, Edit2, Plus,
+  CalendarClock, Clock, Edit2, Plus,
   SendHorizonal,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
