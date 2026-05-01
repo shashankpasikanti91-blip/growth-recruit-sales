@@ -143,18 +143,18 @@ export default function CandidateDetailPage() {
   // Phase 5 — Talent Pool
   const [showPoolModal, setShowPoolModal] = useState(false);
 
-  const { data: candidate, isLoading } = useQuery({
+  const { data: candidate, isLoading } = useQuery<any>({
     queryKey: ['candidate', id],
     queryFn: () => candidatesApi.get(id),
   });
 
-  const { data: resumes, refetch: refetchResumes } = useQuery({
+  const { data: resumes, refetch: refetchResumes } = useQuery<any>({
     queryKey: ['candidate-resumes', id],
     queryFn: () => candidatesApi.listResumes(id),
     enabled: !!id,
   });
 
-  const { data: submissionsData } = useQuery({
+  const { data: submissionsData } = useQuery<any>({
     queryKey: ['candidate-submissions', id],
     queryFn: () => submissionsApi.list({ candidateId: id, limit: 50 }),
     enabled: activeTab === 'submissions' && !!id,
@@ -190,7 +190,7 @@ export default function CandidateDetailPage() {
     if (file) handleResumeUpload(file);
   };
 
-  const { data: jobsData } = useQuery({
+  const { data: jobsData } = useQuery<any>({
     queryKey: ['jobs-for-link'],
     queryFn: () => jobsApi.list({ limit: 100, isActive: true }),
     enabled: linkJobModal || screenJdModal,
@@ -254,7 +254,7 @@ export default function CandidateDetailPage() {
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Status update failed'),
   });
 
-  const { data: onboardingData, refetch: refetchOnboarding } = useQuery({
+  const { data: onboardingData, refetch: refetchOnboarding } = useQuery<any>({
     queryKey: ['candidate-onboarding', id],
     queryFn: () => candidatesApi.getOnboarding(id),
     enabled: activeTab === 'onboarding' && !!id,
@@ -286,7 +286,7 @@ export default function CandidateDetailPage() {
   });
 
   // Phase 5 — Talent Pool
-  const { data: allPools } = useQuery({
+  const { data: allPools } = useQuery<any>({
     queryKey: ['talent-pools'],
     queryFn: () => talentPoolsApi.list(),
     enabled: showPoolModal,
@@ -1314,10 +1314,10 @@ export default function CandidateDetailPage() {
       {activeTab === 'onboarding' && (
         <div className="space-y-4">
           {/* Post-offer warning */}
-          {!['OFFER_PENDING', 'OFFER_ACCEPTED', 'JOINED'].includes(candidate.stage) && (
+          {(['OFFER_PENDING', 'OFFER_ACCEPTED', 'JOINED'] as string[]).includes(candidate.stage) ? null : (
             <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
               Onboarding checklist is most relevant after an offer is extended. Current status:{' '}
-              <span className="font-semibold">{candidate.stage.replace(/_/g, ' ')}</span>
+              <span className="font-semibold">{String(candidate.stage ?? '').replace(/_/g, ' ')}</span>
             </div>
           )}
 

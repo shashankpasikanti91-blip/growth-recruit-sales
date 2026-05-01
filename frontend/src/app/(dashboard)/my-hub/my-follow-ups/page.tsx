@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -31,7 +31,7 @@ const TYPE_COLORS: Record<string, string> = {
   OTHER:   'bg-gray-100 text-gray-600',
 };
 
-export default function MyFollowUpsPage() {
+function MyFollowUpsPageInner() {
   const searchParams = useSearchParams();
   const [view, setView]   = useState<View>((searchParams.get('view') as View) ?? 'today');
   const [page, setPage]   = useState(1);
@@ -139,5 +139,13 @@ export default function MyFollowUpsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MyFollowUpsPage() {
+  return (
+    <Suspense>
+      <MyFollowUpsPageInner />
+    </Suspense>
   );
 }

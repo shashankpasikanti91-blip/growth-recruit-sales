@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -72,7 +72,7 @@ function ChannelCard({
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function MyHubProfilePage() {
+function MyHubProfilePageInner() {
   const searchParams = useSearchParams();
   const qClient = useQueryClient();
 
@@ -284,5 +284,13 @@ export default function MyHubProfilePage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function MyHubProfilePage() {
+  return (
+    <Suspense>
+      <MyHubProfilePageInner />
+    </Suspense>
   );
 }

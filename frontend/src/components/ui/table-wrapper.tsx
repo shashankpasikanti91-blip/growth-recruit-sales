@@ -6,7 +6,12 @@ import { useRef, useEffect } from 'react';
  * so users don't have to scroll to the bottom of the page to scroll horizontally.
  * Both scrollbars (top + bottom) stay in sync.
  */
-export function TableWrapper({ children }: { children: React.ReactNode }) {
+export function TableWrapper({ children, loading, empty, emptyMessage }: {
+  children: React.ReactNode;
+  loading?: boolean;
+  empty?: boolean;
+  emptyMessage?: string;
+}) {
   const topRef    = useRef<HTMLDivElement>(null);
   const tableRef  = useRef<HTMLDivElement>(null);
   const phantomRef = useRef<HTMLDivElement>(null);

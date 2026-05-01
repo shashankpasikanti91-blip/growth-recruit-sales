@@ -402,7 +402,6 @@ export default function LeadDetailPage() {
           </div>
         </div>
       )}
-    </div>
 
       {/* ── Convert to Client Modal ── */}
       {showConvertModal && (
