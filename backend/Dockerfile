@@ -1,17 +1,17 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache openssl
-COPY package.json ./
+COPY package.json package-lock.json* ./
 
 FROM base AS development
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY . .
 RUN npx prisma generate
 EXPOSE 3001
 CMD ["npm", "run", "start:dev"]
 
 FROM base AS builder
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY . .
 RUN npx prisma generate
 RUN npm run build
