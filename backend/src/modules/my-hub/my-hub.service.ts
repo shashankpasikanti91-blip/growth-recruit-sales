@@ -147,7 +147,7 @@ export class MyHubService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          icp:     { select: { totalScore: true } },
+          icp:     { select: { id: true, name: true } },
           contact: { select: { id: true, firstName: true, lastName: true } },
         },
       }),

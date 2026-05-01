@@ -30,10 +30,9 @@ export class ReportsService {
             job: {
               include: {
                 client: { select: { name: true } },
-                assignedRecruiter: { select: { firstName: true, lastName: true } },
               },
             },
-            candidate: { select: { fullName: true } },
+            candidate: { select: { firstName: true, lastName: true } },
           },
         },
       },
@@ -41,13 +40,27 @@ export class ReportsService {
       take: 500,
     });
 
-    return offers
-      .filter((o) => {
-        if (recruiterId && o.submission?.job?.assignedRecruiterId !== recruiterId) return false;
-        if (clientId && o.submission?.job?.clientId !== clientId) return false;
-        return true;
-      })
-      .map((o) => {
+    const filtered = offers.filter((o) => {
+      if (recruiterId && o.submission?.job?.assignedRecruiterId !== recruiterId) return false;
+      if (clientId && o.submission?.job?.clientId !== clientId) return false;
+      return true;
+    });
+
+    // Batch load recruiter names
+    const recruiterIds = [...new Set(
+      filtered.map(o => o.submission?.job?.assignedRecruiterId).filter((id): id is string => !!id),
+    )];
+    const recruiterUsers = recruiterIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: recruiterIds } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const recruiterMap = Object.fromEntries(
+      recruiterUsers.map(u => [u.id, `${u.firstName} ${u.lastName}`]),
+    );
+
+    return filtered.map((o) => {
         const sub = o.submission;
         const job = sub?.job;
         const jobCreated = job?.createdAt ?? sub?.createdAt ?? o.createdAt;
@@ -63,11 +76,13 @@ export class ReportsService {
 
         return {
           offerDate: offerDate.toISOString().split('T')[0],
-          candidate: sub?.candidate?.fullName ?? '—',
+          candidate: sub?.candidate
+            ? `${sub.candidate.firstName} ${sub.candidate.lastName}`.trim() || '—'
+            : '—',
           jobTitle: job?.title ?? '—',
           client: job?.client?.name ?? '—',
-          recruiter: job?.assignedRecruiter
-            ? `${job.assignedRecruiter.firstName} ${job.assignedRecruiter.lastName}`
+          recruiter: job?.assignedRecruiterId
+            ? recruiterMap[job.assignedRecruiterId] ?? '—'
             : '—',
           timeToSubmitDays: timeToSubmit,
           timeToOfferDays: timeToOffer,
@@ -96,12 +111,12 @@ export class ReportsService {
       users.map(async (u) => {
         const [leads, converted, opps, overdue] = await Promise.all([
           this.prisma.lead.count({
-            where: { tenantId, ownerId: u.id, createdAt: { gte: fromDate, lte: toDate } },
+            where: { tenantId, assignedToId: u.id, createdAt: { gte: fromDate, lte: toDate } },
           }),
           this.prisma.lead.count({
             where: {
               tenantId,
-              ownerId: u.id,
+              assignedToId: u.id,
               convertedToClientId: { not: null },
               createdAt: { gte: fromDate, lte: toDate },
             },
@@ -114,8 +129,8 @@ export class ReportsService {
             where: {
               tenantId,
               ownerId: u.id,
-              dueDate: { lt: new Date() },
-              status: { not: 'COMPLETED' },
+              scheduledAt: { lt: new Date() },
+              status: { not: 'DONE' },
             },
           }),
         ]);
@@ -159,15 +174,15 @@ export class ReportsService {
           await Promise.all([
             this.prisma.job.count({ where: { tenantId, assignedRecruiterId: u.id } }),
             this.prisma.candidate.count({
-              where: { tenantId, createdById: u.id, createdAt: { gte: fromDate, lte: toDate } },
+              where: { tenantId, assignedToId: u.id, createdAt: { gte: fromDate, lte: toDate } },
             }),
             this.prisma.submission.count({
-              where: { tenantId, createdById: u.id, createdAt: { gte: fromDate, lte: toDate } },
+              where: { tenantId, recruiterId: u.id, createdAt: { gte: fromDate, lte: toDate } },
             }),
             this.prisma.interview.count({
               where: {
                 tenantId,
-                submission: { createdById: u.id },
+                submission: { recruiterId: u.id },
                 createdAt: { gte: fromDate, lte: toDate },
               },
             }),
@@ -175,11 +190,11 @@ export class ReportsService {
               where: {
                 tenantId,
                 status: 'ACCEPTED',
-                submission: { createdById: u.id },
+                submission: { recruiterId: u.id },
                 createdAt: { gte: fromDate, lte: toDate },
               },
             }),
-            this.prisma.submission.count({ where: { tenantId, createdById: u.id } }),
+            this.prisma.submission.count({ where: { tenantId, recruiterId: u.id } }),
           ]);
 
         const placementRate =
@@ -219,7 +234,7 @@ export class ReportsService {
     const rows = await Promise.all(
       clients.map(async (c) => {
         const [openJds, submissions, interviews, offers, placements] = await Promise.all([
-          this.prisma.job.count({ where: { tenantId, clientId: c.id, status: 'OPEN' } }),
+          this.prisma.job.count({ where: { tenantId, clientId: c.id, isActive: true, deletedAt: null } }),
           this.prisma.submission.count({
             where: {
               tenantId,
@@ -286,8 +301,8 @@ export class ReportsService {
           this.prisma.lead.count({
             where: {
               tenantId,
-              ownerId: u.id,
-              importSource: { in: ['APOLLO', 'APIFY', 'GOOGLE_MAPS'] },
+              assignedToId: u.id,
+              sourceName: { in: ['APOLLO', 'APIFY', 'GOOGLE_MAPS'] },
               createdAt: { gte: fromDate, lte: toDate },
             },
           }),
