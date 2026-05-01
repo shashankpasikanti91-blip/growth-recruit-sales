@@ -249,6 +249,9 @@ export class AnalyticsService {
       interviewsScheduled,
       offersReleased,
       sourcePipeline,
+      submissionsTotal, submissionsThisWeek,
+      activeClients,
+      placementsThisMonth,
     ] = await Promise.all([
       this.prisma.candidate.count({ where: { tenantId, isActive: true } }),
       this.prisma.candidate.count({ where: { tenantId, createdAt: { gte: since7 } } }),
@@ -276,6 +279,10 @@ export class AnalyticsService {
         orderBy: { _count: { sourceName: 'desc' } },
         take: 6,
       }),
+      this.prisma.submission.count({ where: { tenantId, deletedAt: null, stage: { notIn: ['REJECTED', 'WITHDRAWN'] } } }),
+      this.prisma.submission.count({ where: { tenantId, deletedAt: null, createdAt: { gte: since7 } } }),
+      this.prisma.client.count({ where: { tenantId, status: 'ACTIVE' } }),
+      this.prisma.submission.count({ where: { tenantId, deletedAt: null, stage: 'JOINED', updatedAt: { gte: since30 } } }),
     ]);
 
     const totalSourced = sourcePipeline.reduce((s, x) => s + x._count, 0) || 1;
@@ -291,6 +298,10 @@ export class AnalyticsService {
         openApplications,
         interviewsScheduled,
         offersReleased,
+        submissionsTotal,
+        submissionsThisWeek,
+        activeClients,
+        placementsThisMonth,
         sourcePipeline: sourcePipeline.map((s) => ({
           source: s.sourceName ?? 'Direct',
           count: s._count,

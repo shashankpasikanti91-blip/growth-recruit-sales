@@ -1,18 +1,34 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BusinessIdService } from '../billing/business-id.service';
 import { CreateSubmissionDto, UpdateSubmissionDto } from './dto/submission.dto';
 import { SubmissionStage } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class SubmissionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
-  private businessId(tenantId: string): string {
+  private legacyBusinessId(tenantId: string): string {
     return `SUB-${tenantId.slice(0, 6).toUpperCase()}-${Date.now()}`;
   }
 
-  async create(tenantId: string, dto: CreateSubmissionDto) {
+  async create(tenantId: string, dto: CreateSubmissionDto, createdById?: string) {
+    // QA Gate: candidate must have at least one CV/resume before submission
+    const resumeCount = await this.prisma.resume.count({
+      where: { candidateId: dto.candidateId },
+    });
+    if (resumeCount === 0) {
+      throw new BadRequestException(
+        'Candidate must have a CV/resume uploaded before being submitted to a client.',
+      );
+    }
+
     // Prevent duplicate submission
     const existing = await this.prisma.submission.findFirst({
       where: {
@@ -29,10 +45,10 @@ export class SubmissionsService {
       );
     }
 
-    return this.prisma.submission.create({
+    const submission = await this.prisma.submission.create({
       data: {
         id:         uuidv4(),
-        businessId: this.businessId(tenantId),
+        businessId: this.legacyBusinessId(tenantId),
         tenantId,
         ...dto,
         submittedAt: dto.stage === 'SUBMITTED_TO_CLIENT' ? new Date() : undefined,
@@ -44,6 +60,36 @@ export class SubmissionsService {
         candidate: { select: { id: true, firstName: true, lastName: true, currentTitle: true, overallScore: true } },
       },
     });
+
+    // Log creation activity
+    if (createdById) {
+      const actBid = await this.businessIdService.generate('activity');
+      await this.prisma.activity.create({
+        data: {
+          tenantId,
+          businessId: actBid,
+          userId: createdById,
+          submissionId: submission.id,
+          type: 'NOTE',
+          title: 'Submission Created',
+          description: `Submission ${submission.businessId} created for ${(submission.candidate as any)?.firstName} ${(submission.candidate as any)?.lastName}`,
+        },
+      }).catch(() => { /* non-critical */ });
+    }
+
+    // Notify sales owner via event bus
+    this.eventEmitter.emit('submission.created', {
+      tenantId,
+      submissionId: submission.id,
+      businessId: submission.businessId,
+      candidateId: submission.candidateId,
+      jobId: submission.jobId,
+      clientId: submission.clientId,
+      salesOwnerId: dto.salesOwnerId,
+      createdById,
+    });
+
+    return submission;
   }
 
   async findAll(tenantId: string, opts: {
@@ -121,6 +167,48 @@ export class SubmissionsService {
         updatedAt: new Date(),
       },
     });
+  }
+
+  /** Sales-only: record client feedback and optionally advance stage */
+  async updateClientFeedback(
+    tenantId: string,
+    id: string,
+    userId: string,
+    payload: { feedback: string; stage?: SubmissionStage },
+  ) {
+    const sub = await this.findOne(tenantId, id);
+    const updated = await this.prisma.submission.update({
+      where: { id },
+      data: {
+        clientFeedback: payload.feedback,
+        ...(payload.stage && { stage: payload.stage }),
+        lastActivityAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    // Log activity
+    const actBid = await this.businessIdService.generate('activity');
+    await this.prisma.activity.create({
+      data: {
+        tenantId,
+        businessId: actBid,
+        userId,
+        submissionId: id,
+        type: 'NOTE',
+        title: 'Client Feedback Recorded',
+        description: payload.feedback.slice(0, 500),
+      },
+    }).catch(() => { /* non-critical */ });
+
+    this.eventEmitter.emit('submission.feedback', {
+      tenantId,
+      submissionId: id,
+      recruiterId: (sub as any).recruiterId,
+      stage: updated.stage,
+    });
+
+    return updated;
   }
 
   async remove(tenantId: string, id: string) {

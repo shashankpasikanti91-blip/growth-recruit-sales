@@ -38,27 +38,38 @@ export class JobsController {
   @ApiOperation({ summary: 'List all jobs with optional filters' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  @ApiQuery({ name: 'assignedToMe', required: false, type: Boolean })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
+    @Query('assignedToMe') assignedToMe?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
-    return this.jobsService.findAll(tenantId, {
-      search,
-      isActive: isActive !== undefined ? isActive === 'true' : undefined,
-      page,
-      limit,
-    });
+    // Recruiters see only JDs assigned to them unless they explicitly request all
+    const assignedRecruiterId =
+      assignedToMe === 'true' || userRole === 'RECRUITER' ? userId : undefined;
+
+    return this.jobsService.findAll(
+      tenantId,
+      { search, isActive: isActive !== undefined ? isActive === 'true' : undefined, assignedRecruiterId, page, limit },
+      userRole,
+    );
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get job by ID with applications' })
-  findOne(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
-    return this.jobsService.findOne(tenantId, id);
+  findOne(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('id') id: string,
+  ) {
+    return this.jobsService.findOne(tenantId, id, userRole);
   }
 
   @Put(':id')

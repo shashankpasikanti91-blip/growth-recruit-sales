@@ -1,28 +1,84 @@
 'use client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { candidatesApi, applicationsApi, outreachApi, aiApi, jobsApi } from '@/lib/api-client';
+import { candidatesApi, applicationsApi, outreachApi, aiApi, jobsApi, submissionsApi, talentPoolsApi } from '@/lib/api-client';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Zap, Mail, FileText, ChevronRight, AlertTriangle, X, Copy,
   Plus, Calendar, Briefcase, CheckCircle, Loader2, ChevronDown, ChevronUp,
   Star, Clock, MessageSquare, Activity, MapPin, Phone, Globe,
-  Upload, Download, FileCheck, File, Trash2,
+  Upload, Download, FileCheck, File, Trash2, ArrowRight, ClipboardList, Layers,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useState, useRef, useCallback } from 'react';
 import { BusinessIdBadge } from '@/components/layout/business-id-badge';
+import { useAuthStore } from '@/store/auth.store';
 
 const STAGE_COLORS: Record<string, string> = {
-  SOURCED: 'bg-gray-100 text-gray-700',
-  SCREENED: 'bg-purple-100 text-purple-700',
-  INTERVIEWING: 'bg-blue-100 text-blue-700',
-  OFFERED: 'bg-emerald-100 text-emerald-700',
-  PLACED: 'bg-green-100 text-green-700',
-  REJECTED: 'bg-red-100 text-red-700',
-  WITHDRAWN: 'bg-amber-100 text-amber-700',
+  // Legacy 7-stage colours
+  SOURCED:             'bg-gray-100 text-gray-700',
+  SCREENED:            'bg-purple-100 text-purple-700',
+  INTERVIEWING:        'bg-blue-100 text-blue-700',
+  OFFERED:             'bg-emerald-100 text-emerald-700',
+  PLACED:              'bg-green-100 text-green-700',
+  REJECTED:            'bg-red-100 text-red-700',
+  WITHDRAWN:           'bg-amber-100 text-amber-700',
+  // 19-status lifecycle colours
+  CONTACTED:           'bg-sky-100 text-sky-700',
+  INTERESTED:          'bg-teal-100 text-teal-700',
+  NOT_INTERESTED:      'bg-rose-100 text-rose-700',
+  PROFILE_RECEIVED:    'bg-indigo-100 text-indigo-700',
+  SCREENING:           'bg-violet-100 text-violet-700',
+  SHORTLISTED:         'bg-cyan-100 text-cyan-700',
+  SUBMITTED:           'bg-blue-100 text-blue-700',
+  CLIENT_REVIEW:       'bg-yellow-100 text-yellow-700',
+  INTERVIEW_SCHEDULED: 'bg-orange-100 text-orange-700',
+  INTERVIEW_COMPLETED: 'bg-amber-100 text-amber-700',
+  OFFER_PENDING:       'bg-lime-100 text-lime-700',
+  OFFER_ACCEPTED:      'bg-emerald-100 text-emerald-700',
+  OFFER_DECLINED:      'bg-red-100 text-red-700',
+  JOINED:              'bg-green-100 text-green-700',
+  ON_HOLD:             'bg-gray-100 text-gray-600',
 };
+
+// Allowed transitions client-side mirror (for UI hints only — server enforces)
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  SOURCED:             ['CONTACTED', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  CONTACTED:           ['INTERESTED', 'NOT_INTERESTED', 'ON_HOLD', 'WITHDRAWN'],
+  INTERESTED:          ['PROFILE_RECEIVED', 'ON_HOLD', 'WITHDRAWN'],
+  NOT_INTERESTED:      ['CONTACTED', 'WITHDRAWN'],
+  PROFILE_RECEIVED:    ['SCREENING', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  SCREENING:           ['SHORTLISTED', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  SHORTLISTED:         ['SUBMITTED', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  SUBMITTED:           ['CLIENT_REVIEW', 'REJECTED', 'WITHDRAWN'],
+  CLIENT_REVIEW:       ['INTERVIEW_SCHEDULED', 'REJECTED', 'WITHDRAWN'],
+  INTERVIEW_SCHEDULED: ['INTERVIEW_COMPLETED', 'ON_HOLD', 'WITHDRAWN'],
+  INTERVIEW_COMPLETED: ['OFFER_PENDING', 'REJECTED', 'WITHDRAWN'],
+  OFFER_PENDING:       ['OFFERED', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  OFFERED:             ['OFFER_ACCEPTED', 'OFFER_DECLINED', 'WITHDRAWN'],
+  OFFER_ACCEPTED:      ['JOINED', 'WITHDRAWN'],
+  OFFER_DECLINED:      ['SHORTLISTED', 'WITHDRAWN'],
+  JOINED:              [],
+  ON_HOLD:             ['SOURCED', 'CONTACTED', 'INTERESTED', 'PROFILE_RECEIVED', 'SCREENING', 'SHORTLISTED', 'SUBMITTED'],
+  REJECTED:            [],
+  WITHDRAWN:           [],
+};
+
+const DOC_STATUS_CYCLE: Record<string, string> = { MISSING: 'UPLOADED', UPLOADED: 'VERIFIED', VERIFIED: 'MISSING' };
+const DOC_STATUS_STYLE: Record<string, string> = {
+  MISSING:  'bg-red-50 text-red-600 border-red-200',
+  UPLOADED: 'bg-amber-50 text-amber-700 border-amber-200',
+  VERIFIED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
+
+const ONBOARDING_DOCS = [
+  { key: 'passportStatus',    label: 'Passport' },
+  { key: 'visaDocStatus',     label: 'Visa Document' },
+  { key: 'offerLetterStatus', label: 'Offer Letter' },
+  { key: 'contractStatus',    label: 'Contract' },
+  { key: 'bankDetailsStatus', label: 'Bank Details' },
+];
 
 const APP_STAGES = ['SOURCED', 'SCREENED', 'INTERVIEWING', 'OFFERED', 'PLACED', 'REJECTED', 'WITHDRAWN'];
 
@@ -42,21 +98,24 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-type TabId = 'overview' | 'resume' | 'applications' | 'screening' | 'notes' | 'timeline';
+type TabId = 'overview' | 'resume' | 'applications' | 'screening' | 'notes' | 'timeline' | 'submissions' | 'onboarding';
 
 const TABS: { id: TabId; label: string; icon: any }[] = [
   { id: 'overview',     label: 'Overview',     icon: FileText },
   { id: 'resume',       label: 'Resume',       icon: FileCheck },
   { id: 'applications', label: 'Applications', icon: Briefcase },
+  { id: 'submissions',  label: 'Submissions',  icon: CheckCircle },
   { id: 'screening',    label: 'AI Screening', icon: Zap },
   { id: 'notes',        label: 'Notes',        icon: MessageSquare },
   { id: 'timeline',     label: 'Timeline',     icon: Activity },
+  { id: 'onboarding',   label: 'Onboarding',   icon: ClipboardList },
 ];
 
 export default function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { user: authUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabId>((searchParams.get('tab') as TabId) || 'overview');
   const [outreachModal, setOutreachModal] = useState(false);
   const [outreachResult, setOutreachResult] = useState<any>(null);
@@ -72,6 +131,17 @@ export default function CandidateDetailPage() {
   const [screenLoading, setScreenLoading] = useState(false);
   const [expandedScorecard, setExpandedScorecard] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
+  // Phase 4 — Status lifecycle
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
+  const [statusNotes, setStatusNotes] = useState('');
+  // Phase 4 — Onboarding
+  const [onboardingEdits, setOnboardingEdits] = useState<Record<string, string>>({});
+  const [onboardingDates, setOnboardingDates] = useState<{ expected: string; actual: string }>({ expected: '', actual: '' });
+  const [onboardingNotes, setOnboardingNotes] = useState('');
+  const [onboardingDirty, setOnboardingDirty] = useState(false);
+  // Phase 5 — Talent Pool
+  const [showPoolModal, setShowPoolModal] = useState(false);
 
   const { data: candidate, isLoading } = useQuery({
     queryKey: ['candidate', id],
@@ -82,6 +152,12 @@ export default function CandidateDetailPage() {
     queryKey: ['candidate-resumes', id],
     queryFn: () => candidatesApi.listResumes(id),
     enabled: !!id,
+  });
+
+  const { data: submissionsData } = useQuery({
+    queryKey: ['candidate-submissions', id],
+    queryFn: () => submissionsApi.list({ candidateId: id, limit: 50 }),
+    enabled: activeTab === 'submissions' && !!id,
   });
 
   const handleResumeUpload = useCallback(async (file: File) => {
@@ -166,6 +242,65 @@ export default function CandidateDetailPage() {
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to add note'),
   });
 
+  const statusMutation = useMutation({
+    mutationFn: (dto: { toStatus: string; notes?: string }) => candidatesApi.updateStatus(id, dto),
+    onSuccess: () => {
+      toast.success('Status updated');
+      setShowStatusModal(false);
+      setNewStatus('');
+      setStatusNotes('');
+      queryClient.invalidateQueries({ queryKey: ['candidate', id] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Status update failed'),
+  });
+
+  const { data: onboardingData, refetch: refetchOnboarding } = useQuery({
+    queryKey: ['candidate-onboarding', id],
+    queryFn: () => candidatesApi.getOnboarding(id),
+    enabled: activeTab === 'onboarding' && !!id,
+    onSuccess: (data: any) => {
+      setOnboardingEdits({
+        passportStatus:    data.passportStatus    ?? 'MISSING',
+        visaDocStatus:     data.visaDocStatus     ?? 'MISSING',
+        offerLetterStatus: data.offerLetterStatus ?? 'MISSING',
+        contractStatus:    data.contractStatus    ?? 'MISSING',
+        bankDetailsStatus: data.bankDetailsStatus ?? 'MISSING',
+      });
+      setOnboardingDates({
+        expected: data.expectedJoiningDate ? data.expectedJoiningDate.slice(0, 10) : '',
+        actual:   data.actualJoiningDate   ? data.actualJoiningDate.slice(0, 10)   : '',
+      });
+      setOnboardingNotes(data.notes ?? '');
+      setOnboardingDirty(false);
+    },
+  } as any);
+
+  const onboardingMutation = useMutation({
+    mutationFn: (dto: Record<string, any>) => candidatesApi.updateOnboarding(id, dto),
+    onSuccess: () => {
+      toast.success('Onboarding checklist saved');
+      setOnboardingDirty(false);
+      refetchOnboarding();
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Save failed'),
+  });
+
+  // Phase 5 — Talent Pool
+  const { data: allPools } = useQuery({
+    queryKey: ['talent-pools'],
+    queryFn: () => talentPoolsApi.list(),
+    enabled: showPoolModal,
+  });
+
+  const addToPoolMutation = useMutation({
+    mutationFn: (poolId: string) => talentPoolsApi.addMember(poolId, { candidateId: id }),
+    onSuccess: () => {
+      toast.success('Added to pool');
+      setShowPoolModal(false);
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to add to pool'),
+  });
+
   const runScreenAgainstJd = async () => {
     if (!candidate) return;
     setScreenLoading(true);
@@ -213,6 +348,130 @@ export default function CandidateDetailPage() {
 
   return (
     <div className="space-y-5">
+
+      {/* Change Status Modal */}
+      {showStatusModal && (() => {
+        const currentStatus = candidate.stage ?? 'SOURCED';
+        const allowed = STATUS_TRANSITIONS[currentStatus] ?? [];
+        return (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+              <div className="flex items-center justify-between p-5 border-b">
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <ArrowRight className="w-4 h-4 text-brand-600" /> Change Candidate Status
+                </h3>
+                <button onClick={() => setShowStatusModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STAGE_COLORS[currentStatus] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {currentStatus}
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-gray-400" />
+                  {newStatus
+                    ? <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STAGE_COLORS[newStatus] ?? 'bg-gray-100 text-gray-600'}`}>{newStatus}</span>
+                    : <span className="text-xs text-gray-400">select next status</span>
+                  }
+                </div>
+                {allowed.length === 0 ? (
+                  <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+                    This status is terminal — no further transitions available.
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Move to</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {allowed.map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setNewStatus(s)}
+                          className={`text-xs font-semibold px-3 py-2 rounded-lg border transition-all ${
+                            newStatus === s
+                              ? 'border-brand-600 bg-brand-50 text-brand-700 ring-1 ring-brand-400'
+                              : 'border-gray-200 text-gray-700 hover:border-brand-300'
+                          }`}
+                        >
+                          {s.replace(/_/g, ' ')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes (optional)</label>
+                  <textarea
+                    className="input w-full h-20 text-sm resize-none"
+                    placeholder="Reason for status change..."
+                    value={statusNotes}
+                    onChange={e => setStatusNotes(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 p-5 border-t">
+                <button onClick={() => setShowStatusModal(false)} className="btn-secondary flex-1">Cancel</button>
+                <button
+                  disabled={!newStatus || statusMutation.isPending || allowed.length === 0}
+                  onClick={() => statusMutation.mutate({ toStatus: newStatus, notes: statusNotes || undefined })}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                  Move to {newStatus ? newStatus.replace(/_/g, ' ') : '…'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Add to Pool Modal */}
+      {showPoolModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h3 className="font-semibold text-gray-900">Add to Talent Pool</h3>
+              <button onClick={() => setShowPoolModal(false)} className="text-gray-400 hover:text-gray-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              {!(allPools as any)?.length ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  <Layers className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  No talent pools yet.{' '}
+                  <Link href="/talent-pools" className="text-brand-600 underline">Create a pool</Link> first.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {((allPools as any) ?? []).map((pool: any) => (
+                    <button
+                      key={pool.id}
+                      onClick={() => addToPoolMutation.mutate(pool.id)}
+                      disabled={addToPoolMutation.isPending}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 hover:border-brand-400 hover:bg-brand-50 transition-colors text-left group"
+                    >
+                      <div>
+                        <div className="font-medium text-sm text-gray-900 group-hover:text-brand-700">{pool.name}</div>
+                        {pool.description && <div className="text-xs text-gray-400 mt-0.5">{pool.description}</div>}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-400 shrink-0">
+                        <span>{pool._count?.members ?? 0} members</span>
+                        <Plus className="w-3.5 h-3.5 group-hover:text-brand-600" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t flex justify-end">
+              <Link href="/talent-pools" className="text-xs text-brand-600 hover:underline flex items-center gap-1">
+                Manage Pools <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Outreach Modal */}
       {outreachModal && outreachResult && (
@@ -445,6 +704,22 @@ export default function CandidateDetailPage() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {['SUPER_ADMIN', 'TENANT_ADMIN', 'RECRUITER'].includes(authUser?.role ?? '') && (
+              <button
+                onClick={() => { setNewStatus(''); setStatusNotes(''); setShowStatusModal(true); }}
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+              >
+                <ArrowRight className="w-4 h-4 text-brand-600" /> Change Status
+              </button>
+            )}
+            {['SUPER_ADMIN', 'TENANT_ADMIN', 'RECRUITER'].includes(authUser?.role ?? '') && (
+              <button
+                onClick={() => setShowPoolModal(true)}
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+              >
+                <Layers className="w-4 h-4 text-brand-600" /> Add to Pool
+              </button>
+            )}
             <button onClick={() => setScreenJdModal(true)} className="btn-secondary flex items-center gap-1.5 text-sm">
               <Zap className="w-4 h-4 text-brand-600" /> Screen vs JD
             </button>
@@ -901,28 +1176,274 @@ export default function CandidateDetailPage() {
       )}
 
       {/* Tab: Timeline */}
-      {activeTab === 'timeline' && (
+      {activeTab === 'timeline' && (() => {
+        const statusEntries = (candidate.statusHistory ?? []).map((h: any) => ({
+          ...h,
+          _type: 'status',
+        }));
+        const activityEntries = allActivities.map((a: any) => ({ ...a, _type: 'activity' }));
+        const merged = [...statusEntries, ...activityEntries].sort(
+          (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        return (
+          <div className="space-y-4">
+            <h2 className="font-semibold text-gray-900">Activity Timeline ({merged.length})</h2>
+            {merged.length === 0 ? (
+              <div className="card text-center py-10">
+                <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm text-gray-400">No activity recorded yet</p>
+              </div>
+            ) : (
+              <div className="card p-0 divide-y divide-gray-50">
+                {merged.map((item: any) => (
+                  <div key={item.id} className="flex items-start gap-3 px-5 py-4">
+                    {item._type === 'status' ? (
+                      <div className="w-7 h-7 rounded-full bg-brand-50 border border-brand-200 flex items-center justify-center mt-0.5 shrink-0">
+                        <ArrowRight className="w-3.5 h-3.5 text-brand-600" />
+                      </div>
+                    ) : (
+                      <div className="w-2 h-2 rounded-full bg-brand-400 mt-2 shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      {item._type === 'status' ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-gray-800">Status changed</span>
+                          {item.fromStatus && (
+                            <>
+                              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STAGE_COLORS[item.fromStatus] ?? 'bg-gray-100 text-gray-600'}`}>
+                                {item.fromStatus.replace(/_/g, ' ')}
+                              </span>
+                              <ArrowRight className="w-3 h-3 text-gray-400" />
+                            </>
+                          )}
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STAGE_COLORS[item.toStatus] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {item.toStatus.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-sm font-medium text-gray-800">{item.title ?? item.type}</div>
+                      )}
+                      {item.notes && <p className="text-xs text-gray-500 mt-0.5">{item.notes}</p>}
+                      {item.description && item._type !== 'status' && <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>}
+                    </div>
+                    <div className="text-xs text-gray-400 shrink-0 text-right">
+                      {item.createdAt ? (
+                        <>
+                          <div>{format(new Date(item.createdAt), 'dd MMM yyyy, HH:mm')}</div>
+                          <div className="text-[10px]">{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}</div>
+                        </>
+                      ) : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Tab: Submissions */}
+      {activeTab === 'submissions' && (
         <div className="space-y-4">
-          <h2 className="font-semibold text-gray-900">Activity Timeline ({allActivities.length})</h2>
-          {allActivities.length === 0 ? (
+          <h2 className="font-semibold text-gray-900">Submissions ({(submissionsData as any)?.total ?? 0})</h2>
+          {!(submissionsData as any)?.items?.length ? (
             <div className="card text-center py-10">
-              <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm text-gray-400">No activity recorded yet</p>
+              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm text-gray-400">No submissions yet</p>
+              <p className="text-xs text-gray-300 mt-1">This candidate has not been submitted to any client JD</p>
             </div>
           ) : (
-            <div className="card p-0 divide-y divide-gray-50">
-              {allActivities.map((a: any) => (
-                <div key={a.id} className="flex items-start gap-3 px-5 py-4">
-                  <div className="w-2 h-2 rounded-full bg-brand-400 mt-2 shrink-0" />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-800">{a.title ?? a.type}</div>
-                    {a.description && <p className="text-xs text-gray-500 mt-0.5">{a.description}</p>}
+            <div className="space-y-3">
+              {(submissionsData as any).items.map((sub: any) => {
+                const stageColors: Record<string, string> = {
+                  DRAFT: 'bg-gray-100 text-gray-600',
+                  INTERNAL_REVIEW: 'bg-purple-100 text-purple-700',
+                  SUBMITTED_TO_SALES: 'bg-blue-100 text-blue-700',
+                  SUBMITTED_TO_CLIENT: 'bg-indigo-100 text-indigo-700',
+                  CLIENT_REVIEW: 'bg-cyan-100 text-cyan-700',
+                  INTERVIEW: 'bg-amber-100 text-amber-700',
+                  OFFER: 'bg-emerald-100 text-emerald-700',
+                  JOINED: 'bg-green-100 text-green-700',
+                  REJECTED: 'bg-red-100 text-red-700',
+                  WITHDRAWN: 'bg-gray-100 text-gray-500',
+                };
+                return (
+                  <div key={sub.id} className="card">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link href={`/submissions/${sub.id}`} className="font-medium text-gray-900 hover:text-brand-600 text-sm">
+                            {sub.businessId}
+                          </Link>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stageColors[sub.stage] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {sub.stage.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          <span className="font-medium">{sub.client?.name}</span>
+                          {sub.job?.title && <span className="text-gray-400"> · {sub.job.title}</span>}
+                          {sub.job?.location && <span className="text-gray-400"> · {sub.job.location}</span>}
+                        </div>
+                        {sub.clientFeedback && (
+                          <p className="mt-2 text-xs text-gray-500 italic line-clamp-2">
+                            Client: &ldquo;{sub.clientFeedback}&rdquo;
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 shrink-0 text-right">
+                        {sub.createdAt && (
+                          <div>{format(new Date(sub.createdAt), 'dd MMM yyyy')}</div>
+                        )}
+                        {sub.interviewDate && (
+                          <div className="text-amber-600 font-medium mt-1">
+                            <Calendar className="w-3 h-3 inline mr-0.5" />
+                            {format(new Date(sub.interviewDate), 'dd MMM yyyy')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-400 shrink-0 text-right">
-                    {a.createdAt ? (<><div>{format(new Date(a.createdAt), 'dd MMM yyyy, HH:mm')}</div><div className="text-[10px]">{formatDistanceToNow(new Date(a.createdAt), {addSuffix: true})}</div></>) : ''}
-                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Onboarding */}
+      {activeTab === 'onboarding' && (
+        <div className="space-y-4">
+          {/* Post-offer warning */}
+          {!['OFFER_PENDING', 'OFFER_ACCEPTED', 'JOINED'].includes(candidate.stage) && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+              Onboarding checklist is most relevant after an offer is extended. Current status:{' '}
+              <span className="font-semibold">{candidate.stage.replace(/_/g, ' ')}</span>
+            </div>
+          )}
+
+          {/* Progress bar */}
+          {onboardingData && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-700">Onboarding Progress</span>
+                <span className="text-sm font-bold text-brand-700">{(onboardingData as any).completionPct ?? 0}%</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div
+                  className="bg-brand-600 h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${(onboardingData as any).completionPct ?? 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Document checklist */}
+          <div className="card space-y-3">
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">Document Checklist</h3>
+            {ONBOARDING_DOCS.map((doc) => {
+              const current = onboardingEdits[doc.key] ?? 'MISSING';
+              const style = DOC_STATUS_STYLE[current] ?? DOC_STATUS_STYLE['MISSING'];
+              return (
+                <div key={doc.key} className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-gray-700">{doc.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = DOC_STATUS_CYCLE[current] ?? 'MISSING';
+                      setOnboardingEdits((prev: any) => ({ ...prev, [doc.key]: next }));
+                      setOnboardingDirty(true);
+                    }}
+                    className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors ${style}`}
+                  >
+                    {current}
+                  </button>
                 </div>
-              ))}
+              );
+            })}
+          </div>
+
+          {/* Joining dates */}
+          <div className="card space-y-3">
+            <h3 className="text-sm font-semibold text-gray-800">Joining Dates</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Expected Joining Date</label>
+                <input
+                  type="date"
+                  className="input text-sm w-full"
+                  value={onboardingDates.expected ?? ''}
+                  onChange={(e) => {
+                    setOnboardingDates((p: any) => ({ ...p, expected: e.target.value }));
+                    setOnboardingDirty(true);
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Actual Joining Date</label>
+                <input
+                  type="date"
+                  className="input text-sm w-full"
+                  value={onboardingDates.actual ?? ''}
+                  onChange={(e) => {
+                    setOnboardingDates((p: any) => ({ ...p, actual: e.target.value }));
+                    setOnboardingDirty(true);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="card space-y-2">
+            <h3 className="text-sm font-semibold text-gray-800">Onboarding Notes</h3>
+            <textarea
+              rows={3}
+              className="input text-sm w-full resize-none"
+              placeholder="Any notes about onboarding process..."
+              value={onboardingNotes}
+              onChange={(e) => { setOnboardingNotes(e.target.value); setOnboardingDirty(true); }}
+            />
+          </div>
+
+          {/* Save / Discard */}
+          {onboardingDirty && (
+            <div className="flex gap-3">
+              <button
+                type="button"
+                className="btn-primary text-sm px-4 py-2"
+                disabled={onboardingMutation.isPending}
+                onClick={() => {
+                  onboardingMutation.mutate({
+                    ...onboardingEdits,
+                    expectedJoiningDate: onboardingDates.expected || undefined,
+                    actualJoiningDate: onboardingDates.actual || undefined,
+                    notes: onboardingNotes || undefined,
+                  });
+                }}
+              >
+                {onboardingMutation.isPending ? 'Saving…' : 'Save Onboarding'}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary text-sm px-4 py-2"
+                onClick={() => {
+                  if (onboardingData) {
+                    const d = onboardingData as any;
+                    setOnboardingEdits({
+                      passportStatus: d.passportStatus ?? 'MISSING',
+                      visaDocStatus: d.visaDocStatus ?? 'MISSING',
+                      offerLetterStatus: d.offerLetterStatus ?? 'MISSING',
+                      contractStatus: d.contractStatus ?? 'MISSING',
+                      bankDetailsStatus: d.bankDetailsStatus ?? 'MISSING',
+                    });
+                    setOnboardingDates({ expected: d.expectedJoiningDate?.slice(0, 10) ?? '', actual: d.actualJoiningDate?.slice(0, 10) ?? '' });
+                    setOnboardingNotes(d.notes ?? '');
+                  }
+                  setOnboardingDirty(false);
+                }}
+              >
+                Discard
+              </button>
             </div>
           )}
         </div>

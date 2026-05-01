@@ -1,11 +1,15 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ExternalLink, CheckCircle, Zap, Globe, Database, Mail,
   Info, ShieldCheck, Upload, FileSpreadsheet,
-  Linkedin, Search, MapPin, ArrowRight,
+  Linkedin, Search, MapPin, ArrowRight, MessageSquare, Bot,
+  MonitorSmartphone, Loader2, CheckCheck, Wifi, WifiOff,
 } from 'lucide-react';
+import { connectApi } from '@/lib/api-client';
+import { clsx } from 'clsx';
 
 // ─── Lead / Candidate Source Card ────────────────────────────────────────────
 type SourceStatus = 'active' | 'available' | 'manual' | 'coming_soon';
@@ -55,6 +59,83 @@ function SourceCard({ icon: Icon, name, status, how, fields, action }: {
   );
 }
 
+// ─── Comm Channel tile ────────────────────────────────────────────────────────
+function CommChannelCard({ name, icon: Icon, iconColor, description, connected, email, adminOnly, configNote, onSave, savedFields }: {
+  name: string;
+  icon: React.ElementType;
+  iconColor: string;
+  description: string;
+  connected: boolean;
+  email?: string;
+  adminOnly?: boolean;
+  configNote?: string;
+  onSave?: (fields: Record<string, string>) => void;
+  savedFields?: { label: string; key: string; type?: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div className={clsx('bg-white rounded-xl border p-5', connected ? 'border-green-200' : 'border-gray-200')}>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-3">
+          <div className={clsx('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', iconColor)}>
+            <Icon className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-900 text-sm">{name}</span>
+              {adminOnly && <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full font-medium">Admin</span>}
+            </div>
+            {connected
+              ? <p className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCheck className="w-3 h-3" /> Connected{email ? ` · ${email}` : ''}</p>
+              : <p className="text-xs text-gray-400">Not connected</p>
+            }
+          </div>
+        </div>
+        {!connected && onSave && (
+          <button onClick={() => setOpen(v => !v)} className="text-xs text-brand-600 border border-brand-200 px-3 py-1.5 rounded-lg hover:bg-brand-50 transition-colors shrink-0">
+            {open ? 'Cancel' : 'Configure'}
+          </button>
+        )}
+        {connected && <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2 py-0.5 rounded-full"><CheckCircle className="w-3 h-3" /> Active</span>}
+      </div>
+
+      <p className="text-xs text-gray-500 leading-relaxed mb-2">{description}</p>
+      {configNote && <p className="text-xs text-brand-600 font-medium">{configNote}</p>}
+
+      {open && savedFields && onSave && (
+        <div className="mt-4 space-y-3 border-t border-gray-100 pt-4">
+          {savedFields.map(f => (
+            <div key={f.key}>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">{f.label}</label>
+              <input
+                type={f.type ?? 'text'}
+                value={fields[f.key] ?? ''}
+                onChange={e => setFields(prev => ({ ...prev, [f.key]: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500"
+                placeholder={f.type === 'password' ? '••••••••' : `Enter ${f.label}`}
+              />
+            </div>
+          ))}
+          <button
+            onClick={async () => {
+              setSaving(true);
+              try { await onSave(fields); setOpen(false); } finally { setSaving(false); }
+            }}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+            Save credentials
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ATS Card ─────────────────────────────────────────────────────────────────
 function AtsCard({ name, logo, how, configNote }: {
   name: string; logo: string; how: string; configNote: string;
@@ -73,6 +154,31 @@ function AtsCard({ name, logo, how, configNote }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function IntegrationsPage() {
+  const qClient = useQueryClient();
+
+  const { data: channelStatuses } = useQuery({
+    queryKey: ['connect-channel-statuses'],
+    queryFn: connectApi.getChannelStatuses,
+  });
+
+  const whatsappMutation = useMutation({
+    mutationFn: (fields: Record<string, string>) =>
+      connectApi.saveWhatsApp({ phoneNumberId: fields.phoneNumberId, accessToken: fields.accessToken }),
+    onSuccess: () => qClient.invalidateQueries({ queryKey: ['connect-channel-statuses'] }),
+  });
+
+  const telegramMutation = useMutation({
+    mutationFn: (fields: Record<string, string>) =>
+      connectApi.saveTelegram({ botToken: fields.botToken, teamChatId: fields.teamChatId }),
+    onSuccess: () => qClient.invalidateQueries({ queryKey: ['connect-channel-statuses'] }),
+  });
+
+  const teamsMutation = useMutation({
+    mutationFn: (fields: Record<string, string>) =>
+      connectApi.saveTeams({ webhookUrl: fields.webhookUrl, channel: fields.channel }),
+    onSuccess: () => qClient.invalidateQueries({ queryKey: ['connect-channel-statuses'] }),
+  });
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -98,6 +204,123 @@ export default function IntegrationsPage() {
             Our platform finds and delivers leads for you. You describe your ideal customer — industry, location, job title — and we generate verified leads directly into your pipeline.
             No third-party accounts, no API keys, no technical setup. Everything is included in your plan.
           </p>
+        </div>
+      </div>
+
+      {/* ── Section 0: Communication Channels ── */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-base font-bold text-gray-900">Communication Channels</h2>
+          <Link href="/my-hub/profile" className="text-xs text-brand-600 font-medium hover:underline flex items-center gap-1">
+            Connect your email <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+        <p className="text-xs text-gray-400 mb-4">
+          Connect email and messaging channels to send outreach directly from SRP. Team channels (WhatsApp, Telegram, Teams) are configured once per workspace by an admin.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {/* Gmail — per-user, linked from profile page */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-red-500 flex-shrink-0">
+                <Mail className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="font-semibold text-gray-900 text-sm">Gmail</span>
+                <p className="text-xs text-gray-400">Per-user OAuth2</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Connect your Gmail account to send outreach emails directly. Each team member connects their own Gmail — emails appear in your Sent folder.
+            </p>
+            <Link href="/my-hub/profile" className="flex items-center gap-1 text-xs text-brand-600 font-medium hover:underline mt-auto">
+              Connect in My Profile <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          {/* Outlook — per-user */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-600 flex-shrink-0">
+                <Mail className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="font-semibold text-gray-900 text-sm">Outlook / Microsoft 365</span>
+                <p className="text-xs text-gray-400">Per-user OAuth2</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Connect your corporate Outlook or Microsoft 365 email account. Sends via Microsoft Graph API — full enterprise email support.
+            </p>
+            <Link href="/my-hub/profile" className="flex items-center gap-1 text-xs text-brand-600 font-medium hover:underline mt-auto">
+              Connect in My Profile <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          {/* WhatsApp — admin, tenant-level */}
+          <CommChannelCard
+            name="WhatsApp Business"
+            icon={MessageSquare}
+            iconColor="bg-green-500"
+            description="Send WhatsApp messages to leads and candidates via the Meta Business API. Supports templates (first contact) and free-form messages (within 24h reply window)."
+            connected={!!channelStatuses?.whatsapp?.connected}
+            adminOnly
+            configNote="Requires Meta Business Account + WhatsApp product"
+            onSave={(f) => whatsappMutation.mutateAsync(f)}
+            savedFields={[
+              { label: 'Phone Number ID', key: 'phoneNumberId' },
+              { label: 'Access Token (Permanent)', key: 'accessToken', type: 'password' },
+            ]}
+          />
+
+          {/* Telegram — admin, tenant-level */}
+          <CommChannelCard
+            name="Telegram Bot"
+            icon={Bot}
+            iconColor="bg-sky-500"
+            description="Send Telegram messages to candidates and leads. Also use for internal team alerts — new high-score lead, placement won, etc."
+            connected={!!channelStatuses?.telegram?.connected}
+            adminOnly
+            configNote="Create a bot via @BotFather to get the token"
+            onSave={(f) => telegramMutation.mutateAsync(f)}
+            savedFields={[
+              { label: 'Bot Token', key: 'botToken', type: 'password' },
+              { label: 'Team Chat ID (optional)', key: 'teamChatId' },
+            ]}
+          />
+
+          {/* Microsoft Teams — admin, tenant-level */}
+          <CommChannelCard
+            name="Microsoft Teams"
+            icon={MonitorSmartphone}
+            iconColor="bg-purple-600"
+            description="Send internal team notifications to a Microsoft Teams channel via Incoming Webhooks. Get notified of new leads, placements won, and more."
+            connected={!!channelStatuses?.teams?.connected}
+            adminOnly
+            configNote="Create Incoming Webhook in Teams channel settings"
+            onSave={(f) => teamsMutation.mutateAsync(f)}
+            savedFields={[
+              { label: 'Incoming Webhook URL', key: 'webhookUrl' },
+              { label: 'Channel name (optional)', key: 'channel' },
+            ]}
+          />
+
+          {/* Slack — existing */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-500 flex-shrink-0">
+                <Wifi className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="font-semibold text-gray-900 text-sm">Slack</span>
+                <span className="ml-2 inline-flex items-center gap-1 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium"><CheckCircle className="w-2.5 h-2.5" /> Existing</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Team notifications via Slack Bot Token. Configured in Settings → Integrations (below).
+            </p>
+          </div>
         </div>
       </div>
 

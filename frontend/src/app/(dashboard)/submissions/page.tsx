@@ -1,12 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { submissionsApi } from '@/lib/api-client';
 import Link from 'next/link';
 import { TableWrapper } from '@/components/ui/table-wrapper';
 import {
-  SendHorizonal, Plus, ChevronLeft, ChevronRight, ExternalLink, Filter,
+  SendHorizonal, Plus, ChevronLeft, ChevronRight, ExternalLink, Filter, LayoutGrid, List,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
 const STAGE_CONFIG: Record<string, { bg: string; text: string; step: number }> = {
@@ -35,6 +36,8 @@ function StageBadge({ stage }: { stage: string }) {
 export default function SubmissionsPage() {
   const [stage, setStage]   = useState('');
   const [page, setPage]     = useState(1);
+  const [viewMode, setViewMode] = useState<'table' | 'board'>('table');
+  const queryClient = useQueryClient();
 
   const { data: statsData } = useQuery({
     queryKey: ['submissions-stats'],
@@ -47,10 +50,33 @@ export default function SubmissionsPage() {
     placeholderData: (prev: any) => prev,
   });
 
+  const { data: boardData, isLoading: boardLoading } = useQuery({
+    queryKey: ['submissions-board'],
+    queryFn: () => submissionsApi.list({ limit: 200 }),
+    enabled: viewMode === 'board',
+  });
+
+  const changeStageMutation = useMutation({
+    mutationFn: ({ subId, stage: newStage }: { subId: string; stage: string }) =>
+      submissionsApi.update(subId, { stage: newStage }),
+    onSuccess: () => {
+      toast.success('Stage updated');
+      queryClient.invalidateQueries({ queryKey: ['submissions-board'] });
+      queryClient.invalidateQueries({ queryKey: ['submissions'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to update stage'),
+  });
+
   const items: any[] = data?.items ?? [];
   const total: number = data?.total ?? 0;
   const pages: number = data?.pages ?? 1;
   const stats: any[] = (statsData as any[]) ?? [];
+
+  const boardItems: any[] = boardData?.items ?? [];
+  const boardByStage = STAGES.reduce<Record<string, any[]>>((acc, s) => {
+    acc[s] = boardItems.filter(item => item.stage === s);
+    return acc;
+  }, {});
 
   const fmt = (d?: string | null) => d ? format(new Date(d), 'dd MMM yyyy') : '—';
 
@@ -67,12 +93,30 @@ export default function SubmissionsPage() {
             <p className="text-sm text-gray-500">Candidate submissions to clients across all jobs</p>
           </div>
         </div>
-        <Link
-          href="/submissions/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" /> New Submission
-        </Link>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-gray-700' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Table view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('board')}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'board' ? 'bg-white shadow-sm text-gray-700' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Kanban board"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+          <Link
+            href="/submissions/new"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" /> New Submission
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
@@ -96,6 +140,7 @@ export default function SubmissionsPage() {
         </div>
       )}
 
+      {viewMode === 'table' && <>
       {/* Filter */}
       <div className="flex items-center gap-3">
         <Filter className="w-4 h-4 text-gray-400" />
@@ -191,6 +236,75 @@ export default function SubmissionsPage() {
           </div>
         )}
       </div>
+      </>}
+
+      {viewMode === 'board' && (
+        <div className="overflow-x-auto -mx-1 px-1 pb-4">
+          <div className="flex gap-3" style={{ minWidth: `${STAGES.length * 216}px` }}>
+            {STAGES.map(s => {
+              const c = STAGE_CONFIG[s];
+              return (
+                <div key={s} className="w-52 flex-shrink-0">
+                  <div className={`mb-2 px-2.5 py-1.5 rounded-lg flex items-center justify-between ${c.bg}`}>
+                    <span className={`text-xs font-semibold uppercase tracking-wide ${c.text}`}>
+                      {s.replace(/_/g, ' ')}
+                    </span>
+                    <span className={`text-xs font-bold ${c.text}`}>{boardByStage[s].length}</span>
+                  </div>
+                  <div className="space-y-2 max-h-[600px] overflow-y-auto pr-0.5">
+                    {boardLoading
+                      ? Array.from({ length: 2 }).map((_, i) => (
+                          <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />
+                        ))
+                      : boardByStage[s].length === 0
+                      ? <div className="py-4 text-center text-gray-300 text-xs">—</div>
+                      : boardByStage[s].map(sub => (
+                          <div key={sub.id} className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="font-medium text-sm text-gray-900 truncate">
+                              {sub.candidate?.firstName} {sub.candidate?.lastName}
+                            </div>
+                            {sub.candidate?.currentTitle && (
+                              <div className="text-xs text-gray-400 truncate">{sub.candidate.currentTitle}</div>
+                            )}
+                            <div className="text-xs text-gray-500 mt-1 truncate">{sub.job?.title ?? '—'}</div>
+                            <div className="text-xs text-gray-400 truncate">{sub.client?.name ?? '—'}</div>
+                            {sub.aiMatchScore != null && (
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <div className="flex-1 bg-gray-100 rounded-full h-1">
+                                  <div
+                                    className={`h-1 rounded-full ${sub.aiMatchScore >= 80 ? 'bg-emerald-500' : sub.aiMatchScore >= 60 ? 'bg-amber-500' : 'bg-red-400'}`}
+                                    style={{ width: `${sub.aiMatchScore}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-500">{sub.aiMatchScore}%</span>
+                              </div>
+                            )}
+                            <div className="mt-2 flex items-center justify-between">
+                              <span className="text-xs text-gray-400">{fmt(sub.submittedAt ?? sub.createdAt)}</span>
+                              <Link href={`/submissions/${sub.id}`} className="text-gray-400 hover:text-blue-600">
+                                <ExternalLink className="w-3 h-3" />
+                              </Link>
+                            </div>
+                            <select
+                              className="mt-2 w-full text-xs border border-gray-100 rounded-lg px-1.5 py-1 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              value={sub.stage}
+                              onChange={e => changeStageMutation.mutate({ subId: sub.id, stage: e.target.value })}
+                              disabled={changeStageMutation.isPending}
+                            >
+                              {STAGES.map(st => (
+                                <option key={st} value={st}>{st.replace(/_/g, ' ')}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ))
+                    }
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

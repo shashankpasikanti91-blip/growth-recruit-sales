@@ -795,10 +795,125 @@ Context:
   }
   console.log(`✅ Seeded ${workflowData.length} workflow runs`);
 
+  // ─── Seed Demo Account (for demos + e2e testing) ──────────────────────────────
+  const demoTenant = await prisma.tenant.upsert({
+    where: { slug: 'demo-agency' },
+    update: {
+      plan: 'GROWTH',
+      currentLeadUsage: 0,
+      currentCandidateUsage: 0,
+      currentAiUsage: 0,
+      maxLeadsPerMonth: 2500,
+    },
+    create: {
+      businessId: bid('TEN', '2026', 99, 4),
+      name: 'Demo Recruitment Agency',
+      slug: 'demo-agency',
+      countryCode: 'SG',
+      timezone: 'Asia/Singapore',
+      currency: 'SGD',
+      locale: 'en-SG',
+      plan: 'GROWTH',
+      maxLeadsPerMonth: 2500,
+    },
+  });
+  console.log(`✅ Seeded demo tenant: ${demoTenant.name}`);
+
+  const demoPasswordHash = await bcrypt.hash('Demo@2026!', 12);
+  const demoAdmin = await prisma.user.upsert({
+    where: { tenantId_email: { tenantId: demoTenant.id, email: 'demo@srpailabs.com' } },
+    update: {},
+    create: {
+      businessId: bid('USR', '2026', 99, 4),
+      tenantId: demoTenant.id,
+      email: 'demo@srpailabs.com',
+      passwordHash: demoPasswordHash,
+      firstName: 'Demo',
+      lastName: 'Manager',
+      role: 'TENANT_ADMIN',
+    },
+  });
+  console.log(`✅ Seeded demo admin: ${demoAdmin.email}`);
+
+  const growthPlan = await prisma.plan.findUnique({ where: { id: 'plan-growth' } });
+  if (growthPlan) {
+    const demoNow = new Date();
+    const demoPeriodEnd = new Date(demoNow.getTime() + 90 * 24 * 60 * 60 * 1000);
+    await prisma.subscription.upsert({
+      where: { tenantId: demoTenant.id },
+      update: { status: 'ACTIVE', currentPeriodEnd: demoPeriodEnd },
+      create: {
+        tenantId: demoTenant.id,
+        planId: growthPlan.id,
+        status: 'ACTIVE',
+        billingCycle: 'monthly',
+        currentPeriodStart: demoNow,
+        currentPeriodEnd: demoPeriodEnd,
+      },
+    });
+    console.log(`✅ Demo tenant has active Growth subscription`);
+  }
+
+  // Demo companies
+  const demoCompaniesData = [
+    { id: 'demo-comp-1', businessId: bid('COM', '202699', 1), name: 'TechBridge Solutions', website: 'https://techbridge.sg', industry: 'Technology', size: '51-200', countryCode: 'SG', city: 'Singapore', description: 'Enterprise software consulting firm in SEA.', techStack: ['Java', 'React', 'GCP'], painPoints: ['Backend talent shortage', 'Fast growth'] },
+    { id: 'demo-comp-2', businessId: bid('COM', '202699', 2), name: 'FinEdge Capital', website: 'https://finedge.my', industry: 'FinTech', size: '11-50', countryCode: 'MY', city: 'Kuala Lumpur', description: 'Fintech startup building payment infrastructure.', techStack: ['Node.js', 'Vue.js', 'AWS'], painPoints: ['Compliance hiring', 'Engineering scale'] },
+    { id: 'demo-comp-3', businessId: bid('COM', '202699', 3), name: 'HealthNow Clinics', website: 'https://healthnow.sg', industry: 'HealthTech', size: '201-500', countryCode: 'SG', city: 'Singapore', description: 'Telemedicine platform scaling across Southeast Asia.', techStack: ['Python', 'React Native', 'Azure'], painPoints: ['Urgent scaling', 'Dual hiring (tech + medical)'] },
+  ];
+  for (const c of demoCompaniesData) {
+    await prisma.company.upsert({ where: { id: c.id }, update: {}, create: { ...c, tenantId: demoTenant.id } });
+  }
+
+  // Demo candidates
+  const demoCandidatesData = [
+    { id: 'demo-cand-1', businessId: bid('CAN', '202699', 1), firstName: 'James', lastName: 'Lim', email: 'james.lim@demomail.com', currentTitle: 'Senior Backend Engineer', currentCompany: 'Sea Group', location: 'Singapore', countryCode: 'SG', yearsExperience: 6, skills: ['Java', 'Kotlin', 'PostgreSQL', 'Kafka', 'Kubernetes'], languages: ['English', 'Mandarin'], summary: 'Java specialist from Sea Group. Led microservices redesign for Shopee payments team.', nationality: 'Singaporean', visaStatus: 'CITIZEN', isForeigner: false },
+    { id: 'demo-cand-2', businessId: bid('CAN', '202699', 2), firstName: 'Nurul', lastName: 'Huda', email: 'nurul.huda@demomail.com', currentTitle: 'Frontend Developer', currentCompany: 'CIMB Digital', location: 'Kuala Lumpur, MY', countryCode: 'MY', yearsExperience: 3, skills: ['Vue.js', 'React', 'TypeScript', 'Node.js', 'Tailwind CSS'], languages: ['English', 'Malay'], summary: 'Frontend specialist who built CIMB internet banking portal (2M+ monthly users).', nationality: 'Malaysian', visaStatus: 'CITIZEN', isForeigner: false },
+    { id: 'demo-cand-3', businessId: bid('CAN', '202699', 3), firstName: 'Arjun', lastName: 'Mehta', email: 'arjun.mehta@demomail.com', currentTitle: 'DevOps Engineer', currentCompany: 'Infobip', location: 'Singapore', countryCode: 'SG', yearsExperience: 5, skills: ['AWS', 'Terraform', 'Docker', 'Kubernetes', 'Python', 'CI/CD'], languages: ['English', 'Hindi'], summary: '5 years SRE/DevOps. Maintained 99.9% uptime for telco messaging at 3M msgs/day.', nationality: 'Indian', visaType: 'EP', visaExpiry: new Date('2026-12-31'), visaStatus: 'VALID', isForeigner: true },
+    { id: 'demo-cand-4', businessId: bid('CAN', '202699', 4), firstName: 'Chen Wei', lastName: 'Ong', email: 'chenwei@demomail.com', currentTitle: 'Full Stack Developer', currentCompany: 'PropertyGuru', location: 'Singapore', countryCode: 'SG', yearsExperience: 4, skills: ['Node.js', 'React', 'TypeScript', 'PostgreSQL', 'AWS'], languages: ['English', 'Mandarin'], summary: 'Full stack engineer from PropertyGuru. Served 1M+ monthly active users.', nationality: 'Singaporean', visaStatus: 'CITIZEN', isForeigner: false },
+    { id: 'demo-cand-5', businessId: bid('CAN', '202699', 5), firstName: 'Siti', lastName: 'Rahimah', email: 'siti.rahimah@demomail.com', currentTitle: 'Data Analyst', currentCompany: 'Maybank', location: 'Kuala Lumpur, MY', countryCode: 'MY', yearsExperience: 4, skills: ['Python', 'SQL', 'Tableau', 'Power BI', 'Excel'], languages: ['English', 'Malay'], summary: 'Banking data analyst expert in risk dashboards, Tableau, and Python automation.', nationality: 'Malaysian', visaStatus: 'CITIZEN', isForeigner: false },
+  ];
+  for (const c of demoCandidatesData) {
+    await prisma.candidate.upsert({ where: { id: c.id }, update: {}, create: { ...c, tenantId: demoTenant.id, isActive: true } });
+  }
+
+  // Demo jobs
+  const demoJobsData = [
+    { id: 'demo-job-1', businessId: bid('JOB', '202699', 1), title: 'Senior Java Developer', department: 'Engineering', location: 'Singapore', countryCode: 'SG', jobType: 'Full-time', salaryMin: 7000, salaryMax: 12000, currency: 'SGD', description: 'Seeking experienced Java developer for enterprise software consulting projects in Singapore.', requirements: ['5+ years Java', 'Spring Boot', 'Microservices', 'AWS or GCP'], skills: ['Java', 'Spring Boot', 'PostgreSQL', 'Docker', 'Kubernetes', 'GCP'], experience: '5-8 years', educationLevel: 'Bachelor' },
+    { id: 'demo-job-2', businessId: bid('JOB', '202699', 2), title: 'Frontend Developer (Vue/React)', department: 'Engineering', location: 'Kuala Lumpur, MY', countryCode: 'MY', jobType: 'Full-time', salaryMin: 7000, salaryMax: 11000, currency: 'MYR', description: 'Join fintech team building cutting-edge payment interfaces.', requirements: ['3+ years Vue.js or React', 'TypeScript', 'REST APIs', 'Agile'], skills: ['Vue.js', 'React', 'TypeScript', 'CSS', 'Node.js'], experience: '3-5 years', educationLevel: 'Bachelor' },
+    { id: 'demo-job-3', businessId: bid('JOB', '202699', 3), title: 'DevOps / SRE Engineer', department: 'Infrastructure', location: 'Singapore', countryCode: 'SG', jobType: 'Full-time', salaryMin: 7500, salaryMax: 13000, currency: 'SGD', description: 'SRE role for growing healthcare platform. Own CI/CD, IaC, and reliability engineering.', requirements: ['4+ years DevOps/SRE', 'Kubernetes', 'Terraform', 'AWS or Azure'], skills: ['AWS', 'Kubernetes', 'Terraform', 'Docker', 'Python', 'CI/CD'], experience: '4-7 years', educationLevel: 'Bachelor' },
+  ];
+  for (const j of demoJobsData) {
+    await prisma.job.upsert({ where: { id: j.id }, update: {}, create: { ...j, tenantId: demoTenant.id, isActive: true } });
+  }
+
+  // Demo leads
+  const demoLeadsData = [
+    { id: 'demo-lead-1', businessId: bid('LED', '202699', 1), companyId: 'demo-comp-1', firstName: 'Alex', lastName: 'Tan', email: 'alex.tan@techbridge.sg', title: 'CTO', stage: 'QUALIFIED' as const, score: 82, painPoints: ['Backend talent shortage', 'Fast growth'], sourceName: 'LinkedIn' },
+    { id: 'demo-lead-2', businessId: bid('LED', '202699', 2), companyId: 'demo-comp-2', firstName: 'Raj', lastName: 'Subramaniam', email: 'raj@finedge.my', title: 'Head of People', stage: 'PROPOSAL' as const, score: 89, painPoints: ['Compliance hiring', 'Engineering scale'], sourceName: 'Referral' },
+    { id: 'demo-lead-3', businessId: bid('LED', '202699', 3), companyId: 'demo-comp-3', firstName: 'Maria', lastName: 'Santos', email: 'maria@healthnow.sg', title: 'COO', stage: 'NEGOTIATION' as const, score: 94, painPoints: ['Urgent scaling', 'Dual hiring'], sourceName: 'Cold Outreach' },
+  ];
+  for (const l of demoLeadsData) {
+    await prisma.lead.upsert({ where: { id: l.id }, update: {}, create: { ...l, tenantId: demoTenant.id, isActive: true } });
+  }
+
+  // Demo applications
+  const demoAppsData = [
+    { id: 'demo-app-1', businessId: bid('APP', '202699', 1), tenantId: demoTenant.id, candidateId: 'demo-cand-1', jobId: 'demo-job-1', stage: 'INTERVIEWING' as const, matchScore: 90, isShortlisted: true, scoreDetails: { skill_match: 92, experience_match: 90, education_match: 85 } },
+    { id: 'demo-app-2', businessId: bid('APP', '202699', 2), tenantId: demoTenant.id, candidateId: 'demo-cand-2', jobId: 'demo-job-2', stage: 'SCREENED' as const, matchScore: 85, isShortlisted: true, scoreDetails: { skill_match: 88, experience_match: 82, education_match: 85 } },
+    { id: 'demo-app-3', businessId: bid('APP', '202699', 3), tenantId: demoTenant.id, candidateId: 'demo-cand-3', jobId: 'demo-job-3', stage: 'OFFERED' as const, matchScore: 93, isShortlisted: true, scoreDetails: { skill_match: 95, experience_match: 92, education_match: 88 } },
+    { id: 'demo-app-4', businessId: bid('APP', '202699', 4), tenantId: demoTenant.id, candidateId: 'demo-cand-4', jobId: 'demo-job-1', stage: 'SCREENED' as const, matchScore: 78, isShortlisted: false, scoreDetails: { skill_match: 75, experience_match: 80, education_match: 80 } },
+    { id: 'demo-app-5', businessId: bid('APP', '202699', 5), tenantId: demoTenant.id, candidateId: 'demo-cand-5', jobId: 'demo-job-2', stage: 'PLACED' as const, matchScore: 72, isShortlisted: true, scoreDetails: { skill_match: 70, experience_match: 75, education_match: 72 } },
+  ];
+  for (const a of demoAppsData) {
+    await prisma.application.upsert({ where: { id: a.id }, update: {}, create: a });
+  }
+  console.log(`✅ Seeded demo agency: ${demoCandidatesData.length} candidates, ${demoJobsData.length} jobs, ${demoLeadsData.length} leads, ${demoAppsData.length} applications`);
+
   console.log('\n✨ Database seeded successfully!');
   console.log('\n📋 Login credentials:');
   console.log(`   Email: admin@srp-ai-labs.com`);
   console.log(`   Password: Admin@123`);
+  console.log(`   Demo Account: demo@srpailabs.com / Demo@2026!  (tenant: demo-agency)`);
   console.log(`\n📊 Demo Data Summary:`);
   console.log(`   ${companiesData.length} companies, ${contactsData.length} contacts`);
   console.log(`   ${leadsData.length} leads (with ICP scores)`);

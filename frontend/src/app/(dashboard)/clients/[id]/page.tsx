@@ -1,17 +1,17 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { clientsApi } from '@/lib/api-client';
+import { clientsApi, interviewsApi, offersApi, documentsApi } from '@/lib/api-client';
 import Link from 'next/link';
 import {
   Building2, Globe, MapPin,
   ChevronLeft, Briefcase, TrendingUp,
   CalendarClock, Clock, Edit2, Plus,
-  SendHorizonal,
+  SendHorizonal, Users, Star, FileText, Download,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
-const TABS = ['Overview', 'JDs', 'Submissions', 'Opportunities', 'Notes', 'Timeline'] as const;
+const TABS = ['Overview', 'JDs', 'Submissions', 'Opportunities', 'Contacts', 'Documents', 'Notes', 'Timeline'] as const;
 type Tab = (typeof TABS)[number];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -36,6 +36,24 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', id],
     queryFn: () => clientsApi.get(id),
+  });
+
+  const { data: interviewsData } = useQuery({
+    queryKey: ['interviews', 'client', id],
+    queryFn: () => interviewsApi.list({ clientId: id, limit: 1 }),
+    enabled: !!id,
+  });
+
+  const { data: offersData } = useQuery({
+    queryKey: ['offers', 'client', id],
+    queryFn: () => offersApi.list({ clientId: id, limit: 1 }),
+    enabled: !!id,
+  });
+
+  const { data: documentsData } = useQuery({
+    queryKey: ['documents', 'client', id],
+    queryFn: () => documentsApi.list({ clientId: id }),
+    enabled: !!id && tab === 'Documents',
   });
 
   if (isLoading) {
@@ -105,19 +123,21 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 mt-6 pt-6 border-t border-gray-100">
           {[
             { label: 'Total JDs',      value: client._count?.jobs ?? 0,          icon: Briefcase,    color: 'text-blue-600 bg-blue-50' },
             { label: 'Submissions',    value: client._count?.submissions ?? 0,    icon: SendHorizonal,color: 'text-purple-600 bg-purple-50' },
             { label: 'Opportunities',  value: client._count?.opportunities ?? 0,  icon: TrendingUp,   color: 'text-emerald-600 bg-emerald-50' },
+            { label: 'Interviews',     value: interviewsData?.total ?? 0,         icon: Users,        color: 'text-cyan-600 bg-cyan-50' },
+            { label: 'Offers',         value: offersData?.total ?? 0,             icon: Star,         color: 'text-orange-600 bg-orange-50' },
             { label: 'Follow Ups',     value: client._count?.followUps ?? 0,      icon: CalendarClock,color: 'text-amber-600 bg-amber-50' },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color.split(' ')[1]}`}>
-                <Icon className={`w-5 h-5 ${color.split(' ')[0]}`} />
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color.split(' ')[1]}`}>
+                <Icon className={`w-4 h-4 ${color.split(' ')[0]}`} />
               </div>
               <div>
-                <div className="text-xl font-bold text-gray-900">{value}</div>
+                <div className="text-lg font-bold text-gray-900">{value}</div>
                 <div className="text-xs text-gray-500">{label}</div>
               </div>
             </div>
@@ -323,6 +343,111 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'Contacts' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="font-semibold text-gray-900 mb-4">Contacts</h3>
+          {!client.billingContactName && !client.billingContactEmail && !client.primaryContactId ? (
+            <div className="py-12 text-center">
+              <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-gray-400 text-sm">No contacts linked to this client</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {client.primaryContactId && (
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">Primary Contact</div>
+                      <div className="text-xs text-gray-500">ID: {client.primaryContactId}</div>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/contacts/${client.primaryContactId}`}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    View →
+                  </Link>
+                </div>
+              )}
+              {(client.billingContactName || client.billingContactEmail) && (
+                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                  <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {client.billingContactName ?? 'Billing Contact'}
+                    </div>
+                    {client.billingContactEmail && (
+                      <a
+                        href={`mailto:${client.billingContactEmail}`}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        {client.billingContactEmail}
+                      </a>
+                    )}
+                    <div className="text-xs text-gray-400 mt-0.5">Billing Contact</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'Documents' && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">Documents</h3>
+          </div>
+          {(documentsData?.data ?? documentsData?.items ?? []).length === 0 ? (
+            <div className="py-16 text-center">
+              <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-gray-400 text-sm">No documents linked to this client</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  {['File Name', 'Type', 'Size', 'Uploaded', ''].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {(documentsData?.data ?? documentsData?.items ?? []).map((doc: any) => (
+                  <tr key={doc.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900 truncate max-w-xs">{doc.originalName}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                        {doc.type?.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">
+                      {doc.fileSize ? `${(doc.fileSize / 1024).toFixed(0)} KB` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{fmtShort(doc.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/documents/${doc.id}`}
+                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                      >
+                        <Download className="w-3 h-3" /> Download
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}

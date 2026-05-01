@@ -2,8 +2,9 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '@/lib/api-client';
+import { useAuthStore } from '@/store/auth.store';
 import { ComposedChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, Briefcase, CalendarCheck, Gift, Zap, ArrowRight, Sparkles, ChevronRight, Star } from 'lucide-react';
+import { Users, Briefcase, CalendarCheck, Gift, Zap, ArrowRight, Sparkles, ChevronRight, Star, Building2, SendHorizonal, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 
 const STAGE_COLORS: Record<string, string> = {
@@ -55,6 +56,9 @@ function KpiCard({ label, value, sub, icon: Icon, gradient, href }: {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuthStore();
+  const userRole = user?.role ?? 'VIEWER';
+
   const { data: dash, isLoading: dashLoading, isError: dashError } = useQuery({
     queryKey: ['analytics', 'dashboard'],
     queryFn: () => analyticsApi.dashboard(),
@@ -183,10 +187,28 @@ export default function DashboardPage() {
 
       {/* ── Top KPI cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Open Positions" value={openPositions} sub="Active job postings" icon={Briefcase} gradient="bg-gradient-to-br from-brand-500 to-brand-700" href="/jobs" />
-        <KpiCard label="Candidates in Pipeline" value={candidatesInPipeline} sub="Across all open roles" icon={Users} gradient="bg-gradient-to-br from-violet-500 to-purple-700" href="/applications" />
-        <KpiCard label="Interviews Scheduled" value={interviewsScheduled} sub="Active interview stage" icon={CalendarCheck} gradient="bg-gradient-to-br from-emerald-500 to-teal-600" href="/applications" />
-        <KpiCard label="Offers Released" value={offersReleased} sub="Awaiting acceptance" icon={Gift} gradient="bg-gradient-to-br from-amber-400 to-orange-500" href="/applications" />
+        {userRole === 'RECRUITER' ? (
+          <>
+            <KpiCard label="Assigned JDs" value={dash?.openJobs ?? 0} sub="Active job postings" icon={Briefcase} gradient="bg-gradient-to-br from-brand-500 to-brand-700" href="/jobs" />
+            <KpiCard label="Candidates in Pipeline" value={dash?.openApplications ?? 0} sub="Across all roles" icon={Users} gradient="bg-gradient-to-br from-violet-500 to-purple-700" href="/applications" />
+            <KpiCard label="Interviews Scheduled" value={dash?.interviewsScheduled ?? 0} sub="Active interview stage" icon={CalendarCheck} gradient="bg-gradient-to-br from-emerald-500 to-teal-600" href="/applications" />
+            <KpiCard label="Submissions This Week" value={dash?.submissionsThisWeek ?? 0} sub="New candidate submissions" icon={SendHorizonal} gradient="bg-gradient-to-br from-cyan-500 to-blue-600" href="/submissions" />
+          </>
+        ) : userRole === 'SALES' ? (
+          <>
+            <KpiCard label="Active Clients" value={dash?.activeClients ?? 0} sub="Current client accounts" icon={Building2} gradient="bg-gradient-to-br from-brand-500 to-brand-700" href="/clients" />
+            <KpiCard label="Submissions in Pipeline" value={dash?.submissionsTotal ?? 0} sub="Active submissions" icon={SendHorizonal} gradient="bg-gradient-to-br from-violet-500 to-purple-700" href="/submissions" />
+            <KpiCard label="Interviews Scheduled" value={dash?.interviewsScheduled ?? 0} sub="Client interview stage" icon={CalendarCheck} gradient="bg-gradient-to-br from-emerald-500 to-teal-600" href="/submissions" />
+            <KpiCard label="Placements (30d)" value={dash?.placementsThisMonth ?? 0} sub="Candidates joined" icon={TrendingUp} gradient="bg-gradient-to-br from-amber-400 to-orange-500" href="/submissions" />
+          </>
+        ) : (
+          <>
+            <KpiCard label="Open Positions" value={openPositions} sub="Active job postings" icon={Briefcase} gradient="bg-gradient-to-br from-brand-500 to-brand-700" href="/jobs" />
+            <KpiCard label="Candidates in Pipeline" value={candidatesInPipeline} sub="Across all open roles" icon={Users} gradient="bg-gradient-to-br from-violet-500 to-purple-700" href="/applications" />
+            <KpiCard label="Interviews Scheduled" value={interviewsScheduled} sub="Active interview stage" icon={CalendarCheck} gradient="bg-gradient-to-br from-emerald-500 to-teal-600" href="/applications" />
+            <KpiCard label="Offers Released" value={offersReleased} sub="Awaiting acceptance" icon={Gift} gradient="bg-gradient-to-br from-amber-400 to-orange-500" href="/applications" />
+          </>
+        )}
       </div>
 
       {/* ── Main 2/3 + 1/3 layout ────────────────────────────────────────── */}

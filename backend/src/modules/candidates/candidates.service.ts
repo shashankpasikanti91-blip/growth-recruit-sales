@@ -31,6 +31,31 @@ export class CreateCandidateDto {
   @IsOptional() @IsString() resumeText?: string;
 }
 
+// ─── 19-Status Lifecycle Transitions ────────────────────────────────────────
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  SOURCED:             ['CONTACTED', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  CONTACTED:           ['INTERESTED', 'NOT_INTERESTED', 'ON_HOLD', 'WITHDRAWN'],
+  INTERESTED:          ['PROFILE_RECEIVED', 'ON_HOLD', 'WITHDRAWN'],
+  NOT_INTERESTED:      ['CONTACTED', 'WITHDRAWN'],
+  PROFILE_RECEIVED:    ['SCREENING', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  SCREENING:           ['SHORTLISTED', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  SHORTLISTED:         ['SUBMITTED', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  SUBMITTED:           ['CLIENT_REVIEW', 'REJECTED', 'WITHDRAWN'],
+  CLIENT_REVIEW:       ['INTERVIEW_SCHEDULED', 'REJECTED', 'WITHDRAWN'],
+  INTERVIEW_SCHEDULED: ['INTERVIEW_COMPLETED', 'ON_HOLD', 'WITHDRAWN'],
+  INTERVIEW_COMPLETED: ['OFFER_PENDING', 'REJECTED', 'WITHDRAWN'],
+  OFFER_PENDING:       ['OFFERED', 'ON_HOLD', 'REJECTED', 'WITHDRAWN'],
+  OFFERED:             ['OFFER_ACCEPTED', 'OFFER_DECLINED', 'WITHDRAWN'],
+  OFFER_ACCEPTED:      ['JOINED', 'WITHDRAWN'],
+  OFFER_DECLINED:      ['SHORTLISTED', 'WITHDRAWN'],
+  JOINED:              [],
+  ON_HOLD:             ['SOURCED', 'CONTACTED', 'INTERESTED', 'PROFILE_RECEIVED', 'SCREENING', 'SHORTLISTED', 'SUBMITTED'],
+  REJECTED:            [],
+  WITHDRAWN:           [],
+};
+
+const ALL_STATUSES = Object.keys(STATUS_TRANSITIONS);
+
 @Injectable()
 export class CandidatesService {
   constructor(
@@ -164,6 +189,7 @@ export class CandidatesService {
         activities: { orderBy: { createdAt: 'desc' }, take: 20 },
         outreachMessages: { orderBy: { createdAt: 'desc' }, take: 10 },
         aiAnalyses: { orderBy: { createdAt: 'desc' }, take: 5 },
+        statusHistory: { orderBy: { createdAt: 'desc' }, take: 30 },
       },
     });
 
@@ -272,6 +298,82 @@ export class CandidatesService {
     return { url, fileName: resume.fileName, mimeType: resume.mimeType };
   }
 
+  async updateStatus(tenantId: string, candidateId: string, dto: { toStatus: string; notes?: string }, userId: string) {
+    const candidate = await this.findOne(tenantId, candidateId);
+    const currentStatus = candidate.stage ?? 'SOURCED';
+    const allowed = STATUS_TRANSITIONS[currentStatus] ?? [];
+
+    if (!ALL_STATUSES.includes(dto.toStatus)) {
+      throw new BadRequestException(`Unknown status: ${dto.toStatus}`);
+    }
+    if (!allowed.includes(dto.toStatus)) {
+      throw new BadRequestException(
+        `Cannot transition from ${currentStatus} to ${dto.toStatus}. ` +
+        `Allowed: ${allowed.length ? allowed.join(', ') : 'none (terminal status)'}`,
+      );
+    }
+
+    const [updated] = await Promise.all([
+      this.prisma.candidate.update({
+        where: { id: candidateId, tenantId },
+        data: { stage: dto.toStatus, lastActivityAt: new Date() },
+      }),
+      this.prisma.candidateStatusHistory.create({
+        data: { tenantId, candidateId, fromStatus: currentStatus, toStatus: dto.toStatus, changedById: userId, notes: dto.notes },
+      }),
+    ]);
+    return updated;
+  }
+
+  async listStatusHistory(tenantId: string, candidateId: string) {
+    await this.findOne(tenantId, candidateId);
+    return this.prisma.candidateStatusHistory.findMany({
+      where: { candidateId, tenantId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getOnboarding(tenantId: string, candidateId: string) {
+    await this.findOne(tenantId, candidateId);
+    const existing = await this.prisma.candidateOnboarding.findUnique({ where: { candidateId } });
+    if (!existing) {
+      return {
+        candidateId, expectedJoiningDate: null, actualJoiningDate: null,
+        passportStatus: 'MISSING', visaDocStatus: 'MISSING', offerLetterStatus: 'MISSING',
+        contractStatus: 'MISSING', bankDetailsStatus: 'MISSING', completionPct: 0, notes: null,
+      };
+    }
+    return existing;
+  }
+
+  async updateOnboarding(tenantId: string, candidateId: string, dto: {
+    expectedJoiningDate?: string | null;
+    actualJoiningDate?: string | null;
+    passportStatus?: string;
+    visaDocStatus?: string;
+    offerLetterStatus?: string;
+    contractStatus?: string;
+    bankDetailsStatus?: string;
+    notes?: string;
+  }) {
+    await this.findOne(tenantId, candidateId);
+    const DOC_KEYS = ['passportStatus', 'visaDocStatus', 'offerLetterStatus', 'contractStatus', 'bankDetailsStatus'];
+    const verified = DOC_KEYS.filter(k => (dto as any)[k] === 'VERIFIED').length;
+    const uploaded = DOC_KEYS.filter(k => (dto as any)[k] === 'UPLOADED').length;
+    const completionPct = Math.round(((verified * 2 + uploaded) / (DOC_KEYS.length * 2)) * 100);
+    const data: any = {
+      ...dto,
+      completionPct,
+      expectedJoiningDate: dto.expectedJoiningDate ? new Date(dto.expectedJoiningDate) : null,
+      actualJoiningDate: dto.actualJoiningDate ? new Date(dto.actualJoiningDate) : null,
+    };
+    return this.prisma.candidateOnboarding.upsert({
+      where: { candidateId },
+      create: { tenantId, candidateId, ...data },
+      update: data,
+    });
+  }
+
   async listResumes(tenantId: string, candidateId: string) {
     await this.findOne(tenantId, candidateId);
     return this.prisma.resume.findMany({
@@ -290,5 +392,103 @@ export class CandidatesService {
         fileUrl: false, // don't expose storage key directly
       },
     });
+  }
+
+  // ─── Boolean / Advanced Search ─────────────────────────────────────────────
+
+  async booleanSearch(
+    tenantId: string,
+    query: {
+      logic: 'AND' | 'OR';
+      rules: Array<{
+        field: string;
+        op: 'contains' | 'eq' | 'in' | 'gte' | 'lte' | 'not_eq';
+        value: string | number | string[];
+      }>;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const { logic = 'AND', rules = [], page = 1, limit = 25 } = query;
+
+    const buildClause = (rule: typeof rules[0]): any => {
+      const { field, op, value } = rule;
+
+      if (field === 'skills') {
+        const val = String(value);
+        if (op === 'contains') return { skills: { has: val } };
+        if (op === 'in') return { skills: { hasSome: Array.isArray(value) ? value : [String(value)] } };
+        return { skills: { has: val } };
+      }
+      if (field === 'stage') {
+        if (op === 'in') return { stage: { in: Array.isArray(value) ? value : [String(value)] } };
+        if (op === 'not_eq') return { stage: { not: String(value) } };
+        return { stage: String(value) };
+      }
+      if (field === 'visaStatus') {
+        if (op === 'not_eq') return { visaStatus: { not: String(value) } };
+        return { visaStatus: String(value) };
+      }
+      if (field === 'sourceName') {
+        return { sourceName: op === 'not_eq' ? { not: String(value) } : String(value) };
+      }
+      if (['location', 'currentTitle', 'currentCompany'].includes(field)) {
+        if (op === 'not_eq') return { [field]: { not: { contains: String(value), mode: 'insensitive' } } };
+        return { [field]: { contains: String(value), mode: 'insensitive' } };
+      }
+      if (field === 'yearsExperience') {
+        const num = Number(value);
+        if (op === 'gte') return { yearsExperience: { gte: num } };
+        if (op === 'lte') return { yearsExperience: { lte: num } };
+        return { yearsExperience: num };
+      }
+      if (field === 'noticePeriodDays') {
+        const num = Number(value);
+        if (op === 'gte') return { noticePeriodDays: { gte: num } };
+        if (op === 'lte') return { noticePeriodDays: { lte: num } };
+        return { noticePeriodDays: num };
+      }
+      return {};
+    };
+
+    const clauses = rules.filter(r => r.field && r.value !== '' && r.value !== undefined).map(buildClause);
+    const filterCondition: any =
+      clauses.length === 0
+        ? {}
+        : logic === 'AND'
+        ? { AND: clauses }
+        : { OR: clauses };
+
+    const where = { tenantId, isActive: true, ...filterCondition };
+
+    const [total, items] = await Promise.all([
+      this.prisma.candidate.count({ where }),
+      this.prisma.candidate.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          businessId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          currentTitle: true,
+          currentCompany: true,
+          stage: true,
+          skills: true,
+          location: true,
+          yearsExperience: true,
+          visaStatus: true,
+          noticePeriodDays: true,
+          sourceName: true,
+          createdAt: true,
+          _count: { select: { resumes: true } },
+        },
+      }),
+    ]);
+
+    return { items, total, page, limit, pages: Math.ceil(total / limit) };
   }
 }

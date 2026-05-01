@@ -273,6 +273,13 @@ model Tenant {
   invites          TenantInvite[]
   onboarding       TenantOnboarding?
   documents        Document[]
+  interviews             Interview[]
+  offers                 Offer[]
+  candidateStatusHistory CandidateStatusHistory[]
+  candidateOnboardings   CandidateOnboarding[]
+  talentPools            TalentPool[]
+  savedSearches          SavedSearch[]
+  notifications          Notification[]
 
   @@map("tenants")
 }
@@ -458,6 +465,9 @@ model Candidate {
   aiAnalyses       AiAnalysisResult[]
   documents        Document[]
   submissions      Submission[]
+  statusHistory         CandidateStatusHistory[]
+  onboarding            CandidateOnboarding?
+  talentPoolMemberships TalentPoolMember[]
 
   @@index([tenantId])
   @@index([tenantId, email])
@@ -1477,6 +1487,9 @@ model Submission {
   candidate  Candidate   @relation(fields: [candidateId], references: [id])
   activities Activity[]
 
+  interviews  Interview[]
+  offers      Offer[]
+
   @@unique([clientId, jobId, candidateId])
   @@index([tenantId])
   @@index([businessId])
@@ -1484,4 +1497,188 @@ model Submission {
   @@index([jobId])
   @@index([candidateId])
   @@map("submissions")
+}
+
+// ─── Interview ────────────────────────────────────────────────────────────────
+
+model Interview {
+  id           String    @id @default(uuid())
+  businessId   String    @unique
+  tenantId     String
+  submissionId String
+  candidateId  String
+  jobId        String
+  clientId     String?
+  round        Int       @default(1)
+  mode         String    @default("VIDEO")    // VIDEO, IN_PERSON, PHONE
+  scheduledAt  DateTime?
+  completedAt  DateTime?
+  meetingLink  String?
+  status       String    @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED, NO_SHOW
+  feedback     String?
+  rating       Int?      // 1-5
+  result       String?   // PASS, FAIL, HOLD
+  notes        String?
+  createdById  String?
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submission Submission @relation(fields: [submissionId], references: [id])
+
+  @@index([tenantId])
+  @@index([submissionId])
+  @@index([businessId])
+  @@map("interviews")
+}
+
+// ─── Offer ────────────────────────────────────────────────────────────────────
+
+model Offer {
+  id              String    @id @default(uuid())
+  businessId      String    @unique
+  tenantId        String
+  submissionId    String
+  candidateId     String
+  jobId           String
+  clientId        String?
+  offeredSalary   Float?
+  currency        String?   @default("USD")
+  joiningDate     DateTime?
+  offerLetterUrl  String?
+  status          String    @default("PENDING") // PENDING, EXTENDED, ACCEPTED, DECLINED, WITHDRAWN, EXPIRED
+  expiryDate      DateTime?
+  declineReason   String?
+  notes           String?
+  createdById     String?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submission Submission @relation(fields: [submissionId], references: [id])
+
+  @@index([tenantId])
+  @@index([submissionId])
+  @@index([businessId])
+  @@map("offers")
+}
+
+// ─── Candidate Status History ─────────────────────────────────────────────────
+
+model CandidateStatusHistory {
+  id          String   @id @default(uuid())
+  tenantId    String
+  candidateId String
+  fromStatus  String?  // null on first explicit status set
+  toStatus    String
+  changedById String?  // FK to users.id
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+  @@index([tenantId])
+  @@map("candidate_status_history")
+}
+
+// ─── Candidate Onboarding Checklist ──────────────────────────────────────────
+
+model CandidateOnboarding {
+  id                  String    @id @default(uuid())
+  tenantId            String
+  candidateId         String    @unique
+  expectedJoiningDate DateTime?
+  actualJoiningDate   DateTime?
+  passportStatus      String    @default("MISSING")    // MISSING | UPLOADED | VERIFIED
+  visaDocStatus       String    @default("MISSING")
+  offerLetterStatus   String    @default("MISSING")
+  contractStatus      String    @default("MISSING")
+  bankDetailsStatus   String    @default("MISSING")
+  completionPct       Int       @default(0)            // 0-100 calculated
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("candidate_onboarding")
+}
+
+// ─── Talent Pool ──────────────────────────────────────────────────────────────
+model TalentPool {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members TalentPoolMember[]
+
+  @@index([tenantId])
+  @@map("talent_pools")
+}
+
+model TalentPoolMember {
+  id          String   @id @default(uuid())
+  tenantId    String
+  poolId      String
+  candidateId String
+  addedById   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  pool      TalentPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  candidate Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([poolId, candidateId])
+  @@index([tenantId])
+  @@index([candidateId])
+  @@map("talent_pool_members")
+}
+
+// ─── Saved Search ─────────────────────────────────────────────────────────────
+model SavedSearch {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  queryJson   Json
+  entityType  String   @default("candidate")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("saved_searches")
+}
+
+// ─── Notification ─────────────────────────────────────────────────────────────
+model Notification {
+  id         String   @id @default(uuid())
+  tenantId   String
+  userId     String
+  type       String   // JD_ASSIGNED | SUBMISSION_RECEIVED | INTERVIEW_SCHEDULED | FEEDBACK_REMINDER
+  title      String
+  body       String
+  entityType String?  // job | submission | interview
+  entityId   String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([userId, isRead])
+  @@map("notifications")
 }

@@ -22,6 +22,14 @@ export class TeamController {
     private readonly inviteService: InviteService,
   ) {}
 
+  // ── Recruiters list (for assignment dropdowns — any authenticated user) ─────
+
+  @Get('recruiters')
+  @ApiOperation({ summary: 'List all active recruiters in the tenant (for assignment dropdowns)' })
+  listRecruiters(@CurrentUser('tenantId') tenantId: string) {
+    return this.teamService.listByRole(tenantId, UserRole.RECRUITER);
+  }
+
   // ── Team Users ────────────────────────────────────────────────────────────
 
   @Get('users')

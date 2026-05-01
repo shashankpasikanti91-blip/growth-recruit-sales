@@ -32,7 +32,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function FollowUpsPage() {
-  const [view, setView]     = useState<'today' | 'all'>('today');
+  const [view, setView]     = useState<'today' | 'all' | 'buckets'>('today');
   const [status, setStatus] = useState('');
   const [page, setPage]     = useState(1);
   const queryClient         = useQueryClient();
@@ -45,9 +45,9 @@ export default function FollowUpsPage() {
 
   const { data: allData, isLoading: loadingAll } = useQuery({
     queryKey: ['follow-ups', status, page],
-    queryFn: () => followUpsApi.list({ status: status || undefined, page, limit: 20 }),
+    queryFn: () => followUpsApi.list({ status: status || undefined, page, limit: 100 }),
     placeholderData: (prev: any) => prev,
-    enabled: view === 'all',
+    enabled: view === 'all' || view === 'buckets',
   });
 
   const markDone = useMutation({
@@ -64,6 +64,33 @@ export default function FollowUpsPage() {
     : (allData?.items ?? []);
   const total: number = allData?.total ?? items.length;
   const pages: number = allData?.pages ?? 1;
+
+  // Sort items into 4 buckets based on scheduledAt date
+  const buckets: Record<string, any[]> = { overdue: [], today: [], upcoming: [], done: [] };
+  if (view === 'buckets' && !loadingAll) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    items.forEach((item: any) => {
+      if (item.status === 'DONE') {
+        buckets.done.push(item);
+      } else if (!item.scheduledAt) {
+        buckets.upcoming.push(item);
+      } else {
+        const scheduled = new Date(item.scheduledAt);
+        const scheduledDate = new Date(scheduled.getFullYear(), scheduled.getMonth(), scheduled.getDate());
+        if (scheduledDate < today) {
+          buckets.overdue.push(item);
+        } else if (scheduledDate.getTime() === today.getTime()) {
+          buckets.today.push(item);
+        } else {
+          buckets.upcoming.push(item);
+        }
+      }
+    });
+  }
 
   const fmt = (d?: string | null) => {
     if (!d) return '—';
@@ -103,6 +130,14 @@ export default function FollowUpsPage() {
           <Clock className="w-4 h-4 inline mr-1.5" />Today
         </button>
         <button
+          onClick={() => setView('buckets')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            view === 'buckets' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <CalendarClock className="w-4 h-4 inline mr-1.5" />Buckets
+        </button>
+        <button
           onClick={() => setView('all')}
           className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
             view === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
@@ -122,7 +157,75 @@ export default function FollowUpsPage() {
         )}
       </div>
 
-      {/* Table */}
+      {/* BUCKETS VIEW */}
+      {view === 'buckets' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { key: 'overdue', label: 'Overdue', color: 'red', icon: '🔴' },
+            { key: 'today', label: 'Due Today', color: 'amber', icon: '🟡' },
+            { key: 'upcoming', label: 'Upcoming', color: 'blue', icon: '🔵' },
+            { key: 'done', label: 'Done', color: 'emerald', icon: '✓' },
+          ].map(({ key, label, color }) => {
+            const items = buckets[key as keyof typeof buckets] ?? [];
+            const colorClasses = {
+              red: 'bg-red-50 border-red-200',
+              amber: 'bg-amber-50 border-amber-200',
+              blue: 'bg-blue-50 border-blue-200',
+              emerald: 'bg-emerald-50 border-emerald-200',
+            };
+            const textColors = {
+              red: 'text-red-700',
+              amber: 'text-amber-700',
+              blue: 'text-blue-700',
+              emerald: 'text-emerald-700',
+            };
+            return (
+              <div key={key} className={`${colorClasses[color as keyof typeof colorClasses]} border rounded-lg p-4`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-semibold text-sm ${textColors[color as keyof typeof textColors]}`}>{label}</h3>
+                  <span className={`text-xs font-bold ${textColors[color as keyof typeof textColors]} bg-white/60 rounded-full px-2 py-0.5`}>{items.length}</span>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {items.length === 0 ? (
+                    <div className="text-xs text-gray-400 italic py-2">None</div>
+                  ) : (
+                    items.map((f: any) => {
+                      const Icon = TYPE_ICONS[f.type] ?? Clock;
+                      const related = f.client?.name ?? f.lead?.firstName ?? f.contact?.firstName ?? '—';
+                      return (
+                        <div key={f.id} className="bg-white rounded border border-gray-100 p-2 hover:shadow-sm transition-shadow text-xs">
+                          <div className="flex items-start justify-between gap-1 mb-1">
+                            <Icon className="w-3 h-3 text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-700 truncate">{f.title}</p>
+                              <p className="text-gray-500 text-[10px]">{related}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[10px] text-gray-400">{fmt(f.scheduledAt).split(' · ')[0]}</span>
+                            {f.status !== 'DONE' && (
+                              <button
+                                onClick={() => markDone.mutate(f.id)}
+                                disabled={markDone.isPending}
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 bg-emerald-100 rounded hover:bg-emerald-200 disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="w-2.5 h-2.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* TABLE VIEW */}
+      {view !== 'buckets' && (
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <TableWrapper>
           <table className="w-full text-sm">
@@ -202,6 +305,7 @@ export default function FollowUpsPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

@@ -1,16 +1,22 @@
 import {
-  Controller, Get, Post, Patch, Delete,
+  Controller, Get, Post, Patch, Delete, Put,
   Body, Param, Query, UseGuards,
   DefaultValuePipe, ParseIntPipe, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { IsString, IsOptional } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole, SubmissionStage } from '@prisma/client';
 import { SubmissionsService } from './submissions.service';
 import { CreateSubmissionDto, UpdateSubmissionDto } from './dto/submission.dto';
+
+class ClientFeedbackDto {
+  @IsString() feedback: string;
+  @IsOptional() @IsString() stage?: SubmissionStage;
+}
 
 @ApiTags('Submissions')
 @ApiBearerAuth()
@@ -22,8 +28,12 @@ export class SubmissionsController {
   @Post()
   @ApiOperation({ summary: 'Submit a candidate to a client JD' })
   @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.SALES, UserRole.RECRUITER)
-  create(@CurrentUser('tenantId') tenantId: string, @Body() dto: CreateSubmissionDto) {
-    return this.service.create(tenantId, dto);
+  create(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateSubmissionDto,
+  ) {
+    return this.service.create(tenantId, dto, userId);
   }
 
   @Get('stats')
@@ -70,6 +80,18 @@ export class SubmissionsController {
     @Body() dto: UpdateSubmissionDto,
   ) {
     return this.service.update(tenantId, id, dto);
+  }
+
+  @Put(':id/client-feedback')
+  @ApiOperation({ summary: 'Record client feedback and optionally advance stage (Sales only)' })
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.SALES)
+  updateClientFeedback(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body() dto: ClientFeedbackDto,
+  ) {
+    return this.service.updateClientFeedback(tenantId, id, userId, dto);
   }
 
   @Delete(':id')

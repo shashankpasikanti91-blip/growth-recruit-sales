@@ -1,0 +1,59 @@
+{
+  "name": "tekgen-ats-backend",
+  "version": "1.0.0",
+  "description": "Tekgen AI-Powered IT Recruitment ATS System - Backend",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "start:local": "npm --prefix ../tekgen-ats-frontend run build && node src/index.js",
+    "build": "echo \"No build required for Node.js\"",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "lint": "eslint src/**/*.js"
+  },
+  "keywords": [
+    "recruitment",
+    "ATS",
+    "AI",
+    "HR"
+  ],
+  "author": "Tekgen",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^5.7.0",
+    "axios": "^1.6.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.0",
+    "helmet": "^7.1.0",
+    "hpp": "^0.2.3",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.6.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.2",
+    "nodemailer": "^6.9.7",
+    "openai": "^4.28.0",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.18.0",
+    "uuid": "^9.0.1",
+    "validator": "^13.11.0",
+    "xss": "^1.0.14"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "pm2": "^6.0.14",
+    "prisma": "^5.7.0",
+    "supertest": "^6.3.4"
+  }
+}

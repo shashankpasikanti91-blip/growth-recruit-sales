@@ -1,8 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { JdParserService } from '../ai/services/jd-parser.service';
 import { BusinessIdService } from '../billing/business-id.service';
+
+/** Fields that must never be returned to RECRUITER-role users */
+const COMMERCIAL_FIELDS: Array<'billingRate' | 'candidatePayRate'> = [
+  'billingRate',
+  'candidatePayRate',
+];
+
+function stripCommercial<T extends Record<string, unknown>>(obj: T): Omit<T, 'billingRate' | 'candidatePayRate'> {
+  const copy = { ...obj };
+  for (const field of COMMERCIAL_FIELDS) delete (copy as any)[field];
+  return copy as Omit<T, 'billingRate' | 'candidatePayRate'>;
+}
 
 @Injectable()
 export class JobsService {
@@ -10,6 +23,7 @@ export class JobsService {
     private readonly prisma: PrismaService,
     private readonly jdParser: JdParserService,
     private readonly businessIdService: BusinessIdService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(tenantId: string, createdById: string, dto: CreateJobDto) {
@@ -50,12 +64,14 @@ export class JobsService {
 
   async findAll(
     tenantId: string,
-    filters: { search?: string; isActive?: boolean; page?: number; limit?: number },
+    filters: { search?: string; isActive?: boolean; assignedRecruiterId?: string; page?: number; limit?: number },
+    userRole?: string,
   ) {
-    const { search, isActive, page = 1, limit = 20 } = filters;
+    const { search, isActive, assignedRecruiterId, page = 1, limit = 20 } = filters;
     const where: any = { tenantId };
 
     if (isActive !== undefined) where.isActive = isActive;
+    if (assignedRecruiterId) where.assignedRecruiterId = assignedRecruiterId;
 
     if (search) {
       where.OR = [
@@ -79,10 +95,11 @@ export class JobsService {
       this.prisma.job.count({ where }),
     ]);
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    const rows = userRole === 'RECRUITER' ? data.map(stripCommercial) : data;
+    return { data: rows, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(tenantId: string, id: string) {
+  async findOne(tenantId: string, id: string, userRole?: string) {
     const job = await this.prisma.job.findFirst({
       where: { id, tenantId },
       include: {
@@ -106,14 +123,25 @@ export class JobsService {
       },
     });
     if (!job) throw new NotFoundException('Job not found');
-    return job;
+
+    // Attach recruiter details if assigned
+    let assignedRecruiter: any = null;
+    if (job.assignedRecruiterId) {
+      assignedRecruiter = await this.prisma.user.findFirst({
+        where: { id: job.assignedRecruiterId },
+        select: { id: true, firstName: true, lastName: true, email: true },
+      });
+    }
+
+    const enriched = { ...job, assignedRecruiter };
+    return userRole === 'RECRUITER' ? stripCommercial(enriched) : enriched;
   }
 
   async update(tenantId: string, id: string, dto: UpdateJobDto) {
-    await this.findOne(tenantId, id);
+    const existing = await this.findOne(tenantId, id);
     const { salaryMin, salaryMax, salaryCurrency, requiredSkills, requiredExperience, workMode, headcount, ...rest } = dto as any;
     // SECURITY: include tenantId in write where clause to prevent TOCTOU cross-tenant mutation
-    return this.prisma.job.update({
+    const updated = await this.prisma.job.update({
       where: { id, tenantId },
       data: {
         ...rest,
@@ -124,6 +152,18 @@ export class JobsService {
         ...(salaryMax ? { salaryMax: parseFloat(salaryMax) } : {}),
       },
     });
+
+    // Emit event when a recruiter is newly assigned
+    const newRecruiterId = (rest as any).assignedRecruiterId ?? undefined;
+    if (newRecruiterId && newRecruiterId !== (existing as any).assignedRecruiterId) {
+      this.eventEmitter.emit('job.assigned', {
+        tenantId,
+        jobId: id,
+        jobTitle: updated.title,
+        recruiterId: newRecruiterId,
+      });
+    }
+    return updated;
   }
 
   async close(tenantId: string, id: string) {

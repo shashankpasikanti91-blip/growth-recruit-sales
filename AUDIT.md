@@ -1,7 +1,7 @@
 # System Audit Report
 **Platform:** SRP AI Labs — Recruitment + Sales Agentic Automation Platform  
 **Initial Audit:** March 23, 2026  
-**Last Updated:** April 16, 2026  
+**Last Updated:** May 1, 2026 (v3.0.0)  
 **Status:** All Critical & High Issues Resolved ✅
 
 ---
@@ -78,7 +78,7 @@ All critical security issues (C1–C10) and high-priority issues (H1–H9) ident
 
 | Component | Status | Notes |
 |---|---|---|
-| Multi-tenant schema | ✅ | ~30 models, UUIDs, tenant_id scoping |
+| Multi-tenant schema | ✅ | 31 models, 13 enums, UUIDs, tenant_id scoping |
 | JWT auth + refresh | ✅ | 15m access / 7d refresh, rotation |
 | Google OAuth SSO | ✅ | With account linking and invite-based onboarding |
 | Email verification (OTP) | ✅ | Redis-backed, 10-min TTL |
@@ -90,6 +90,10 @@ All critical security issues (C1–C10) and high-priority issues (H1–H9) ident
 | Document vault | ✅ | MinIO/S3, AES-256 encryption, signed URLs |
 | Analytics + caching | ✅ | Redis cache with TTL |
 | Onboarding wizard | ✅ Backend | 5-step wizard (frontend route pending) |
+| Interview module | ✅ | Full CRUD: /interviews — mode, status, round, rating, result, feedback, multi-round |
+| Offer module | ✅ | Full CRUD: /offers — status lifecycle (PENDING→EXTENDED→ACCEPTED/DECLINED/WITHDRAWN/EXPIRED), conflict guard |
+| Commercial firewall | ✅ | billingRate/candidatePayRate stripped at API level for RECRUITER role; recruiter JD scope auto-applied |
+| Submissions (enhanced) | ✅ | EventEmitter2 notifications, client feedback endpoint (PUT /submissions/:id/client-feedback) |
 | n8n integration | ✅ | 5 workflows, correct port config |
 | Docker prod setup | ✅ | RAM-optimized, health checks, security_opt |
 | Nginx reverse proxy | ✅ | TLS 1.2/1.3, rate limiting, security headers |
@@ -122,3 +126,4 @@ All critical security issues (C1–C10) and high-priority issues (H1–H9) ident
 | `20260405000001` | Workflow pause/resume, import bid |
 | `20260409000001` | Apollo import source |
 | `20260416000001` | Security hardening indexes |
+| `20260420000001` | Interview + Offer models (tables, FK constraints, indexes) |

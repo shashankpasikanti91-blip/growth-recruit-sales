@@ -19,6 +19,131 @@ export const candidatesApi = {
   listResumes: (id: string) => api.get(`/candidates/${id}/resumes`).then(r => r.data),
   getResumeDownloadUrl: (id: string, resumeId: string) =>
     api.get(`/candidates/${id}/resumes/${resumeId}/download-url`).then(r => r.data),
+  updateStatus: (id: string, dto: { toStatus: string; notes?: string }) =>
+    api.post(`/candidates/${id}/status`, dto).then(r => r.data),
+  listStatusHistory: (id: string) => api.get(`/candidates/${id}/status-history`).then(r => r.data),
+  getOnboarding: (id: string) => api.get(`/candidates/${id}/onboarding`).then(r => r.data),
+  updateOnboarding: (id: string, dto: Record<string, any>) =>
+    api.put(`/candidates/${id}/onboarding`, dto).then(r => r.data),
+  booleanSearch: (dto: Record<string, any>) =>
+    api.post('/candidates/boolean-search', dto).then(r => r.data),
+  getPoolMemberships: (candidateId: string) =>
+    api.get(`/candidates/${candidateId}/pool-memberships`).then(r => r.data),
+};
+
+// ─── Talent Pools ─────────────────────────────────────────────────────────────
+
+export const talentPoolsApi = {
+  list: () => api.get('/talent-pools').then(r => r.data),
+  create: (dto: { name: string; description?: string }) =>
+    api.post('/talent-pools', dto).then(r => r.data),
+  get: (id: string) => api.get(`/talent-pools/${id}`).then(r => r.data),
+  remove: (id: string) => api.delete(`/talent-pools/${id}`).then(r => r.data),
+  addMember: (id: string, dto: { candidateId: string; notes?: string }) =>
+    api.post(`/talent-pools/${id}/members`, dto).then(r => r.data),
+  removeMember: (id: string, candidateId: string) =>
+    api.delete(`/talent-pools/${id}/members/${candidateId}`).then(r => r.data),
+  getCandidatePools: (candidateId: string) =>
+    api.get(`/talent-pools/${candidateId}`).then(r => r.data),
+};
+
+// ─── Saved Searches ───────────────────────────────────────────────────────────
+
+export const savedSearchesApi = {
+  list: () => api.get('/saved-searches').then(r => r.data),
+  create: (dto: { name: string; description?: string; queryJson: Record<string, any>; entityType?: string }) =>
+    api.post('/saved-searches', dto).then(r => r.data),
+  remove: (id: string) => api.delete(`/saved-searches/${id}`).then(r => r.data),
+};
+
+// ─── My Hub ───────────────────────────────────────────────────────────────────
+
+export const myHubApi = {
+  getProfile:       () => api.get('/my/profile').then(r => r.data),
+  updateProfile:    (dto: { firstName?: string; lastName?: string; settings?: Record<string, any> }) =>
+                      api.put('/my/profile', dto).then(r => r.data),
+  getDashboard:     () => api.get('/my/dashboard').then(r => r.data),
+  getMyJDs:         (params?: { page?: number; limit?: number }) =>
+                      api.get('/my/jds', { params }).then(r => r.data),
+  getMySubmissions: (params?: { page?: number; limit?: number; stage?: string }) =>
+                      api.get('/my/submissions', { params }).then(r => r.data),
+  getMyLeads:       (params?: { page?: number; limit?: number; stage?: string }) =>
+                      api.get('/my/leads', { params }).then(r => r.data),
+  getMyFollowUps:   (params?: { view?: string; page?: number; limit?: number }) =>
+                      api.get('/my/follow-ups', { params }).then(r => r.data),
+  getMyActivity:    (params?: { page?: number; limit?: number }) =>
+                      api.get('/my/activity', { params }).then(r => r.data),
+};
+
+// ─── Connect (Phase 08 — Communication Channels) ─────────────────────────────
+
+export const connectApi = {
+  // Status
+  getChannelStatuses: () => api.get('/integrations/connect/status').then(r => r.data),
+  // Gmail (per-user)
+  getGmailAuthUrl:    () => api.get('/integrations/gmail/auth-url').then(r => r.data as { url: string }),
+  getGmailStatus:     () => api.get('/integrations/gmail/status').then(r => r.data),
+  disconnectGmail:    () => api.delete('/integrations/gmail').then(r => r.data),
+  // Outlook (per-user)
+  getOutlookAuthUrl:  () => api.get('/integrations/outlook/auth-url').then(r => r.data as { url: string }),
+  getOutlookStatus:   () => api.get('/integrations/outlook/status').then(r => r.data),
+  disconnectOutlook:  () => api.delete('/integrations/outlook').then(r => r.data),
+  // WhatsApp (admin/tenant)
+  saveWhatsApp:       (dto: { phoneNumberId: string; accessToken: string }) =>
+                        api.post('/integrations/whatsapp', dto).then(r => r.data),
+  getWhatsAppStatus:  () => api.get('/integrations/whatsapp/status').then(r => r.data),
+  // Telegram (admin/tenant)
+  saveTelegram:       (dto: { botToken: string; teamChatId?: string }) =>
+                        api.post('/integrations/telegram', dto).then(r => r.data),
+  getTelegramStatus:  () => api.get('/integrations/telegram/status').then(r => r.data),
+  // Microsoft Teams (admin/tenant)
+  saveTeams:          (dto: { webhookUrl: string; channel?: string }) =>
+                        api.post('/integrations/teams', dto).then(r => r.data),
+  getTeamsStatus:     () => api.get('/integrations/teams/status').then(r => r.data),
+  // Direct send
+  sendEmail:          (dto: { to: string; toName?: string; subject: string; body: string }) =>
+                        api.post('/integrations/send-email', dto).then(r => r.data),
+  sendWhatsApp:       (dto: { to: string; text: string; templateName?: string }) =>
+                        api.post('/integrations/send-whatsapp', dto).then(r => r.data),
+  sendTelegram:       (dto: { chatId: string; text: string }) =>
+                        api.post('/integrations/send-telegram', dto).then(r => r.data),
+};
+
+// ─── Reports & Analytics (Phase 09) ──────────────────────────────────────────
+
+export const reportsApi = {
+  placementVelocity:    (params?: Record<string, any>) =>
+                          api.get('/reports/placement-velocity', { params }).then(r => r.data),
+  salesPipeline:        (params?: Record<string, any>) =>
+                          api.get('/reports/sales-pipeline', { params }).then(r => r.data),
+  recruiterPerformance: (params?: Record<string, any>) =>
+                          api.get('/reports/recruiter-performance', { params }).then(r => r.data),
+  clientActivity:       (params?: Record<string, any>) =>
+                          api.get('/reports/client-activity', { params }).then(r => r.data),
+  aiUsage:              (params?: Record<string, any>) =>
+                          api.get('/reports/ai-usage', { params }).then(r => r.data),
+  getWidgetLayout:      () => api.get('/reports/dashboard/widgets').then(r => r.data),
+  saveWidgetLayout:     (layout: string[]) =>
+                          api.put('/reports/dashboard/widgets', { layout }).then(r => r.data),
+  exportUrl:            (report: string, format: 'csv' | 'xlsx', params?: Record<string, any>) => {
+    const q = new URLSearchParams({ ...params, format }).toString();
+    return `/api/v1/reports/${report}?${q}`;
+  },
+};
+
+// ─── Notifications ─────────────────────────────────────────────────────────────
+
+export const notificationsApi = {
+  list: (params?: { page?: number; limit?: number; unreadOnly?: boolean }) =>
+    api.get('/notifications', { params }).then(r => r.data),
+  unreadCount: () =>
+    api.get('/notifications/unread-count').then(r => r.data as { count: number }),
+  preview: () =>
+    api.get('/notifications/preview').then(r => r.data as any[]),
+  markRead: (id: string) =>
+    api.patch(`/notifications/${id}/read`).then(r => r.data),
+  markAllRead: () =>
+    api.patch('/notifications/read-all').then(r => r.data),
 };
 
 // ─── Jobs ────────────────────────────────────────────────────────────────────
@@ -264,6 +389,30 @@ export const submissionsApi = {
   update: (id: string, data: any) => api.patch(`/submissions/${id}`, data).then(r => r.data),
   remove: (id: string) => api.delete(`/submissions/${id}`).then(r => r.data),
   stats:  () => api.get('/submissions/stats').then(r => r.data),
+  clientFeedback: (id: string, data: { feedback: string; stage?: string }) =>
+    api.put(`/submissions/${id}/client-feedback`, data).then(r => r.data),
+};
+
+// ─── Interviews ───────────────────────────────────────────────────────────────
+
+export const interviewsApi = {
+  list:   (params?: Record<string, any>) => api.get('/interviews', { params }).then(r => r.data),
+  get:    (id: string) => api.get(`/interviews/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/interviews', data).then(r => r.data),
+  update: (id: string, data: any) => api.put(`/interviews/${id}`, data).then(r => r.data),
+  remove: (id: string) => api.delete(`/interviews/${id}`).then(r => r.data),
+  stats:  () => api.get('/interviews/stats').then(r => r.data),
+};
+
+// ─── Offers ───────────────────────────────────────────────────────────────────
+
+export const offersApi = {
+  list:   (params?: Record<string, any>) => api.get('/offers', { params }).then(r => r.data),
+  get:    (id: string) => api.get(`/offers/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/offers', data).then(r => r.data),
+  update: (id: string, data: any) => api.put(`/offers/${id}`, data).then(r => r.data),
+  remove: (id: string) => api.delete(`/offers/${id}`).then(r => r.data),
+  stats:  () => api.get('/offers/stats').then(r => r.data),
 };
 
 // ─── Proposals ────────────────────────────────────────────────────────────────
@@ -276,3 +425,13 @@ export const proposalsApi = {
   remove: (id: string) => api.delete(`/proposals/${id}`).then(r => r.data),
   stats:  () => api.get('/proposals/stats').then(r => r.data),
 };
+
+// ─── Users (Team) ─────────────────────────────────────────────────────────────
+
+export const usersApi = {
+  list: (params?: Record<string, any>) => api.get('/users', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/users/${id}`).then(r => r.data),
+  me: () => api.get('/users/me').then(r => r.data),
+  listRecruiters: () => api.get('/team/recruiters').then(r => r.data),
+};
+

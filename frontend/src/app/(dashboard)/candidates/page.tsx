@@ -1,12 +1,13 @@
 ﻿'use client';
 import { useState, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { candidatesApi } from '@/lib/api-client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { candidatesApi, talentPoolsApi, savedSearchesApi } from '@/lib/api-client';
 import Link from 'next/link';
-import { UserPlus, Search, Briefcase, Copy, Check, X, ChevronLeft, ChevronRight, Zap, Star, Filter, MapPin, ChevronDown } from 'lucide-react';
+import { UserPlus, Search, Briefcase, Copy, Check, X, ChevronLeft, ChevronRight, Zap, Star, Filter, MapPin, ChevronDown, Code2, Plus, Trash2, Save, Layers, BookMarked, LayoutGrid } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { BulkScreenModal } from '@/components/candidates/BulkScreenModal';
 import { TableWrapper } from '@/components/ui/table-wrapper';
+import toast from 'react-hot-toast';
 
 const STAGE_CONFIG: Record<string, { label: string; color: string }> = {
   SOURCED:      { label: 'Sourced',      color: 'bg-gray-100 text-gray-700' },
@@ -27,6 +28,33 @@ const SCORE_LABEL = (s: number) => s >= 75 ? 'Hire-Ready' : s >= 55 ? 'KIV' : 'R
 const noticePeriodLabel = (d?: number | null) => { if (d == null) return null; if (d===0) return 'Immediate'; if (d<=14) return d+'d'; if (d<=60) return Math.round(d/7)+'w'; return Math.round(d/30)+'mo'; };
 const EXP_FILTERS = ['Any','0-2 yrs','2-5 yrs','5-10 yrs','10+ yrs'];
 const SOURCE_OPTS = ['MANUAL','LINKEDIN','REFERRAL','JOB_BOARD','CSV','APOLLO','SCRAPER','EMAIL'];
+
+const BOOL_FIELDS = [
+  { value: 'skills',          label: 'Skills' },
+  { value: 'stage',           label: 'Stage' },
+  { value: 'currentTitle',    label: 'Title' },
+  { value: 'currentCompany',  label: 'Company' },
+  { value: 'location',        label: 'Location' },
+  { value: 'visaStatus',      label: 'Visa Status' },
+  { value: 'sourceName',      label: 'Source' },
+  { value: 'yearsExperience', label: 'Experience (yrs)' },
+  { value: 'noticePeriodDays',label: 'Notice Period (days)' },
+];
+
+const BOOL_OPS: Record<string, Array<{value:string; label:string}>> = {
+  skills:           [{ value:'contains', label:'has skill' }, { value:'in', label:'has any of' }],
+  stage:            [{ value:'eq', label:'is' }, { value:'not_eq', label:'is not' }, { value:'in', label:'is one of' }],
+  currentTitle:     [{ value:'contains', label:'contains' }, { value:'not_eq', label:'not contains' }],
+  currentCompany:   [{ value:'contains', label:'contains' }, { value:'not_eq', label:'not contains' }],
+  location:         [{ value:'contains', label:'contains' }],
+  visaStatus:       [{ value:'eq', label:'is' }, { value:'not_eq', label:'is not' }],
+  sourceName:       [{ value:'eq', label:'is' }, { value:'not_eq', label:'is not' }],
+  yearsExperience:  [{ value:'gte', label:'>=' }, { value:'lte', label:'<=' }, { value:'eq', label:'=' }],
+  noticePeriodDays: [{ value:'lte', label:'<=' }, { value:'gte', label:'>=' }],
+};
+
+type BoolRule = { id: number; field: string; op: string; value: string };
+let _ruleId = 0;
 
 function StarRating({ rating }: { rating: number }) {
   if (!rating) return <span className="text-gray-300 text-xs">-</span>;
@@ -49,11 +77,73 @@ export default function CandidatesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkScreen, setShowBulkScreen] = useState(false);
 
+  // Boolean search state
+  const [searchMode, setSearchMode] = useState<'simple' | 'boolean'>('simple');
+  const [boolLogic, setBoolLogic]   = useState<'AND' | 'OR'>('AND');
+  const [boolRules, setBoolRules]   = useState<BoolRule[]>([{ id: ++_ruleId, field: 'skills', op: 'contains', value: '' }]);
+  const [boolResults, setBoolResults]   = useState<any[] | null>(null);
+  const [boolTotal, setBoolTotal]       = useState(0);
+  const [boolRunning, setBoolRunning]   = useState(false);
+  const [showSaveSearch, setShowSaveSearch] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState('');
+  const queryClient = useQueryClient();
+
   const { data, isLoading } = useQuery({
     queryKey: ['candidates', search, stageFilter, visaFilter, expFilter, sourceFilter, skillsFilter, page],
     queryFn: () => candidatesApi.list({ search: search || undefined, skills: skillsFilter || undefined, page, limit: 25 }),
     placeholderData: (prev: any) => prev,
+    enabled: searchMode === 'simple',
   });
+
+  const { data: savedSearchesData, refetch: refetchSavedSearches } = useQuery({
+    queryKey: ['saved-searches'],
+    queryFn: () => savedSearchesApi.list(),
+  });
+
+  const deleteSavedSearchMutation = useMutation({
+    mutationFn: (id: string) => savedSearchesApi.remove(id),
+    onSuccess: () => { toast.success('Search deleted'); refetchSavedSearches(); },
+  });
+
+  const runBooleanSearch = async () => {
+    const activeRules = boolRules.filter(r => r.value.trim());
+    if (!activeRules.length) return;
+    setBoolRunning(true);
+    try {
+      const result = await candidatesApi.booleanSearch({
+        logic: boolLogic,
+        rules: activeRules.map(r => ({ field: r.field, op: r.op, value: r.value })),
+        page: 1, limit: 50,
+      });
+      setBoolResults(result.items ?? []);
+      setBoolTotal(result.total ?? 0);
+    } catch {
+      toast.error('Search failed');
+    } finally {
+      setBoolRunning(false);
+    }
+  };
+
+  const saveSearch = async () => {
+    if (!saveSearchName.trim()) return;
+    await savedSearchesApi.create({
+      name: saveSearchName.trim(),
+      queryJson: { logic: boolLogic, rules: boolRules },
+      entityType: 'candidate',
+    });
+    toast.success('Search saved');
+    setSaveSearchName('');
+    setShowSaveSearch(false);
+    refetchSavedSearches();
+  };
+
+  const loadSavedSearch = (s: any) => {
+    const q = s.queryJson as any;
+    if (q?.logic) setBoolLogic(q.logic);
+    if (q?.rules) setBoolRules(q.rules.map((r: any) => ({ ...r, id: ++_ruleId })));
+    setSearchMode('boolean');
+    setBoolResults(null);
+  };
 
   const candidates: any[] = (() => {
     const list = data?.data ?? [];
@@ -85,13 +175,37 @@ export default function CandidatesPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Candidates</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{data?.meta?.total ?? '-'} total {activeCount > 0 && '· '+activeCount+' filter'+(activeCount>1?'s':'')+' active'}</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {searchMode === 'boolean' && boolResults !== null
+              ? `${boolTotal} results from boolean search`
+              : (data?.meta?.total ?? '-') + ' total' + (activeCount > 0 ? ' · ' + activeCount + ' filter' + (activeCount > 1 ? 's' : '') + ' active' : '')}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && <button onClick={()=>setShowBulkScreen(true)} className="btn-primary flex items-center gap-2 text-sm"><Zap className="w-4 h-4" /> Screen {selectedIds.size} vs JD</button>}
+          <Link href="/talent-pools" className="btn-secondary flex items-center gap-1.5 text-sm"><Layers className="w-4 h-4" /> Talent Pools</Link>
           <Link href="/candidates/new" className="btn-secondary flex items-center gap-1.5 text-sm"><UserPlus className="w-4 h-4" /> Add Candidate</Link>
         </div>
       </div>
+
+      {/* Search mode toggle */}
+      <div className="flex items-center gap-0.5 p-1 bg-gray-100 rounded-xl w-fit">
+        <button
+          onClick={() => { setSearchMode('simple'); setBoolResults(null); }}
+          className={"px-4 py-1.5 text-sm font-medium rounded-lg transition-colors " + (searchMode === 'simple' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800')}
+        >
+          <Search className="w-3.5 h-3.5 inline mr-1.5" />Simple
+        </button>
+        <button
+          onClick={() => setSearchMode('boolean')}
+          className={"px-4 py-1.5 text-sm font-medium rounded-lg transition-colors " + (searchMode === 'boolean' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800')}
+        >
+          <Code2 className="w-3.5 h-3.5 inline mr-1.5" />Boolean
+        </button>
+      </div>
+
+      {/* Simple search panel */}
+      {searchMode === 'simple' && (
       <div className="card p-4 space-y-3">
         <div className="flex gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[240px]">
@@ -123,11 +237,179 @@ export default function CandidatesPage() {
           </div>
         )}
       </div>
+      )}
+
+      {/* Boolean search panel */}
+      {searchMode === 'boolean' && (
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">Match</span>
+              <div className="flex items-center gap-0.5 p-0.5 bg-gray-100 rounded-lg">
+                {(['AND','OR'] as const).map(l => (
+                  <button key={l} onClick={() => setBoolLogic(l)}
+                    className={"px-3 py-1 text-xs font-bold rounded-md transition-colors " + (boolLogic === l ? 'bg-brand-600 text-white' : 'text-gray-500')}
+                  >{l}</button>
+                ))}
+              </div>
+              <span className="text-sm text-gray-500">of these rules</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowSaveSearch(s => !s)} className="flex items-center gap-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:border-brand-400 hover:text-brand-600">
+                <BookMarked className="w-3.5 h-3.5" /> Save Search
+              </button>
+              <button
+                onClick={runBooleanSearch}
+                disabled={boolRunning}
+                className="btn-primary text-sm px-4 py-2"
+              >
+                {boolRunning ? 'Searching…' : 'Run Search'}
+              </button>
+            </div>
+          </div>
+
+          {/* Save search input */}
+          {showSaveSearch && (
+            <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+              <input
+                className="input text-sm flex-1"
+                placeholder="Search name (e.g. React 5yr+ Dubai)…"
+                value={saveSearchName}
+                onChange={e => setSaveSearchName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveSearch(); }}
+              />
+              <button onClick={saveSearch} className="btn-primary text-sm px-3 py-2">
+                <Save className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => setShowSaveSearch(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Rule rows */}
+          <div className="space-y-2">
+            {boolRules.map((rule, idx) => (
+              <div key={rule.id} className="flex items-center gap-2 flex-wrap">
+                {idx > 0 && (
+                  <span className="text-[11px] font-bold text-brand-600 w-8 text-center">{boolLogic}</span>
+                )}
+                {idx === 0 && <span className="text-[11px] text-gray-400 w-8 text-center">IF</span>}
+                <select
+                  className="input text-sm py-1.5 w-44"
+                  value={rule.field}
+                  onChange={e => {
+                    const newField = e.target.value;
+                    setBoolRules(prev => prev.map(r => r.id === rule.id
+                      ? { ...r, field: newField, op: (BOOL_OPS[newField]?.[0]?.value ?? 'contains'), value: '' }
+                      : r));
+                  }}
+                >
+                  {BOOL_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                </select>
+                <select
+                  className="input text-sm py-1.5 w-36"
+                  value={rule.op}
+                  onChange={e => setBoolRules(prev => prev.map(r => r.id === rule.id ? { ...r, op: e.target.value } : r))}
+                >
+                  {(BOOL_OPS[rule.field] ?? [{ value: 'contains', label: 'contains' }]).map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <input
+                  className="input text-sm py-1.5 flex-1 min-w-[160px]"
+                  placeholder={rule.field === 'skills' ? 'e.g. React' : rule.field.includes('Experience') ? '5' : 'value…'}
+                  value={rule.value}
+                  onChange={e => setBoolRules(prev => prev.map(r => r.id === rule.id ? { ...r, value: e.target.value } : r))}
+                  onKeyDown={e => { if (e.key === 'Enter') runBooleanSearch(); }}
+                />
+                {boolRules.length > 1 && (
+                  <button onClick={() => setBoolRules(prev => prev.filter(r => r.id !== rule.id))} className="text-gray-400 hover:text-red-500">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setBoolRules(prev => [...prev, { id: ++_ruleId, field: 'skills', op: 'contains', value: '' }])}
+            className="flex items-center gap-1.5 text-xs text-brand-600 font-medium mt-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Rule
+          </button>
+
+          {/* Saved searches */}
+          {(savedSearchesData as any)?.length > 0 && (
+            <div className="pt-2 border-t border-gray-100">
+              <p className="text-xs font-medium text-gray-500 mb-1.5">Saved Searches</p>
+              <div className="flex flex-wrap gap-2">
+                {((savedSearchesData as any) ?? []).map((s: any) => (
+                  <div key={s.id} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-50 border border-brand-100 text-xs text-brand-700">
+                    <button onClick={() => loadSavedSearch(s)} className="font-medium hover:underline">{s.name}</button>
+                    <button onClick={() => deleteSavedSearchMutation.mutate(s.id)} className="ml-1 text-brand-400 hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2.5 bg-brand-50 border border-brand-200 rounded-xl text-sm">
           <span className="font-medium text-brand-700">{selectedIds.size} selected</span>
           <button onClick={()=>setShowBulkScreen(true)} className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-brand-600 text-white text-xs font-medium"><Zap className="w-3.5 h-3.5" /> Bulk Screen</button>
           <button onClick={()=>setSelectedIds(new Set())} className="ml-auto text-brand-500"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* Boolean search results */}
+      {searchMode === 'boolean' && boolResults !== null && (
+        <div className="card p-0 overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-800">Boolean Results — {boolTotal} match{boolTotal !== 1 ? 'es' : ''}</span>
+            <button onClick={() => setBoolResults(null)} className="text-xs text-gray-400 hover:text-gray-700"><X className="w-4 h-4" /></button>
+          </div>
+          {boolResults.length === 0 ? (
+            <div className="py-16 text-center text-gray-400">
+              <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No candidates matched the search criteria</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {boolResults.map((c: any) => (
+                <div key={c.id} className="flex items-center gap-4 px-5 py-3 hover:bg-brand-50/30 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/candidates/${c.id}`} className="font-semibold text-gray-900 hover:text-brand-600 text-sm">
+                      {c.firstName} {c.lastName}
+                    </Link>
+                    <div className="text-xs text-gray-400 mt-0.5 truncate">
+                      {[c.currentTitle, c.currentCompany].filter(Boolean).join(' · ') || c.email || '-'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
+                    {c.stage && (
+                      <span className={"text-[10px] font-semibold px-2 py-0.5 rounded-full " + (STAGE_CONFIG[c.stage]?.color ?? 'bg-gray-100 text-gray-600')}>
+                        {STAGE_CONFIG[c.stage]?.label ?? c.stage}
+                      </span>
+                    )}
+                    {c.yearsExperience != null && (
+                      <span className="text-xs text-gray-500">{c.yearsExperience}yr</span>
+                    )}
+                    {c.location && (
+                      <span className="flex items-center gap-0.5 text-xs text-gray-400">
+                        <MapPin className="w-3 h-3" />{c.location}
+                      </span>
+                    )}
+                    {c.skills?.slice(0, 3).map((s: string) => (
+                      <span key={s} className="text-[10px] px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <div className="card p-0 overflow-hidden">

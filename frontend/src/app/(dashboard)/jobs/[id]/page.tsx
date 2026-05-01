@@ -1,17 +1,18 @@
 'use client';
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { jobsApi, applicationsApi, candidatesApi } from '@/lib/api-client';
+import { jobsApi, applicationsApi, candidatesApi, submissionsApi, usersApi } from '@/lib/api-client';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Briefcase, MapPin, DollarSign, Users, Clock, ArrowLeft,
   Zap, ChevronRight, CheckCircle, XCircle, ChevronDown, ChevronUp, X,
-  UserPlus, Calendar, Search, Loader2,
+  UserPlus, Calendar, Search, Loader2, MessageSquare, UserCheck,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { BusinessIdBadge } from '@/components/layout/business-id-badge';
+import { useAuthStore } from '@/store/auth.store';
 
 function dualDate(d: string | Date | null | undefined): { abs: string; rel: string } {
   if (!d) return { abs: '—', rel: '' };
@@ -34,13 +35,34 @@ const STAGE_COLORS: Record<string, string> = {
 
 const APP_STAGES = ['SOURCED', 'SCREENED', 'INTERVIEWING', 'OFFERED', 'PLACED', 'REJECTED', 'WITHDRAWN'];
 
+const SUB_STAGE_COLORS: Record<string, string> = {
+  DRAFT:               'bg-gray-100 text-gray-600',
+  INTERNAL_REVIEW:     'bg-violet-100 text-violet-700',
+  SUBMITTED_TO_SALES:  'bg-blue-100 text-blue-700',
+  SUBMITTED_TO_CLIENT: 'bg-cyan-100 text-cyan-700',
+  CLIENT_REVIEW:       'bg-yellow-100 text-yellow-700',
+  INTERVIEW:           'bg-orange-100 text-orange-700',
+  OFFER:               'bg-emerald-100 text-emerald-700',
+  JOINED:              'bg-green-100 text-green-700',
+  REJECTED:            'bg-red-100 text-red-700',
+  WITHDRAWN:           'bg-gray-200 text-gray-600',
+};
+
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const user = useAuthStore(s => s.user);
+  const canAssignRecruiter = user?.role === 'TENANT_ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'SALES';
   const [showFullJD, setShowFullJD] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignSearch, setAssignSearch] = useState('');
   const [linkSearch, setLinkSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'submissions'>('pipeline');
+  const [feedbackTarget, setFeedbackTarget] = useState<any>(null);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackStage, setFeedbackStage] = useState('');
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', id],
@@ -51,6 +73,12 @@ export default function JobDetailPage() {
     queryKey: ['applications', 'job', id],
     queryFn: () => applicationsApi.list({ jobId: id, limit: 50 }),
     enabled: !!id,
+  });
+
+  const { data: submissionsData } = useQuery({
+    queryKey: ['submissions', 'job', id],
+    queryFn: () => submissionsApi.list({ jobId: id, limit: 100 }),
+    enabled: !!id && activeTab === 'submissions',
   });
 
   const screenMutation = useMutation({
@@ -81,6 +109,19 @@ export default function JobDetailPage() {
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to close job'),
   });
 
+  const clientFeedbackMutation = useMutation({
+    mutationFn: ({ subId, feedback, stage }: { subId: string; feedback: string; stage: string }) =>
+      submissionsApi.clientFeedback(subId, { feedback, stage: stage || undefined }),
+    onSuccess: () => {
+      toast.success('Feedback saved');
+      queryClient.invalidateQueries({ queryKey: ['submissions', 'job', id] });
+      setFeedbackTarget(null);
+      setFeedbackText('');
+      setFeedbackStage('');
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to save feedback'),
+  });
+
   const linkCandidateMutation = useMutation({
     mutationFn: (candidateId: string) => applicationsApi.create({ candidateId, jobId: id, stage: 'SOURCED' }),
     onSuccess: () => {
@@ -96,6 +137,23 @@ export default function JobDetailPage() {
     queryKey: ['candidates', 'search', linkSearch],
     queryFn: () => candidatesApi.list({ search: linkSearch, limit: 10 }),
     enabled: showLinkModal && linkSearch.length >= 2,
+  });
+
+  const { data: recruiters } = useQuery({
+    queryKey: ['team', 'recruiters'],
+    queryFn: () => usersApi.listRecruiters(),
+    enabled: showAssignModal,
+  });
+
+  const assignRecruiterMutation = useMutation({
+    mutationFn: (recruiterId: string | null) => jobsApi.update(id, { assignedRecruiterId: recruiterId }),
+    onSuccess: () => {
+      toast.success(assignRecruiterMutation.variables ? 'Recruiter assigned' : 'Recruiter unassigned');
+      queryClient.invalidateQueries({ queryKey: ['job', id] });
+      setShowAssignModal(false);
+      setAssignSearch('');
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to assign recruiter'),
   });
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Loading...</div>;
@@ -147,6 +205,35 @@ export default function JobDetailPage() {
                     {dualDate(job.createdAt).abs} · {dualDate(job.createdAt).rel}
                   </span>
                 </div>
+                {/* Assigned Recruiter */}
+                <div className="flex items-center gap-2 mt-3">
+                  {job.assignedRecruiterId ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <UserCheck className="w-4 h-4 text-green-500" />
+                      <span className="text-gray-600">Assigned to:</span>
+                      <span className="font-semibold text-gray-900">
+                        {job.assignedRecruiter?.firstName ?? ''} {job.assignedRecruiter?.lastName ?? job.assignedRecruiterId}
+                      </span>
+                      {canAssignRecruiter && (
+                        <button
+                          onClick={() => setShowAssignModal(true)}
+                          className="text-xs text-brand-600 hover:text-brand-700 font-medium underline underline-offset-2"
+                        >
+                          Change
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    canAssignRecruiter && (
+                      <button
+                        onClick={() => setShowAssignModal(true)}
+                        className="flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-700 font-medium"
+                      >
+                        <UserPlus className="w-4 h-4" /> Assign Recruiter
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex gap-2">
@@ -167,9 +254,27 @@ export default function JobDetailPage() {
         </div>
       </div>
 
+      {/* ── Tab bar ──────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        {(['pipeline', 'submissions'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setActiveTab(t)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition-all ${
+              activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t === 'pipeline'
+              ? `Pipeline (${applications.length})`
+              : `Submissions (${(submissionsData?.data ?? []).length})`}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Applications pipeline */}
+        {/* Left column – Pipeline tab / Submissions tab */}
         <div className="lg:col-span-2 space-y-4">
+          {activeTab === 'pipeline' && <>
           {/* Pipeline summary */}
           <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
             {APP_STAGES.map(s => (
@@ -268,6 +373,81 @@ export default function JobDetailPage() {
               </table>
             )}
           </div>
+          </>}
+
+          {activeTab === 'submissions' && (
+            <div className="card p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-gray-400" />
+                  Client Submissions ({(submissionsData?.data ?? []).length})
+                </h2>
+              </div>
+              {(submissionsData?.data ?? []).length === 0 ? (
+                <div className="py-12 text-center">
+                  <MessageSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">No submissions for this job yet</p>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Candidate</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Stage</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Submitted</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Client Feedback</th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {(submissionsData?.data ?? []).map((sub: any) => (
+                      <tr key={sub.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/candidates/${sub.candidateId}`}
+                            className="font-medium text-gray-900 hover:text-brand-600 flex items-center gap-1"
+                          >
+                            {sub.candidate?.firstName} {sub.candidate?.lastName}
+                            <ChevronRight className="w-3 h-3 text-gray-400" />
+                          </Link>
+                          {sub.candidate?.currentTitle && (
+                            <div className="text-xs text-gray-400">{sub.candidate.currentTitle}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${SUB_STAGE_COLORS[sub.stage] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {sub.stage?.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          {sub.submittedAt ? dualDate(sub.submittedAt).abs : dualDate(sub.createdAt).abs}
+                        </td>
+                        <td className="px-4 py-3">
+                          {sub.clientFeedback ? (
+                            <p className="text-xs text-gray-700 max-w-xs line-clamp-2">{sub.clientFeedback}</p>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">Pending</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => {
+                              setFeedbackTarget(sub);
+                              setFeedbackText(sub.clientFeedback ?? '');
+                              setFeedbackStage(sub.stage ?? '');
+                            }}
+                            className="btn-secondary py-1 px-2 text-xs flex items-center gap-1"
+                          >
+                            <MessageSquare className="w-3 h-3" /> Feedback
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Job details sidebar */}
@@ -433,6 +613,83 @@ export default function JobDetailPage() {
         </div>
       </div>
 
+      {/* Assign Recruiter Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-16">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-brand-600" /> Assign Recruiter
+              </h2>
+              <button onClick={() => { setShowAssignModal(false); setAssignSearch(''); }} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4">
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search recruiters…"
+                  value={assignSearch}
+                  onChange={e => setAssignSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  autoFocus
+                />
+              </div>
+              {!recruiters ? (
+                <div className="py-6 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto text-gray-400" /></div>
+              ) : (recruiters as any[]).length === 0 ? (
+                <p className="text-center text-gray-400 text-sm py-6">No recruiters found in your team</p>
+              ) : (
+                <ul className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                  {(recruiters as any[])
+                    .filter((r: any) => {
+                      const q = assignSearch.toLowerCase();
+                      return !q || `${r.firstName} ${r.lastName}`.toLowerCase().includes(q) || r.email?.toLowerCase().includes(q);
+                    })
+                    .map((r: any) => {
+                      const isAssigned = job.assignedRecruiterId === r.id;
+                      return (
+                        <li key={r.id} className="flex items-center justify-between py-3 px-1 hover:bg-gray-50 rounded-lg">
+                          <div>
+                            <div className="font-medium text-gray-900 text-sm">{r.firstName} {r.lastName}</div>
+                            <div className="text-xs text-gray-400">{r.email}</div>
+                          </div>
+                          {isAssigned ? (
+                            <span className="text-xs text-green-600 font-medium px-2 py-1 bg-green-50 rounded-full flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" /> Assigned
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => assignRecruiterMutation.mutate(r.id)}
+                              disabled={assignRecruiterMutation.isPending}
+                              className="btn-primary text-xs py-1 px-3"
+                            >
+                              {assignRecruiterMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Assign'}
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                </ul>
+              )}
+              {job.assignedRecruiterId && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => assignRecruiterMutation.mutate(null)}
+                    disabled={assignRecruiterMutation.isPending}
+                    className="text-xs text-red-500 hover:text-red-700 font-medium"
+                  >
+                    Remove assignment
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Link Candidate Modal */}
       {showLinkModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
@@ -488,6 +745,59 @@ export default function JobDetailPage() {
                   })}
                 </ul>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client Feedback Modal */}
+      {feedbackTarget && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-16">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Client Feedback</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {feedbackTarget.candidate?.firstName} {feedbackTarget.candidate?.lastName}
+                </p>
+              </div>
+              <button onClick={() => setFeedbackTarget(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Stage</label>
+                <select
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  value={feedbackStage}
+                  onChange={e => setFeedbackStage(e.target.value)}
+                >
+                  {Object.keys(SUB_STAGE_COLORS).map(s => (
+                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Feedback</label>
+                <textarea
+                  rows={5}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                  placeholder="Enter client feedback..."
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-6 pb-4">
+              <button onClick={() => setFeedbackTarget(null)} className="btn-secondary text-sm">Cancel</button>
+              <button
+                onClick={() => clientFeedbackMutation.mutate({ subId: feedbackTarget.id, feedback: feedbackText, stage: feedbackStage })}
+                disabled={clientFeedbackMutation.isPending || !feedbackText.trim()}
+                className="btn-primary text-sm"
+              >
+                {clientFeedbackMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Feedback'}
+              </button>
             </div>
           </div>
         </div>

@@ -1,0 +1,7 @@
+version: "2"
+authtoken: 3CQJDuhC5Df0ItAsmvAObt31SO2_2CBuGm513T99C3HjEZG4o
+web_addr: 127.0.0.1:4060
+tunnels:
+  tekgen:
+    proto: http
+    addr: 5000

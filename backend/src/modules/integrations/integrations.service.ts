@@ -12,6 +12,12 @@ export enum IntegrationProvider {
   SMTP = 'SMTP',
   SLACK = 'SLACK',
   WEBHOOK = 'WEBHOOK',
+  // Phase 08 — SRP Connect
+  GMAIL_OAUTH = 'GMAIL_OAUTH',
+  OUTLOOK_OAUTH = 'OUTLOOK_OAUTH',
+  MS_TEAMS = 'MS_TEAMS',
+  WHATSAPP = 'WHATSAPP',
+  TELEGRAM = 'TELEGRAM',
 }
 
 @Injectable()

@@ -1,6 +1,32 @@
-# Deployment Guide
+# SRP AI Growth — Deployment Guide
 
-This document covers everything needed to stand up the Recruitment + Sales Agentic Automation Platform in a self-hosted or cloud environment.
+**Live Platform:** https://growth.srpailabs.com/  
+**Server:** Hetzner 5.223.67.236 (4GB RAM, shared)  
+**Powered by:** SRP AI Labs
+
+This document covers local development setup and the production deployment on `growth.srpailabs.com`.
+
+---
+
+## Port Reference
+
+| Environment | Service | Port | Notes |
+|-------------|---------|------|-------|
+| **Development** | Frontend (Next.js) | 3000 | `docker-compose.yml` |
+| **Development** | Backend (NestJS) | 3001 | `docker-compose.yml` |
+| **Development** | PostgreSQL | 5432 | `docker-compose.yml` |
+| **Development** | Redis | 6379 | `docker-compose.yml` |
+| **Development** | n8n | 5678 | `docker-compose.yml` |
+| **Production** | Frontend → Nginx | 8021 | `docker-compose.prod.yml` → `growth-frontend` |
+| **Production** | Backend → Nginx | 8020 | `docker-compose.prod.yml` → `growth-backend` |
+| **Production** | PostgreSQL | internal only | container `growth_postgres`, no host port |
+| **Production** | Redis | internal only | container `growth_redis`, no host port |
+| **Production** | n8n | 5678 (shared) | REUSED from existing server, not a new container |
+
+In production, Nginx at `growth.srpailabs.com` routes:
+- `/` → `127.0.0.1:8021` (frontend)
+- `/api/` → `127.0.0.1:8020` (backend)
+- `/ws` → `127.0.0.1:8020` (WebSocket)
 
 ---
 
@@ -15,7 +41,7 @@ This document covers everything needed to stand up the Recruitment + Sales Agent
 
 ---
 
-## Quick Start (Local / Single Server)
+## Quick Start (Local Development)
 
 ### 1. Clone & Configure
 
@@ -33,10 +59,10 @@ Edit `.env` and fill in every `REPLACE_ME` value (see **Environment Variables** 
 docker compose up -d --build
 ```
 
-This starts five containers:
+This starts five containers (dev ports):
 
-| Service | Port | Purpose |
-|---------|------|---------|
+| Service | Dev Port | Purpose |
+|---------|----------|---------|
 | `postgres` | 5432 | Primary database |
 | `redis` | 6379 | BullMQ queues + session cache |
 | `backend` | 3001 | NestJS API |

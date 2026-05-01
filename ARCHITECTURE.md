@@ -1,8 +1,13 @@
-# System Architecture
+# SRP AI Growth — System Architecture
+
+**Live Platform:** https://growth.srpailabs.com/  
+**Powered by:** SRP AI Labs  
+**Server:** Hetzner 5.223.67.236 (4GB RAM, shared) — project prefix `growth_`  
+**Last Updated:** May 2026 (v3.0.0)
 
 ## Overview
 
-The Recruitment + Sales Agentic Automation Platform is a multi-tenant SaaS system that combines an AI-powered recruitment pipeline with a sales CRM and automated outreach engine. All automation is orchestrated via n8n, with the NestJS backend serving as the single source of truth.
+SRP AI Growth is a multi-tenant SaaS platform combining an AI-powered Recruitment ATS with a Sales CRM and automated outreach engine. All automation is orchestrated via n8n, with the NestJS backend serving as the single source of truth.
 
 ---
 
@@ -15,22 +20,28 @@ The Recruitment + Sales Agentic Automation Platform is a multi-tenant SaaS syste
                          │ HTTPS
                          ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    Reverse Proxy (Nginx / Caddy)                     │
-│          yourdomain.com → :3000   api.yourdomain.com → :3001        │
+│              Nginx Reverse Proxy (growth.srpailabs.com)              │
+│   growth.srpailabs.com/      → Next.js  :8021 (prod) / :3000 (dev) │
+│   growth.srpailabs.com/api/  → NestJS   :8020 (prod) / :3001 (dev) │
+│   growth.srpailabs.com/ws    → NestJS   :8020 (WebSocket)           │
+│   Cloudflare Origin TLS · Rate limiting · 25MB upload limit         │
 └──────────────┬──────────────────────────────┬───────────────────────┘
                │                              │
                ▼                              ▼
 ┌──────────────────────┐        ┌─────────────────────────────────────┐
 │   Next.js 14 Frontend│        │        NestJS REST API (v1)          │
-│   (App Router, SSR)  │        │  /api/v1/*  Swagger: /api/docs       │
-│   Port 3000          │        │  Port 3001                           │
+│   (App Router, SSR)  │        │  /api/v1/*                           │
+│   Prod:  :8021       │        │  Swagger: /api/docs                  │
+│   Dev:   :3000       │        │  Prod: :8020  Dev: :3001             │
 │                      │        │                                       │
 │  TanStack Query      │◄──────►│  Modules:                            │
 │  Zustand Auth Store  │  JWT   │  Auth, Tenants, Users, Countries      │
 │  Recharts            │        │  Candidates, Jobs, Applications       │
 │  React Hook Form     │        │  Leads, Companies, Contacts           │
-│  Tailwind CSS        │        │  AI, Imports, Outreach, Webhooks      │
-│  Radix UI            │        │  Mappings, Audit, Analytics           │
+│  Tailwind CSS        │        │  Clients, Submissions, Proposals      │
+│  Radix UI            │        │  Interviews, Offers                  │
+│                      │        │  AI, Imports, Outreach, Webhooks      │
+│                      │        │  Mappings, Audit, Analytics           │
 └──────────────────────┘        │  Workflows, Integrations             │
                                 └───────┬──────────────┬──────────────┘
                                         │              │
@@ -38,14 +49,14 @@ The Recruitment + Sales Agentic Automation Platform is a multi-tenant SaaS syste
                           ▼                                            ▼
               ┌──────────────────────┐                 ┌──────────────────────┐
               │   PostgreSQL 16      │                 │     Redis 7           │
-              │   Port: 5432         │                 │     Port: 6379        │
-              │                      │                 │                       │
-              │  27 Prisma models    │                 │  BullMQ Queues:       │
-              │  11 enums            │                 │  - import-processing  │
-              │  Multi-tenant rows   │                 │  - enrichment         │
-              └──────────────────────┘                 │  - outreach           │
-                                                       │  - dedupe             │
-                                                       └──────────────────────┘
+              │   DB: growth_platform│                 │     Internal only     │
+              │   Internal only      │                 │                       │
+              │   Dev port: 5432     │                 │  BullMQ Queues:       │
+              │                      │                 │  - import-processing  │
+              │  31 Prisma models    │                 │  - enrichment         │
+              │  13 enums            │                 │  - outreach           │
+              │  Multi-tenant rows   │                 │  - dedupe             │
+              └──────────────────────┘                 └──────────────────────┘
                                                                 │
                                                                 │ Worker Processes
                                                                 ▼
@@ -57,7 +68,8 @@ The Recruitment + Sales Agentic Automation Platform is a multi-tenant SaaS syste
                                               └────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          n8n (Port 5678)                             │
+│       n8n (Port 5678) — SHARED instance on the server                │
+│       Reused from existing server setup — NOT a new container        │
 │                                                                       │
 │  Workflow 01: Candidate Import (LinkedIn / Indeed → backend)          │
 │  Workflow 02: Lead Import (Apollo / Hunter / CSV → backend)           │
@@ -109,7 +121,7 @@ AppModule
 │   └── JdParserService
 ├── CandidatesModule
 │   └── AiModule
-├── JobsModule
+├── JobsModule                          ← Commercial firewall (billingRate/candidatePayRate stripped for RECRUITER)
 │   └── AiModule
 ├── ApplicationsModule
 │   ├── CandidatesModule
@@ -122,13 +134,22 @@ AppModule
 │   └── AiModule
 ├── CompaniesModule
 ├── ContactsModule
+├── SubmissionsModule                   ← NEW: EventEmitter2, client feedback endpoint
+│   ├── PrismaModule
+│   └── BillingModule
+├── InterviewsModule                    ← NEW: Full CRUD, multi-round, mode/status/rating
+│   ├── PrismaModule
+│   └── BillingModule
+├── OffersModule                        ← NEW: Full CRUD, status lifecycle, conflict guard
+│   ├── PrismaModule
+│   └── BillingModule
 ├── OutreachModule
 │   └── AiModule
 ├── WebhooksModule
 │   ├── ApplicationsModule
 │   ├── LeadsModule
 │   └── OutreachModule
-├── AnalyticsModule
+├── AnalyticsModule                     ← submissionsTotal, submissionsThisWeek, activeClients, placementsThisMonth
 └── IntegrationsModule
 ```
 
@@ -253,7 +274,7 @@ LeadScoringService (ICP match → 0-100 score)
 │
 ├── backend/
 │   ├── prisma/
-│   │   ├── schema.prisma          # 27 models, 11 enums
+│   │   ├── schema.prisma          # 31 models, 13 enums
 │   │   └── seed.ts
 │   └── src/
 │       ├── main.ts
@@ -275,6 +296,9 @@ LeadScoringService (ICP match → 0-100 score)
 │       │   ├── outreach/
 │       │   ├── webhooks/
 │       │   ├── mappings/
+│       │   ├── submissions/
+│       │   ├── interviews/          # NEW
+│       │   ├── offers/              # NEW
 │       │   ├── audit/
 │       │   ├── analytics/
 │       │   ├── workflows/

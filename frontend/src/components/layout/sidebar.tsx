@@ -35,6 +35,10 @@ import {
   SendHorizonal,
   ScrollText,
   DollarSign,
+  Calendar,
+  Star,
+  Layers,
+  Activity,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -45,24 +49,24 @@ const ADMIN_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN'];
 const navConfig = (role: string) => {
   const isAdmin = ADMIN_ROLES.includes(role);
   const isSuperAdmin = role === 'SUPER_ADMIN';
+  const isRecruiter = ['RECRUITER', 'TENANT_ADMIN', 'SUPER_ADMIN'].includes(role);
+  const isSales = ['SALES', 'TENANT_ADMIN', 'SUPER_ADMIN'].includes(role);
 
   return [
     {
       item: { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     },
-    // ── SALES CRM ────────────────────────────────────────────────────────────
+    // ── MY HUB ───────────────────────────────────────────────────────────────
     {
-      group: 'Sales CRM',
+      group: 'My Hub',
       items: [
-        { label: 'Leads',           href: '/leads',          icon: Target },
-        { label: 'Generate Leads',  href: '/leads/generate', icon: Sparkles },
-        { label: 'Companies',       href: '/companies',       icon: Building2 },
-        { label: 'Clients',         href: '/clients',         icon: Handshake },
-        { label: 'Contacts',        href: '/contacts',        icon: Phone },
-        { label: 'Opportunities',   href: '/opportunities',   icon: TrendingUp },
-        { label: 'Follow Ups',      href: '/follow-ups',      icon: CalendarClock },
-        { label: 'Outreach',        href: '/outreach',        icon: Mail },
-        { label: 'Proposals',       href: '/proposals',       icon: ScrollText },
+        { label: 'My Dashboard',   href: '/my-hub',                  icon: LayoutDashboard },
+        ...(isRecruiter ? [{ label: 'My JDs',         href: '/my-hub/my-jds',         icon: Briefcase }] : []),
+        ...(isRecruiter ? [{ label: 'My Submissions',  href: '/my-hub/my-submissions',  icon: SendHorizonal }] : []),
+        ...(isSales     ? [{ label: 'My Leads',        href: '/my-hub/my-leads',        icon: Target }] : []),
+        { label: 'My Follow-ups',  href: '/my-hub/my-follow-ups',    icon: CalendarClock },
+        { label: 'My Activity',    href: '/my-hub/my-activity',      icon: Activity },
+        { label: 'My Profile',     href: '/my-hub/profile',          icon: Users },
       ],
     },
     // ── RECRUITMENT ──────────────────────────────────────────────────────────
@@ -73,29 +77,53 @@ const navConfig = (role: string) => {
         { label: 'Jobs / JDs',        href: '/jobs',          icon: Briefcase },
         { label: 'Applications',      href: '/applications',  icon: ClipboardList },
         { label: 'Submissions',       href: '/submissions',   icon: SendHorizonal },
-        { label: 'AI Match Analysis', href: '/ai/screen',     icon: Sparkles },
+        { label: 'Interviews',         href: '/interviews',    icon: Calendar },
+        { label: 'Offers',             href: '/offers',        icon: Star },
+        { label: 'AI Screening',      href: '/ai/screen',     icon: Sparkles },
+        { label: 'Talent Pools',      href: '/talent-pools',  icon: Layers },
+        { label: 'Resume Imports',    href: '/imports',       icon: Upload },
       ],
     },
-    // ── OPERATIONS ───────────────────────────────────────────────────────────
+    // ── SALES ────────────────────────────────────────────────────────────────
     {
-      group: 'Operations',
+      group: 'Sales',
       items: [
-        { label: 'Analytics',    href: '/analytics',    icon: BarChart3 },
-        { label: 'Documents',    href: '/documents',    icon: FileText },
-        { label: 'Imports',      href: '/imports',      icon: Upload },
+        { label: 'Leads',           href: '/leads',          icon: Target },
+        { label: 'Generate Leads',  href: '/leads/generate', icon: Sparkles },
+        { label: 'Companies',       href: '/companies',       icon: Building2 },
+        { label: 'Contacts',        href: '/contacts',        icon: Phone },
+        { label: 'Outreach',        href: '/outreach',        icon: Mail },
+        { label: 'Pipeline',        href: '/opportunities',   icon: TrendingUp },
+      ],
+    },
+    // ── AUTOMATIONS ──────────────────────────────────────────────────────────
+    {
+      group: 'Automations',
+      items: [
         { label: 'Workflows',    href: '/workflows',    icon: GitBranch },
         { label: 'Integrations', href: '/integrations', icon: Plug },
+        { label: 'Logs & Errors',href: '/errors',      icon: FileText },
+      ],
+    },
+    // ── ANALYTICS ────────────────────────────────────────────────────────────
+    {
+      group: 'Analytics & Reports',
+      items: [
+        { label: 'Analytics',    href: '/analytics',    icon: BarChart3 },
+        { label: 'Reports',      href: '/reports',      icon: TrendingUp },
+        { label: 'Documents',    href: '/documents',    icon: FileText },
       ],
     },
     // ── SETTINGS ─────────────────────────────────────────────────────────────
     {
       group: 'Settings',
       items: [
-        ...(isAdmin ? [{ label: 'Billing',       href: '/billing',  icon: DollarSign }] : []),
-        ...(isAdmin ? [{ label: 'Users & Roles', href: '/users',    icon: UserCog }] : []),
-        ...(isAdmin ? [{ label: 'Audit Logs',    href: '/audit',    icon: Shield }] : []),
-        { label: 'Settings',   href: '/settings',   icon: Settings },
-        { label: 'Visa Guide', href: '/visa-guide', icon: Globe },
+        ...(isAdmin ? [{ label: 'Billing',       href: '/billing',        icon: DollarSign }] : []),
+        ...(isAdmin ? [{ label: 'Users & Roles', href: '/users',          icon: UserCog }] : []),
+        ...(isAdmin ? [{ label: 'Audit Logs',    href: '/audit',          icon: Shield }] : []),
+        { label: 'Tenant Settings', href: '/settings',     icon: Settings },
+        { label: 'Visa Guide',      href: '/visa-guide',   icon: Globe },
+        { label: 'LinkedIn Tools',  href: '/linkedin',     icon: ExternalLink },
       ],
     },
     ...(isSuperAdmin

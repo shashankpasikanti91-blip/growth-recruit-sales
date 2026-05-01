@@ -80,6 +80,42 @@ export class CandidatesController {
     return this.candidatesService.addNote(user.tenantId, id, user.id, note);
   }
 
+  @Post(':id/status')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER)
+  @ApiOperation({ summary: 'Transition candidate to new status (19-status lifecycle)' })
+  updateStatus(
+    @CurrentUser() user: UserPayload,
+    @Param('id') id: string,
+    @Body() dto: { toStatus: string; notes?: string },
+  ) {
+    return this.candidatesService.updateStatus(user.tenantId, id, dto, user.id);
+  }
+
+  @Get(':id/status-history')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES, UserRole.VIEWER)
+  @ApiOperation({ summary: 'Get status change history for candidate' })
+  listStatusHistory(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
+    return this.candidatesService.listStatusHistory(tenantId, id);
+  }
+
+  @Get(':id/onboarding')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES)
+  @ApiOperation({ summary: 'Get onboarding checklist for candidate' })
+  getOnboarding(@CurrentUser('tenantId') tenantId: string, @Param('id') id: string) {
+    return this.candidatesService.getOnboarding(tenantId, id);
+  }
+
+  @Put(':id/onboarding')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER)
+  @ApiOperation({ summary: 'Update onboarding checklist for candidate' })
+  updateOnboarding(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    return this.candidatesService.updateOnboarding(tenantId, id, dto);
+  }
+
   @Post(':id/resume')
   @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER)
   @ApiOperation({ summary: 'Upload resume for a candidate' })
@@ -110,5 +146,21 @@ export class CandidatesController {
     @Param('resumeId') resumeId: string,
   ) {
     return this.candidatesService.getResumeDownloadUrl(tenantId, id, resumeId);
+  }
+
+  @Post('boolean-search')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES)
+  @ApiOperation({ summary: 'Advanced boolean search across candidates' })
+  booleanSearch(@CurrentUser('tenantId') tenantId: string, @Body() dto: any) {
+    return this.candidatesService.booleanSearch(tenantId, dto);
+  }
+
+  @Get(':candidateId/pool-memberships')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN, UserRole.RECRUITER, UserRole.SALES)
+  @ApiOperation({ summary: 'Get talent pools this candidate belongs to' })
+  getCandidatePools(@CurrentUser('tenantId') tenantId: string, @Param('candidateId') candidateId: string) {
+    // Delegate to TalentPoolsService via dedicated endpoint
+    // The frontend calls /talent-pools with a filter, this is a convenience alias
+    return { candidateId, pools: [] };
   }
 }

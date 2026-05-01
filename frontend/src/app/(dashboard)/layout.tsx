@@ -1,5 +1,6 @@
 import { Sidebar } from '@/components/layout/sidebar';
 import { GlobalSearch } from '@/components/layout/global-search';
+import { NotificationBell } from '@/components/layout/notification-bell';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Top bar with global search */}
         <div className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-gray-100 px-6 py-3 flex items-center justify-between">
           <GlobalSearch />
+          <NotificationBell />
         </div>
         <div className="max-w-7xl mx-auto px-6 py-8">{children}</div>
       </main>

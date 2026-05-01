@@ -6,6 +6,14 @@ import { UserRole } from '@prisma/client';
 export class TeamService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async listByRole(tenantId: string, role: UserRole) {
+    return this.prisma.user.findMany({
+      where: { tenantId, role, isActive: true },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+      select: { id: true, firstName: true, lastName: true, fullName: true, email: true, role: true },
+    });
+  }
+
   async listUsers(tenantId: string, page = 1, limit = 50) {
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({

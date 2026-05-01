@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bull';
 import { PrismaModule } from './prisma/prisma.module';
@@ -37,6 +38,12 @@ import { OpportunitiesModule } from './modules/opportunities/opportunities.modul
 import { FollowUpsModule } from './modules/follow-ups/follow-ups.module';
 import { SubmissionsModule } from './modules/submissions/submissions.module';
 import { ProposalsModule } from './modules/proposals/proposals.module';
+import { InterviewsModule } from './modules/interviews/interviews.module';
+import { OffersModule } from './modules/offers/offers.module';
+import { TalentPoolsModule } from './modules/talent-pools/talent-pools.module';
+import { MyHubModule } from './modules/my-hub/my-hub.module';
+import { ConnectModule } from './modules/connect/connect.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { DedupeProcessor } from './processors/dedupe.processor';
 import { EnrichmentProcessor } from './processors/enrichment.processor';
 import { OutreachProcessor } from './processors/outreach.processor';
@@ -62,6 +69,9 @@ import storageConfig from './config/storage.config';
 
     // Event emitter for domain events
     EventEmitterModule.forRoot({ wildcard: true }),
+
+    // Scheduled tasks (cron jobs)
+    ScheduleModule.forRoot(),
 
     // Rate limiting — 1000 req/min per IP globally; individual AI endpoints apply stricter limits
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 1000 }]),
@@ -127,6 +137,12 @@ import storageConfig from './config/storage.config';
     FollowUpsModule,
     SubmissionsModule,
     ProposalsModule,
+    InterviewsModule,
+    OffersModule,
+    TalentPoolsModule,
+    MyHubModule,
+    ConnectModule,
+    ReportsModule,
   ],
   providers: [
     // Global rate-limiting guard — enforces ThrottlerModule config on all routes

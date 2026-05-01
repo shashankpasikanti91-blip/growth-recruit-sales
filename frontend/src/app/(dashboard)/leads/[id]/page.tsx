@@ -1,13 +1,15 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { leadsApi } from '@/lib/api-client';
+import { leadsApi, clientsApi } from '@/lib/api-client';
 import {
   ArrowLeft, Zap, Mail, Phone, Globe, Building2, Clock,
-  MapPin, Linkedin, User, Briefcase, Hash, Star, Tag,
+  MapPin, Linkedin, User, Briefcase, Hash, Star, Tag, X, Loader2, UserCheck,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
 import { BusinessIdBadge } from '@/components/layout/business-id-badge';
 
 const STAGE_ACTIONS: Record<string, string> = {
@@ -55,6 +57,9 @@ export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [convertNotes, setConvertNotes] = useState('');
+  const [convertPaymentTerms, setConvertPaymentTerms] = useState('');
 
   const { data: lead, isLoading, error } = useQuery({
     queryKey: ['lead', id],
@@ -77,6 +82,20 @@ export default function LeadDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['lead', id] });
     },
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'AI scoring failed'),
+  });
+
+  const convertMutation = useMutation({
+    mutationFn: () => clientsApi.convert({
+      leadId: id,
+      ...(convertNotes ? { notes: convertNotes } : {}),
+      ...(convertPaymentTerms ? { paymentTerms: convertPaymentTerms } : {}),
+    }),
+    onSuccess: (client: any) => {
+      toast.success('Lead converted to client!');
+      queryClient.invalidateQueries({ queryKey: ['lead', id] });
+      router.push(`/clients/${client.id}`);
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Conversion failed'),
   });
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Loading lead…</div>;
@@ -149,6 +168,21 @@ export default function LeadDetailPage() {
               <Zap className="w-4 h-4" />
               {scoreMutation.isPending ? 'Scoring…' : 'Run AI Score'}
             </button>
+            {lead.convertedToClientId ? (
+              <Link
+                href={`/clients/${lead.convertedToClientId}`}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200 hover:bg-green-100"
+              >
+                <UserCheck className="w-4 h-4" /> View Client
+              </Link>
+            ) : (
+              <button
+                onClick={() => setShowConvertModal(true)}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 bg-brand-50 px-3 py-1.5 rounded-lg border border-brand-200 hover:bg-brand-100"
+              >
+                <Building2 className="w-4 h-4" /> Convert to Client
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -239,13 +273,25 @@ export default function LeadDetailPage() {
               <p className="text-xs font-semibold text-purple-900 mb-3">Score Breakdown</p>
               <div className="space-y-2.5">
                 {[
-                  { key: 'industry_fit', label: 'Industry Fit' },
-                  { key: 'title_relevance', label: 'Title Relevance' },
-                  { key: 'size_fit', label: 'Company Size Fit' },
-                  { key: 'intent_signals', label: 'Engagement / Intent' },
-                ].map(({ key, label }) => {
+                  { key: 'company_fit',      label: 'Company Fit' },
+                  { key: 'title_fit',        label: 'Title Fit' },
+                  { key: 'industry_fit',     label: 'Industry' },
+                  { key: 'industry',         label: 'Industry' },
+                  { key: 'country_fit',      label: 'Country Fit' },
+                  { key: 'title_relevance',  label: 'Title Relevance' },
+                  { key: 'size_fit',         label: 'Company Size Fit' },
+                  { key: 'engagement',       label: 'Engagement' },
+                  { key: 'intent_signals',   label: 'Engagement / Intent' },
+                ].reduce<{ key: string; label: string }[]>((seen, item) => {
+                  const val = (scoreBreakdown as Record<string, unknown>)[item.key];
+                  if (val == null) return seen;
+                  // Deduplicate by showing only first matching key per label concept
+                  const conceptKey = item.label.split('/')[0].trim();
+                  if (seen.some(s => s.label.startsWith(conceptKey.slice(0, 6)))) return seen;
+                  seen.push(item);
+                  return seen;
+                }, []).map(({ key, label }) => {
                   const val = (scoreBreakdown as Record<string, unknown>)[key];
-                  if (val == null) return null;
                   const numVal = Number(val);
                   return (
                     <div key={key} className="flex items-center gap-3">
@@ -353,6 +399,64 @@ export default function LeadDetailPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+    </div>
+
+      {/* ── Convert to Client Modal ── */}
+      {showConvertModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-16">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-brand-600" /> Convert Lead to Client
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {fullName} · {lead.company?.name ?? raw.companyName ?? 'Unknown company'}
+                </p>
+              </div>
+              <button onClick={() => setShowConvertModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-sm text-blue-800">
+                A new client will be created from this lead's company data. The lead will be marked as <strong>Closed Won</strong>.
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Payment Terms (optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Net 30, NET 45…"
+                  value={convertPaymentTerms}
+                  onChange={e => setConvertPaymentTerms(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Notes (optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder="Internal notes for this client…"
+                  value={convertNotes}
+                  onChange={e => setConvertNotes(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-6 pb-5">
+              <button onClick={() => setShowConvertModal(false)} className="btn-secondary text-sm">Cancel</button>
+              <button
+                onClick={() => convertMutation.mutate()}
+                disabled={convertMutation.isPending}
+                className="btn-primary text-sm flex items-center gap-1.5"
+              >
+                {convertMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4 h-4" />}
+                {convertMutation.isPending ? 'Converting…' : 'Convert to Client'}
+              </button>
+            </div>
           </div>
         </div>
       )}
