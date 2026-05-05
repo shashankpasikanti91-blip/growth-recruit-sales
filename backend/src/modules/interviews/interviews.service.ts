@@ -89,7 +89,20 @@ export class InterviewsService {
           submission: {
             select: {
               id: true, businessId: true,
-              candidate: { select: { id: true, firstName: true, lastName: true, currentTitle: true } },
+              candidate: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  currentTitle: true,
+                  email: true,
+                  phone: true,
+                  yearsExperience: true,
+                  currentSalary: true,
+                  expectedSalary: true,
+                  salaryCurrency: true,
+                },
+              },
               job: { select: { id: true, title: true, location: true } },
               client: { select: { id: true, name: true } },
             },
@@ -140,12 +153,22 @@ export class InterviewsService {
   }
 
   async getStats(tenantId: string) {
-    const [total, scheduled, completed, cancelled] = await Promise.all([
-      this.prisma.interview.count({ where: { tenantId, deletedAt: null } }),
-      this.prisma.interview.count({ where: { tenantId, deletedAt: null, status: 'SCHEDULED' } }),
-      this.prisma.interview.count({ where: { tenantId, deletedAt: null, status: 'COMPLETED' } }),
-      this.prisma.interview.count({ where: { tenantId, deletedAt: null, status: 'CANCELLED' } }),
-    ]);
-    return { total, scheduled, completed, cancelled };
+    const base = { tenantId, deletedAt: null } as const;
+    const statuses = [
+      'SCHEDULED',
+      'CONFIRMED',
+      'RESCHEDULED',
+      'COMPLETED',
+      'CANCELLED',
+      'NO_SHOW',
+    ] as const;
+    const counts = await Promise.all(
+      statuses.map((status) =>
+        this.prisma.interview.count({ where: { ...base, status } }),
+      ),
+    );
+    const byStatus = Object.fromEntries(statuses.map((s, i) => [s.toLowerCase(), counts[i]]));
+    const total = counts.reduce((a, b) => a + b, 0);
+    return { total, ...byStatus };
   }
 }

@@ -1,3 +1,5 @@
+require('../loadEnv');
+
 import { PrismaClient, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 

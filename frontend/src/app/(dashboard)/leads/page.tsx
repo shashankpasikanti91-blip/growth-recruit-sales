@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leadsApi } from '@/lib/api-client';
 import Link from 'next/link';
 import { TableWrapper } from '@/components/ui/table-wrapper';
+import { DeskShell, DeskTableSection, zebraRow, DESK_TH, DeskPageHeader } from '@/components/ui/desk-shell';
 import { Users, Search, Zap, Info, ChevronLeft, ChevronRight, Copy, Check, X, AlertCircle, Clock } from 'lucide-react';
 import { format, formatDistanceToNow, isAfter } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -137,26 +138,25 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-5">
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {data?.meta?.total ?? 0} total leads · client acquisition pipeline
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/leads/generate" className="btn-primary flex items-center gap-1.5">
-            <Zap className="w-4 h-4" /> Generate Leads
-          </Link>
-          <Link href="/leads/new" className="btn-secondary flex items-center gap-1.5">
-            <Users className="w-4 h-4" /> Add Lead
-          </Link>
-        </div>
-      </div>
+      <DeskPageHeader
+        icon={Users}
+        title="Leads"
+        subtitle={`${data?.meta?.total ?? 0} total leads · client acquisition pipeline`}
+        accentClassName="bg-violet-700"
+        actions={
+          <>
+            <Link href="/leads/generate" className="btn-primary flex items-center gap-1.5">
+              <Zap className="w-4 h-4" /> Generate Leads
+            </Link>
+            <Link href="/leads/new" className="btn-secondary flex items-center gap-1.5">
+              <Users className="w-4 h-4" /> Add Lead
+            </Link>
+          </>
+        }
+      />
 
       {/* ── ICP Score info ── */}
-      <div className="flex items-start gap-3 bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-sm text-purple-800">
+      <div className="flex items-start gap-3 bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-sm text-purple-800 shadow-sm">
         <Info className="w-4 h-4 mt-0.5 shrink-0 text-purple-500" />
         <div>
           <span className="font-semibold">ICP Fit Score</span> — Each lead scored 0–100 against your Ideal Customer Profile based on company size, industry, title seniority & engagement.{' '}
@@ -166,7 +166,7 @@ export default function LeadsPage() {
       </div>
 
       {/* ── Pipeline stage summary bar ── */}
-      <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
+      <div className="grid grid-cols-4 lg:grid-cols-7 gap-2 rounded-xl border border-slate-200/80 bg-slate-50/50 p-2">
         {STAGES.map(s => {
           const count = (data?.data ?? []).filter((l: any) => l.stage === s).length;
           const isActive = stage === s;
@@ -189,7 +189,7 @@ export default function LeadsPage() {
       </div>
 
       {/* ── Filters ── */}
-      <div className="card p-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex gap-2.5 flex-wrap items-center">
           {/* Search */}
           <div className="relative flex-1 min-w-[220px]">
@@ -242,36 +242,45 @@ export default function LeadsPage() {
       </div>
 
       {/* ── Table ── */}
-      <div className="card p-0 overflow-hidden">
+      <DeskShell
+        title="Lead register"
+        subtitle="Dense pipeline grid with top/bottom horizontal scroll sync — stage dropdowns and scoring behave exactly as before."
+      >
+        <DeskTableSection>
         <TableWrapper>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Lead ID</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[160px]">Name</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[170px]">Title / Company</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Phone</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Priority</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Pipeline Stage</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+          <table className="w-full text-sm min-w-[1780px]">
+            <thead className="sticky top-0 z-20 shadow-sm">
+              <tr>
+                <th className={DESK_TH}>Lead ID</th>
+                <th className={DESK_TH + ' min-w-[160px]'}>Name</th>
+                <th className={DESK_TH + ' min-w-[160px]'}>Title</th>
+                <th className={DESK_TH + ' min-w-[160px]'}>Company</th>
+                <th className={DESK_TH + ' min-w-[180px]'}>Email</th>
+                <th className={DESK_TH}>Phone</th>
+                <th className={DESK_TH}>Country</th>
+                <th className={DESK_TH}>Industry</th>
+                <th className={DESK_TH}>Priority</th>
+                <th className={DESK_TH}>Pipeline Stage</th>
+                <th className={DESK_TH}>
                   <span className="flex items-center gap-1" title="ICP Fit Score — 0–100 match against your Ideal Customer Profile">
-                    ICP Score <Info className="w-3 h-3 text-gray-400" />
+                    ICP Score <Info className="w-3 h-3 text-slate-400" />
                   </span>
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Last Contacted</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Next Follow-up</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date Added</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Last Updated</th>
-                <th className="px-4 py-3 w-20"></th>
+                <th className={DESK_TH}>Source</th>
+                <th className={DESK_TH}>Owner</th>
+                <th className={DESK_TH}>Last Contacted</th>
+                <th className={DESK_TH}>Next Follow-up</th>
+                <th className={DESK_TH}>Date Added</th>
+                <th className={DESK_TH}>Last Updated</th>
+                <th className={DESK_TH + ' min-w-[150px]'}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan={12} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={18} className="px-6 py-12 text-center text-gray-400">Loading...</td></tr>
               ) : allLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-6 py-16 text-center">
+                  <td colSpan={18} className="px-6 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-14 h-14 rounded-2xl bg-purple-50 flex items-center justify-center">
                         <Users className="w-7 h-7 text-purple-400" />
@@ -287,10 +296,10 @@ export default function LeadsPage() {
                   </td>
                 </tr>
               ) : (
-                allLeads.map((lead: any) => {
+                allLeads.map((lead: any, rowIdx: number) => {
                   const sc = STAGE_COLORS[lead.stage] ?? STAGE_COLORS['NEW'];
                   return (
-                    <tr key={lead.id} className="hover:bg-brand-50/40 transition-colors group">
+                    <tr key={lead.id} className={zebraRow(rowIdx) + ' hover:bg-blue-50/50 transition-colors group'}>
                       {/* Lead ID */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
@@ -313,19 +322,34 @@ export default function LeadsPage() {
                         <Link href={`/leads/${lead.id}`} className="font-medium text-gray-900 hover:text-brand-600 transition-colors">
                           {lead.firstName} {lead.lastName}
                         </Link>
-                        {lead.email && (
-                          <div className="text-xs text-gray-400 mt-0.5">{lead.email}</div>
-                        )}
                       </td>
-                      {/* Title / Company */}
+                      {/* Title */}
                       <td className="px-4 py-3">
                         <div className="text-sm text-gray-700">{lead.title ?? <span className="text-gray-300">—</span>}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">{lead.company?.name ?? lead.companyName ?? '—'}</div>
-                        {lead.industry && <div className="text-xs text-purple-500 mt-0.5 capitalize">{lead.industry.replace(/_/g, ' ')}</div>}
+                      </td>
+                      {/* Company */}
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {lead.company?.name ?? lead.companyName ?? <span className="text-gray-300">—</span>}
+                      </td>
+                      {/* Email */}
+                      <td className="px-4 py-3 text-sm">
+                        {lead.email ? (
+                          <a href={`mailto:${lead.email}`} className="text-blue-700 hover:underline">
+                            {lead.email}
+                          </a>
+                        ) : <span className="text-gray-300">—</span>}
                       </td>
                       {/* Phone */}
                       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                         {lead.phone ?? <span className="text-gray-300">—</span>}
+                      </td>
+                      {/* Country */}
+                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                        {lead.countryCode ?? lead.company?.countryCode ?? <span className="text-gray-300">—</span>}
+                      </td>
+                      {/* Industry */}
+                      <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                        {lead.company?.industry ?? lead.industry ?? <span className="text-gray-300">—</span>}
                       </td>
                       {/* Priority */}
                       <td className="px-4 py-3">
@@ -380,6 +404,12 @@ export default function LeadsPage() {
                       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap capitalize">
                         {(lead.sourceName ?? '—').replace(/_/g, ' ')}
                       </td>
+                      {/* Owner */}
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                        {lead.assignedTo?.firstName
+                          ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName ?? ''}`.trim()
+                          : (lead.assignedToId ?? <span className="text-gray-300">—</span>)}
+                      </td>
                       {/* Last Contacted */}
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                         {lead.lastContactedAt ? (
@@ -422,14 +452,22 @@ export default function LeadsPage() {
                       </td>
                       {/* Actions */}
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => scoreMutation.mutate(lead.id)}
-                          disabled={scoreMutation.isPending}
-                          title="Run ICP Fit Score using AI"
-                          className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium whitespace-nowrap px-2 py-1 rounded-lg hover:bg-purple-50 transition-colors"
-                        >
-                          <Zap className="w-3 h-3" /> Score
-                        </button>
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                          <Link
+                            href={`/leads/${lead.id}`}
+                            className="inline-flex items-center gap-1 text-xs text-blue-700 font-medium px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors"
+                          >
+                            View
+                          </Link>
+                          <button
+                            onClick={() => scoreMutation.mutate(lead.id)}
+                            disabled={scoreMutation.isPending}
+                            title="Run ICP Fit Score using AI"
+                            className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium px-2 py-1 rounded-lg hover:bg-purple-50 transition-colors"
+                          >
+                            <Zap className="w-3 h-3" /> Score
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -441,21 +479,21 @@ export default function LeadsPage() {
 
         {/* Pagination */}
         {data?.meta && data.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50">
-            <span className="text-xs text-gray-500">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/80">
+            <span className="text-xs text-slate-500">
               Showing {((page - 1) * 25) + 1}–{Math.min(page * 25, data.meta.total)} of {data.meta.total} leads
             </span>
             <div className="flex items-center gap-2">
               <button
-                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-brand-400 hover:text-brand-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 disabled={page === 1}
                 onClick={() => setPage(p => p - 1)}
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> Previous
               </button>
-              <span className="text-xs text-gray-500 px-1">Page {page} of {data.meta.totalPages}</span>
+              <span className="text-xs text-slate-500 px-1">Page {page} of {data.meta.totalPages}</span>
               <button
-                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-brand-400 hover:text-brand-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 disabled={page >= data.meta.totalPages}
                 onClick={() => setPage(p => p + 1)}
               >
@@ -464,7 +502,8 @@ export default function LeadsPage() {
             </div>
           </div>
         )}
-      </div>
+        </DeskTableSection>
+      </DeskShell>
     </div>
   );
 }

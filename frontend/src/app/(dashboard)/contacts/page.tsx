@@ -5,6 +5,7 @@ import { Phone, Building2, Mail, Search, UserPlus, ChevronLeft, ChevronRight } f
 import Link from 'next/link';
 import api from '@/lib/api';
 import { TableWrapper } from '@/components/ui/table-wrapper';
+import { DeskShell, DeskTableSection, zebraRow, DESK_TH, DeskPageHeader } from '@/components/ui/desk-shell';
 
 type Contact = {
   id: string;
@@ -47,58 +48,64 @@ export default function ContactsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full" />
+      <div className="space-y-6">
+        <DeskPageHeader
+          icon={Phone}
+          title="Contacts"
+          subtitle="Loading directory…"
+          accentClassName="bg-teal-700"
+        />
+        <div className="rounded-xl border border-slate-200 bg-white p-12 flex items-center justify-center shadow-sm">
+          <div className="animate-spin w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contacts</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage your sales contacts</p>
-        </div>
-        <span className="text-sm text-gray-500 flex items-center gap-1">
-          <Phone className="w-4 h-4" />
-          {meta.total} contacts
-        </span>
-      </div>
+      <DeskPageHeader
+        icon={Phone}
+        title="Contacts"
+        subtitle={`${meta.total} people linked to companies — search is debounced as before.`}
+        accentClassName="bg-teal-700"
+      />
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm relative max-w-lg">
+        <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           type="text"
           placeholder="Search by name, email, title, company..."
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
-          className="pl-9 pr-4 py-2.5 w-full max-w-sm border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="pl-9 pr-4 py-2.5 w-full border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm"
         />
       </div>
 
-      {/* Table */}
       {contacts.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
+        <div className="rounded-xl border border-slate-200 bg-white text-center py-16 text-slate-400 shadow-sm">
           <UserPlus className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p>{debouncedSearch ? 'No contacts match your search' : 'No contacts yet'}</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <DeskShell
+          title="Contact register"
+          subtitle="Clean row layout with mail and phone — row links still go to the same contact profile."
+        >
+          <DeskTableSection>
           <TableWrapper>
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+          <table className="w-full text-sm min-w-[720px]">
+            <thead className="sticky top-0 z-20 shadow-sm">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Company</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
+                <th className={DESK_TH}>Name</th>
+                <th className={DESK_TH}>Company</th>
+                <th className={DESK_TH}>Email</th>
+                <th className={DESK_TH}>Phone</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {contacts.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+            <tbody className="divide-y divide-slate-100">
+              {contacts.map((c, rowIdx) => (
+                <tr key={c.id} className={zebraRow(rowIdx) + ' hover:bg-blue-50/50 transition-colors'}>
                   <td className="px-4 py-3">
                     <Link href={`/contacts/${c.id}`} className="flex items-center gap-3 group">
                       <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-xs font-bold">
@@ -132,9 +139,8 @@ export default function ContactsPage() {
           </table>
           </TableWrapper>
 
-          {/* Pagination */}
           {meta.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/80">
               <p className="text-sm text-gray-500">
                 Page {meta.page} of {meta.totalPages} ({meta.total} total)
               </p>
@@ -156,7 +162,8 @@ export default function ContactsPage() {
               </div>
             </div>
           )}
-        </div>
+        </DeskTableSection>
+        </DeskShell>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { opportunitiesApi } from '@/lib/api-client';
 import Link from 'next/link';
 import { TableWrapper } from '@/components/ui/table-wrapper';
+import { DeskShell, DeskTableSection, zebraRow, DESK_TH, DeskPageHeader } from '@/components/ui/desk-shell';
 import {
   TrendingUp, Search, Plus, ChevronLeft, ChevronRight,
   DollarSign, Calendar, Target, ExternalLink,
@@ -55,29 +56,21 @@ export default function OpportunitiesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Opportunities</h1>
-            <p className="text-sm text-gray-500">Track deals and pipeline across clients</p>
-          </div>
-        </div>
-        <Link
-          href="/opportunities/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> New Opportunity
-        </Link>
-      </div>
+      <DeskPageHeader
+        icon={TrendingUp}
+        title="Opportunities"
+        subtitle="Track deals, weighted probability, and expected close dates across client accounts."
+        accentClassName="bg-violet-700"
+        actions={
+          <Link href="/opportunities/new" className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Opportunity
+          </Link>
+        }
+      />
 
-      {/* Pipeline Overview */}
       {pipeline && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Pipeline Overview</h3>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-slate-800 mb-3">Pipeline overview</h3>
           <div className="flex gap-3 overflow-x-auto pb-2">
             {(pipeline as any[]).map((p: any) => {
               const c = STAGE_CONFIG[p.stage];
@@ -85,8 +78,8 @@ export default function OpportunitiesPage() {
                 <div
                   key={p.stage}
                   onClick={() => setStage(stage === p.stage ? '' : p.stage)}
-                  className={`min-w-[120px] p-3 rounded-xl border cursor-pointer transition-all ${
-                    stage === p.stage ? 'border-blue-400 ring-1 ring-blue-400' : 'border-gray-200 hover:border-gray-300'
+                  className={`min-w-[120px] p-3 rounded-xl border cursor-pointer transition-all shadow-sm ${
+                    stage === p.stage ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200 hover:border-slate-300'
                   } ${c.bg}`}
                 >
                   <div className="text-lg font-bold text-gray-900">{p.count}</div>
@@ -101,10 +94,10 @@ export default function OpportunitiesPage() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm flex flex-wrap items-center gap-3">
+        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Stage</span>
         <select
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[180px]"
           value={stage}
           onChange={(e) => { setStage(e.target.value); setPage(1); }}
         >
@@ -113,18 +106,21 @@ export default function OpportunitiesPage() {
         </select>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <DeskShell
+        title="Deal register"
+        subtitle="Opportunity-level grid with value and probability — same records and detail routes as before."
+      >
+        <DeskTableSection>
         <TableWrapper>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
+          <table className="w-full text-sm min-w-[1000px]">
+            <thead className="sticky top-0 z-20 shadow-sm">
+              <tr>
                 {['Opportunity', 'Client', 'Stage', 'Value', 'Probability', 'Close Date', 'Created', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  <th key={h} className={DESK_TH}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>{Array.from({ length: 8 }).map((_, j) => (
@@ -139,8 +135,8 @@ export default function OpportunitiesPage() {
                   </td>
                 </tr>
               ) : (
-                items.map((o: any) => (
-                  <tr key={o.id} className="hover:bg-gray-50">
+                items.map((o: any, rowIdx: number) => (
+                  <tr key={o.id} className={zebraRow(rowIdx) + ' hover:bg-blue-50/50 transition-colors'}>
                     <td className="px-4 py-3">
                       <Link href={`/opportunities/${o.id}`} className="font-medium text-gray-900 hover:text-blue-600">{o.title}</Link>
                     </td>
@@ -171,22 +167,23 @@ export default function OpportunitiesPage() {
           </table>
         </TableWrapper>
         {pages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-sm text-gray-500">Total: {total} opportunities</span>
+          <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between">
+            <span className="text-sm text-slate-500">Total: {total} opportunities</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40">
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-40">
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm font-medium text-gray-700">{page}/{pages}</span>
+              <span className="text-sm font-medium text-slate-700">{page}/{pages}</span>
               <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40">
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-40">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
-      </div>
+        </DeskTableSection>
+      </DeskShell>
     </div>
   );
 }

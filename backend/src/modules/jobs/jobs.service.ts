@@ -89,7 +89,8 @@ export class JobsService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          _count: { select: { applications: true } },
+          client: { select: { id: true, name: true } },
+          _count: { select: { applications: true, submissions: true } },
         },
       }),
       this.prisma.job.count({ where }),

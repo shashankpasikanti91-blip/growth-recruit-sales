@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { proposalsApi } from '@/lib/api-client';
 import Link from 'next/link';
 import { TableWrapper } from '@/components/ui/table-wrapper';
+import { DeskShell, DeskTableSection, zebraRow, DESK_TH, DeskPageHeader } from '@/components/ui/desk-shell';
 import {
   ScrollText, Plus, ChevronLeft, ChevronRight, ExternalLink, DollarSign,
 } from 'lucide-react';
@@ -49,62 +50,54 @@ export default function ProposalsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
-            <ScrollText className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Proposals</h1>
-            <p className="text-sm text-gray-500">Manage client proposals and contracts</p>
-          </div>
-        </div>
-        <Link
-          href="/proposals/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" /> New Proposal
-        </Link>
-      </div>
+      <DeskPageHeader
+        icon={ScrollText}
+        title="Proposals"
+        subtitle="Commercial documents — statuses, values, and dates behave as before."
+        accentClassName="bg-indigo-700"
+        actions={
+          <Link href="/proposals/new" className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Proposal
+          </Link>
+        }
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-2xl font-bold text-gray-900">{total}</div>
-          <div className="text-sm text-gray-500 mt-0.5">Total Proposals</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-2xl font-bold text-slate-900">{total}</div>
+          <div className="text-sm text-slate-500 mt-0.5 font-medium">Total proposals</div>
         </div>
-        <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
           <div className="text-2xl font-bold text-emerald-700">
             {stats.find((s: any) => s.status === 'ACCEPTED')?.count ?? 0}
           </div>
-          <div className="text-sm text-emerald-600 mt-0.5">Accepted</div>
+          <div className="text-sm text-emerald-800 mt-0.5 font-medium">Accepted</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-1 text-2xl font-bold text-gray-900">
-            <DollarSign className="w-5 h-5 text-gray-400" />
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-1 text-2xl font-bold text-slate-900">
+            <DollarSign className="w-5 h-5 text-slate-400" />
             {totalValue.toLocaleString()}
           </div>
-          <div className="text-sm text-gray-500 mt-0.5">Total Pipeline Value</div>
+          <div className="text-sm text-slate-500 mt-0.5 font-medium">Pipeline value</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-1 text-2xl font-bold text-emerald-700">
-            <DollarSign className="w-5 h-5 text-emerald-400" />
+            <DollarSign className="w-5 h-5 text-emerald-500" />
             {(stats.find((s: any) => s.status === 'ACCEPTED')?.totalValue ?? 0).toLocaleString()}
           </div>
-          <div className="text-sm text-gray-500 mt-0.5">Accepted Value</div>
+          <div className="text-sm text-slate-500 mt-0.5 font-medium">Accepted value</div>
         </div>
       </div>
 
       {/* Status Filter Strips */}
       {stats.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap rounded-xl border border-slate-200 bg-slate-50/50 p-2">
           {stats.map((s: any) => (
             <button
               key={s.status}
               onClick={() => setStatus(status === s.status ? '' : s.status)}
-              className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                status === s.status ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'
+              className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all shadow-sm ${
+                status === s.status ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'
               }`}
             >
               {s.status} ({s.count})
@@ -113,18 +106,21 @@ export default function ProposalsPage() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <DeskShell
+        title="Proposal register"
+        subtitle="Dense list with horizontal scroll when needed — detail routes unchanged."
+      >
+        <DeskTableSection>
         <TableWrapper>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
+          <table className="w-full text-sm min-w-[900px]">
+            <thead className="sticky top-0 z-20 shadow-sm">
+              <tr>
                 {['Title', 'Client / Lead', 'Status', 'Value', 'Sent', 'Valid Until', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  <th key={h} className={DESK_TH}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>{Array.from({ length: 7 }).map((_, j) => (
@@ -139,8 +135,8 @@ export default function ProposalsPage() {
                   </td>
                 </tr>
               ) : (
-                items.map((p: any) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
+                items.map((p: any, rowIdx: number) => (
+                  <tr key={p.id} className={zebraRow(rowIdx) + ' hover:bg-blue-50/50 transition-colors'}>
                     <td className="px-4 py-3 font-medium text-gray-900 max-w-xs truncate">{p.title}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {p.client?.name ?? (p.lead ? `${p.lead.firstName} ${p.lead.lastName}` : '—')}
@@ -163,22 +159,23 @@ export default function ProposalsPage() {
           </table>
         </TableWrapper>
         {pages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-sm text-gray-500">Total: {total} proposals</span>
+          <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between">
+            <span className="text-sm text-slate-500">Total: {total} proposals</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40">
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-40">
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm font-medium">{page}/{pages}</span>
+              <span className="text-sm font-medium text-slate-700">{page}/{pages}</span>
               <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40">
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-40">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
-      </div>
+        </DeskTableSection>
+      </DeskShell>
     </div>
   );
 }

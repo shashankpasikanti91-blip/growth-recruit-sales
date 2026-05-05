@@ -47,9 +47,6 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { DedupeProcessor } from './processors/dedupe.processor';
 import { EnrichmentProcessor } from './processors/enrichment.processor';
 import { OutreachProcessor } from './processors/outreach.processor';
-import { LeadScoringService } from './modules/ai/services/lead-scoring.service';
-import { OutreachGenerationService } from './modules/ai/services/outreach-generation.service';
-import { AiProviderService } from './modules/ai/providers/ai-provider.service';
 import { BusinessIdService } from './modules/billing/business-id.service';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
@@ -151,10 +148,6 @@ import storageConfig from './config/storage.config';
     DedupeProcessor,
     EnrichmentProcessor,
     OutreachProcessor,
-    // Supporting services needed by processors
-    LeadScoringService,
-    OutreachGenerationService,
-    AiProviderService,
     BusinessIdService,
   ],
 })

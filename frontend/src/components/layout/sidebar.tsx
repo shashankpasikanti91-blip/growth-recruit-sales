@@ -39,6 +39,8 @@ import {
   Star,
   Layers,
   Activity,
+  LayoutList,
+  LayoutGrid,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -77,6 +79,7 @@ const navConfig = (role: string) => {
         { label: 'Jobs / JDs',        href: '/jobs',          icon: Briefcase },
         { label: 'Applications',      href: '/applications',  icon: ClipboardList },
         { label: 'Submissions',       href: '/submissions',   icon: SendHorizonal },
+        { label: 'Recruitment desk',  href: '/recruitment-tracker', icon: LayoutList },
         { label: 'Interviews',         href: '/interviews',    icon: Calendar },
         { label: 'Offers',             href: '/offers',        icon: Star },
         { label: 'AI Screening',      href: '/ai/screen',     icon: Sparkles },
@@ -88,12 +91,16 @@ const navConfig = (role: string) => {
     {
       group: 'Sales',
       items: [
+        { label: 'Sales desk',      href: '/sales-desk',     icon: LayoutGrid },
         { label: 'Leads',           href: '/leads',          icon: Target },
         { label: 'Generate Leads',  href: '/leads/generate', icon: Sparkles },
         { label: 'Companies',       href: '/companies',       icon: Building2 },
+        { label: 'Clients',         href: '/clients',        icon: Handshake },
         { label: 'Contacts',        href: '/contacts',        icon: Phone },
+        { label: 'Opportunities',   href: '/opportunities',   icon: TrendingUp },
+        { label: 'Follow Ups',      href: '/follow-ups',      icon: CalendarClock },
         { label: 'Outreach',        href: '/outreach',        icon: Mail },
-        { label: 'Pipeline',        href: '/opportunities',   icon: TrendingUp },
+        { label: 'Proposals',       href: '/proposals',       icon: ScrollText },
       ],
     },
     // ── AUTOMATIONS ──────────────────────────────────────────────────────────

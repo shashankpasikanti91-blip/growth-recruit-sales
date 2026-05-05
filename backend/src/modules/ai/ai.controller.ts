@@ -118,6 +118,13 @@ class LinkedInDto {
   context: string;
 }
 
+class TestProviderDto {
+  @ApiPropertyOptional({ description: 'Optional prompt used for a connectivity check' })
+  @IsOptional()
+  @IsString()
+  prompt?: string;
+}
+
 @ApiTags('ai')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -133,6 +140,34 @@ export class AiController {
     private readonly aiService: AiService,
     private readonly prisma: PrismaService,
   ) {}
+
+  @Post('provider-status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Return active AI provider configuration and run an optional connectivity check' })
+  async providerStatus(@Body() dto: TestProviderDto) {
+    const info = this.aiProvider.getProviderInfo();
+    const prompt = dto.prompt?.trim();
+
+    if (!prompt) {
+      return { ...info, connectivity: 'not-tested' };
+    }
+
+    const result = await this.aiProvider.complete(prompt, {
+      maxTokens: 120,
+      temperature: 0.1,
+    });
+
+    return {
+      ...info,
+      connectivity: 'ok',
+      sample: result.content.slice(0, 300),
+      usage: {
+        tokensInput: result.tokensInput,
+        tokensOutput: result.tokensOutput,
+        latencyMs: result.latencyMs,
+      },
+    };
+  }
 
   @Post('screen-resume')
   @HttpCode(HttpStatus.OK)

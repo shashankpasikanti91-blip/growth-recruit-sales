@@ -6,6 +6,7 @@ import { Building2, Users, List, LayoutGrid, Globe, ExternalLink, ChevronLeft, C
 import Link from 'next/link';
 import { format, formatDistanceToNow } from 'date-fns';
 import { TableWrapper } from '@/components/ui/table-wrapper';
+import { DeskShell, DeskTableSection, zebraRow, DESK_TH, DeskPageHeader } from '@/components/ui/desk-shell';
 
 export default function CompaniesPage() {
   const [search, setSearch] = useState('');
@@ -23,32 +24,34 @@ export default function CompaniesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Companies</h1>
-          <p className="text-gray-500 mt-1">{total} total companies</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+      <DeskPageHeader
+        icon={Building2}
+        title="Companies"
+        subtitle={`${total} organisations in your CRM — master data for leads and contacts.`}
+        accentClassName="bg-slate-800"
+        actions={
+          <div className="flex border border-slate-200 rounded-lg overflow-hidden shadow-sm">
             <button
+              type="button"
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${viewMode === 'table' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${viewMode === 'table' ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
             >
               <List className="w-3.5 h-3.5" /> Table
             </button>
             <button
+              type="button"
               onClick={() => setViewMode('cards')}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${viewMode === 'cards' ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${viewMode === 'cards' ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
             >
               <LayoutGrid className="w-3.5 h-3.5" /> Cards
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="flex gap-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <input
-          className="input max-w-sm"
+          className="input max-w-md border-slate-200"
           placeholder="Search companies..."
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
@@ -101,20 +104,23 @@ export default function CompaniesPage() {
           )}
         </>
       ) : (
-        /* Table View */
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <DeskShell
+          title="Company register"
+          subtitle="Wide account grid with lead and contact counts — table and card views unchanged underneath."
+        >
+          <DeskTableSection>
           <TableWrapper>
             <table className="w-full text-sm min-w-[900px]">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="sticky top-0 z-20 shadow-sm">
                 <tr>
                   {['Company Name', 'Industry', 'Website', 'Country', 'Employees', 'Leads', 'Contacts', 'Created', 'Actions'].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    <th key={h} className={DESK_TH}>{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {companies.map((co: any) => (
-                  <tr key={co.id} className="hover:bg-gray-50 transition-colors group">
+              <tbody className="divide-y divide-slate-100">
+                {companies.map((co: any, rowIdx: number) => (
+                  <tr key={co.id} className={zebraRow(rowIdx) + ' hover:bg-blue-50/50 transition-colors group'}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0">
@@ -170,27 +176,28 @@ export default function CompaniesPage() {
             </table>
           </TableWrapper>
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
-              <p className="text-sm text-gray-500">Page {page} of {totalPages} ({total} total)</p>
+            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/80">
+              <p className="text-sm text-slate-500">Page {page} of {totalPages} ({total} total)</p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-40 flex items-center gap-1"
+                  className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1"
                 >
                   <ChevronLeft className="w-4 h-4" /> Prev
                 </button>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-40 flex items-center gap-1"
+                  className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1"
                 >
                   Next <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
           )}
-        </div>
+        </DeskTableSection>
+        </DeskShell>
       )}
     </div>
   );

@@ -61,6 +61,9 @@ function StarRating({ value }: { value?: number | null }) {
 function ScheduleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     submissionId: '',
+    candidateId: '',
+    jobId: '',
+    clientId: '' as string | undefined,
     round: 1,
     mode: 'VIDEO',
     scheduledAt: '',
@@ -76,16 +79,22 @@ function ScheduleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const submissions: any[] = subsData?.items ?? [];
 
   const submit = async () => {
-    if (!form.submissionId || !form.scheduledAt) {
+    if (!form.submissionId || !form.scheduledAt || !form.candidateId || !form.jobId) {
       toast.error('Submission and scheduled date are required');
       return;
     }
     setLoading(true);
     try {
       await interviewsApi.create({
-        ...form,
+        submissionId: form.submissionId,
+        candidateId: form.candidateId,
+        jobId: form.jobId,
+        clientId: form.clientId || undefined,
         round: Number(form.round),
+        mode: form.mode,
         scheduledAt: new Date(form.scheduledAt).toISOString(),
+        meetingLink: form.meetingLink || undefined,
+        notes: form.notes || undefined,
       });
       toast.success('Interview scheduled!');
       onSaved();
@@ -112,7 +121,17 @@ function ScheduleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             <select
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={form.submissionId}
-              onChange={e => set('submissionId', e.target.value)}
+              onChange={e => {
+                const sid = e.target.value;
+                const sub = submissions.find((s: any) => s.id === sid);
+                setForm(f => ({
+                  ...f,
+                  submissionId: sid,
+                  candidateId: sub?.candidateId ?? '',
+                  jobId: sub?.jobId ?? '',
+                  clientId: sub?.clientId ?? undefined,
+                }));
+              }}
             >
               <option value="">Select submission…</option>
               {submissions.map((s: any) => (

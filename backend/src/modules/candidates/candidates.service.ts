@@ -166,6 +166,18 @@ export class CandidatesService {
         include: {
           _count: { select: { applications: true, resumes: true } },
           scorecards: { orderBy: { createdAt: 'desc' }, take: 1, select: { score: true, explanation: true } },
+          submissions: {
+            orderBy: [{ submittedAt: 'desc' }, { createdAt: 'desc' }],
+            take: 1,
+            select: {
+              submittedAt: true,
+              stage: true,
+              aiScore: true,
+              recruiterNotes: true,
+              client: { select: { id: true, name: true } },
+              job: { select: { id: true, title: true, jobType: true } },
+            },
+          },
         },
       }),
       this.prisma.candidate.count({ where }),

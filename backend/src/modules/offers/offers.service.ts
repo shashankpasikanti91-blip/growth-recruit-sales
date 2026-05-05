@@ -86,7 +86,20 @@ export class OffersService {
           submission: {
             select: {
               id: true, businessId: true,
-              candidate: { select: { id: true, firstName: true, lastName: true, currentTitle: true } },
+              candidate: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  currentTitle: true,
+                  email: true,
+                  phone: true,
+                  yearsExperience: true,
+                  currentSalary: true,
+                  expectedSalary: true,
+                  salaryCurrency: true,
+                },
+              },
               job: { select: { id: true, title: true, location: true } },
               client: { select: { id: true, name: true } },
             },

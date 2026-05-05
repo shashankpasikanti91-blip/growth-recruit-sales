@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { clientsApi } from '@/lib/api-client';
 import Link from 'next/link';
 import { TableWrapper } from '@/components/ui/table-wrapper';
+import { DeskShell, DeskTableSection, zebraRow, DESK_TH, DeskPageHeader } from '@/components/ui/desk-shell';
 import {
   Handshake, Search, Plus, ChevronLeft, ChevronRight,
   Building2, Globe, MapPin, ExternalLink,
@@ -55,55 +56,46 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
-            <Handshake className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Clients</h1>
-            <p className="text-sm text-gray-500">Manage client accounts and relationships</p>
-          </div>
-        </div>
-        <Link
-          href="/clients/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> New Client
-        </Link>
-      </div>
+      <DeskPageHeader
+        icon={Handshake}
+        title="Clients"
+        subtitle="Manage client accounts, JD volume, and submission flow into recruitment."
+        accentClassName="bg-blue-700"
+        actions={
+          <Link href="/clients/new" className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Client
+          </Link>
+        }
+      />
 
-      {/* ── Stats Row ─────────────────────────────────────────────────────── */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Total Clients',  value: stats.total,        color: 'text-gray-900' },
+            { label: 'Total Clients',  value: stats.total,        color: 'text-slate-900' },
             { label: 'Active',         value: stats.active,       color: 'text-emerald-600' },
             { label: 'New (30 days)',  value: stats.newThis30Days,color: 'text-blue-600' },
             { label: 'Prospects',      value: stats.pending,      color: 'text-amber-600' },
           ].map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4">
+            <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-              <div className="text-xs text-gray-500 mt-1">{s.label}</div>
+              <div className="text-xs text-slate-500 mt-1 font-medium">{s.label}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ── Filters ───────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
             placeholder="Search clients…"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
         <select
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
           value={status}
           onChange={(e) => { setStatus(e.target.value); setPage(1); }}
         >
@@ -112,20 +104,23 @@ export default function ClientsPage() {
         </select>
       </div>
 
-      {/* ── Table ─────────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <DeskShell
+        title="Client register"
+        subtitle="Account-level view with JD and submission counts — links open the same 360° client workspace."
+      >
+        <DeskTableSection>
         <TableWrapper>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
+          <table className="w-full text-sm min-w-[960px]">
+            <thead className="sticky top-0 z-20 shadow-sm">
+              <tr>
                 {['Client', 'Industry', 'Location', 'Status', 'JDs', 'Submissions', 'Created', 'Actions'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+                  <th key={h} className={DESK_TH}>
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>
@@ -145,8 +140,8 @@ export default function ClientsPage() {
                   </td>
                 </tr>
               ) : (
-                clients.map((c: any) => (
-                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                clients.map((c: any, rowIdx: number) => (
+                  <tr key={c.id} className={zebraRow(rowIdx) + ' hover:bg-blue-50/50 transition-colors'}>
                     {/* Client */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -208,32 +203,32 @@ export default function ClientsPage() {
           </table>
         </TableWrapper>
 
-        {/* Pagination */}
         {pages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-sm text-gray-500">
+          <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between">
+            <span className="text-sm text-slate-500">
               Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40"
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-40"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm font-medium text-gray-700">{page} / {pages}</span>
+              <span className="text-sm font-medium text-slate-700">{page} / {pages}</span>
               <button
                 onClick={() => setPage(p => Math.min(pages, p + 1))}
                 disabled={page === pages}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40"
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-40"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
-      </div>
+        </DeskTableSection>
+      </DeskShell>
     </div>
   );
 }

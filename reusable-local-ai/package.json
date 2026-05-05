@@ -1,0 +1,9 @@
+{
+  "name": "reusable-local-ai",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "smoke": "node example.js \"Return exactly STARTER_OK\""
+  }
+}
