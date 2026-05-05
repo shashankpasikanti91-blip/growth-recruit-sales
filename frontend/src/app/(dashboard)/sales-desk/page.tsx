@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -41,7 +41,7 @@ const LINKS: { id: SalesTab; label: string; sub: string; href: string; icon: typ
   { id: 'proposals', label: 'Proposals', sub: 'Commercial documents and stages', href: '/proposals', icon: ScrollText },
 ];
 
-export default function SalesDeskPage() {
+function SalesDeskContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -163,5 +163,13 @@ export default function SalesDeskPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SalesDeskPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-slate-500 text-sm">Loading…</div>}>
+      <SalesDeskContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -90,7 +90,7 @@ function aggregateBySubmission(interviews: any[]) {
 const TH =
   'text-left px-3 py-2.5 text-[11px] font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap bg-slate-100/95 border-b border-slate-200';
 
-export default function RecruitmentTrackerPage() {
+function RecruitmentTrackerContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -612,5 +612,13 @@ export default function RecruitmentTrackerPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RecruitmentTrackerPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-slate-500 text-sm">Loading…</div>}>
+      <RecruitmentTrackerContent />
+    </Suspense>
   );
 }
