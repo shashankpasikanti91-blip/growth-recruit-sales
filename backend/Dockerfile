@@ -25,9 +25,11 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/dist ./dist
+# Copy pre-generated Prisma client from builder (avoids needing prisma CLI in prod)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 # Install production-only dependencies (much smaller than full node_modules)
 RUN npm ci --omit=dev --legacy-peer-deps
-RUN npx prisma generate
 RUN mkdir -p /app/uploads && chown -R appuser:appgroup /app
 USER appuser
 EXPOSE 3001
