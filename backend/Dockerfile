@@ -22,6 +22,7 @@ RUN apk add --no-cache openssl
 # Create non-root user for security
 RUN addgroup -g 1001 -S appgroup && adduser -S appuser -u 1001 -G appgroup
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/loadEnv.js ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/dist ./dist
 # Copy the full node_modules (with pre-generated Prisma client) from builder
