@@ -1,0 +1,6 @@
+# Local secrets — never commit
+ngrok/ngrok-tekgen.local.yml
+
+# Local build / scratch logs (keep repo root clean)
+build-output.txt
+*.local.log

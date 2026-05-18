@@ -92,7 +92,7 @@ export default function MySubmissionsPage() {
                   {s.submittedAt ? new Date(s.submittedAt).toLocaleDateString() : '—'}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <Link href={`/submissions/${s.id}`} className="text-gray-400 hover:text-brand-600">
+                  <Link href={`/candidates/${s.candidateId}`} className="text-gray-400 hover:text-brand-600">
                     <ExternalLink className="w-4 h-4" />
                   </Link>
                 </td>

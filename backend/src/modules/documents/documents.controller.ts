@@ -55,6 +55,7 @@ export class DocumentsController {
   @ApiQuery({ name: 'companyId', required: false })
   @ApiQuery({ name: 'contactId', required: false })
   @ApiQuery({ name: 'jobId', required: false })
+  @ApiQuery({ name: 'clientId', required: false })
   @ApiQuery({ name: 'search', required: false })
   findAll(
     @CurrentUser('tenantId') tenantId: string,
@@ -64,6 +65,7 @@ export class DocumentsController {
     @Query('companyId') companyId?: string,
     @Query('contactId') contactId?: string,
     @Query('jobId') jobId?: string,
+    @Query('clientId') clientId?: string,
     @Query('search') search?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
@@ -75,6 +77,7 @@ export class DocumentsController {
       companyId,
       contactId,
       jobId,
+      clientId,
       search,
       page,
       limit,

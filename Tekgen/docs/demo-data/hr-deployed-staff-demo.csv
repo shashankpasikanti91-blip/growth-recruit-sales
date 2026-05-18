@@ -1,0 +1,6 @@
+firstName,lastName,email,role,department,designation,employmentType,staffType,clientId,nationality,workCountry,workState,visaStatus,phone,managerEmail,joinDate,tempPassword
+Daniel,Tan,daniel.tan@tekgen.com,DEPLOYED_STAFF,Operations,Support Engineer,DEPLOYED,DEPLOYED,CLIENT_ID_001,MY,MY,KL,CITIZEN,+601177889900,assistant.manager@tekgen.com,2026-03-01,Daniel@2026
+Priya,Nair,priya.nair@tekgen.com,DEPLOYED_STAFF,Operations,Project Coordinator,DEPLOYED,DEPLOYED,CLIENT_ID_001,IN,MY,Selangor,EP_PASS,+601188990011,assistant.manager@tekgen.com,2026-03-02,Priya@2026
+Ahmad,Fadzil,ahmad.fadzil@tekgen.com,DEPLOYED_STAFF,Operations,Field Technician,DEPLOYED,DEPLOYED,CLIENT_ID_002,MY,MY,Johor,CITIZEN,+601199001122,assistant.manager@tekgen.com,2026-03-03,Ahmad@2026
+Maria,Santos,maria.santos@tekgen.com,DEPLOYED_STAFF,Operations,Service Specialist,DEPLOYED,DEPLOYED,CLIENT_ID_002,PH,MY,Penang,WORK_PERMIT,+601100112233,assistant.manager@tekgen.com,2026-03-04,Maria@2026
+Kenji,Sato,kenji.sato@tekgen.com,DEPLOYED_STAFF,Operations,Deployment Analyst,DEPLOYED,DEPLOYED,CLIENT_ID_003,JP,MY,Selangor,EP_PASS,+601111223344,assistant.manager@tekgen.com,2026-03-05,Kenji@2026

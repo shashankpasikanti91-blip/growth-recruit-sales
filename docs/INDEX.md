@@ -46,7 +46,7 @@
 | **06** | SRP Cross-Team Alerts & QA | ✅ DONE |
 | **07** | SRP My Hub — Team Productivity Layer | ✅ DONE |
 | **08** | SRP Connect — Global Outreach Channels | ✅ DONE |
-| **09** | SRP Reports & Analytics — Exports & Custom Dashboards | 🔶 NEXT |
+| **09** | SRP Reports & Analytics — Exports & Custom Dashboards | ✅ DONE |
 
 Full task breakdown → [ROADMAP.md](ROADMAP.md)
 
@@ -138,7 +138,7 @@ Full task breakdown → [ROADMAP.md](ROADMAP.md)
 
 ---
 
-## What Is Next (Phase 03 — SRP JD Desk)
+## Historical Milestone (Phase 03 — SRP JD Desk)
 
 1. **Recruiter Assignment from JD 360** — "Assign Recruiter" button (Sales/Admin), searchable user dropdown, `PUT /jobs/:id { assignedRecruiterId }`, display assigned recruiter on header
 2. **Lead → Client Conversion Flow** — "Convert to Client" button on Lead 360, pre-fills Client form, sets `lead.convertedToClientId`, redirects to new Client 360

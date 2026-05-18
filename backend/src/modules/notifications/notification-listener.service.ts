@@ -73,6 +73,47 @@ export class NotificationListenerService {
     }
   }
 
+  // ── Client Feedback / Stage Update by Sales ───────────────────────────────
+  @OnEvent('submission.feedback')
+  async onSubmissionFeedback(payload: {
+    tenantId: string;
+    submissionId: string;
+    recruiterId?: string;
+    stage: string;
+  }) {
+    if (!payload.recruiterId) return;
+    try {
+      // Fetch submission details for readable notification
+      const sub = await this.prisma.submission.findFirst({
+        where: { id: payload.submissionId, tenantId: payload.tenantId },
+        include: {
+          candidate: { select: { firstName: true, lastName: true } },
+          job:       { select: { title: true } },
+          client:    { select: { name: true } },
+        },
+      }).catch(() => null);
+
+      const candidateName = sub
+        ? `${sub.candidate?.firstName ?? ''} ${sub.candidate?.lastName ?? ''}`.trim()
+        : 'Candidate';
+      const jobTitle    = sub?.job?.title    ?? 'a job';
+      const clientName  = sub?.client?.name  ?? 'the client';
+      const stageLabel  = payload.stage.replace(/_/g, ' ');
+
+      await this.notifications.create({
+        tenantId:   payload.tenantId,
+        userId:     payload.recruiterId,
+        type:       'SUBMISSION_STAGE_UPDATED',
+        title:      `Client Feedback: ${stageLabel}`,
+        body:       `${clientName} has updated the status of ${candidateName} for "${jobTitle}" to ${stageLabel}. Check the submission for full feedback.`,
+        entityType: 'submission',
+        entityId:   payload.submissionId,
+      });
+    } catch (err) {
+      this.logger.error('submission.feedback notification failed', err);
+    }
+  }
+
   // ── Interview Scheduled ────────────────────────────────────────────────────
   @OnEvent('interview.scheduled')
   async onInterviewScheduled(payload: {

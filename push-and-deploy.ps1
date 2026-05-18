@@ -116,6 +116,29 @@ echo '  Code synced.'
 "@
 Write-Ok "Server code synced."
 
+# ── STEP 2.5: Pre-deploy database backup ─────────────────────────────────────
+Write-Step "Pre-deploy backup: Backing up growth_platform database..."
+
+ssh "${SERVER_USER}@${SERVER}" @"
+set -e
+BACKUP_DIR="${SERVER_APP}/backups"
+mkdir -p "\$BACKUP_DIR"
+TIMESTAMP=\$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="\$BACKUP_DIR/growth_pre_deploy_\${TIMESTAMP}.sql.gz"
+echo "  Creating backup => \$BACKUP_FILE"
+docker exec growth_postgres pg_dump \
+  -U \$(docker exec growth_postgres printenv POSTGRES_USER) \
+  -d \$(docker exec growth_postgres printenv POSTGRES_DB) \
+  --format=plain --if-exists --clean --no-privileges --no-owner \
+  | gzip > "\$BACKUP_FILE"
+SIZE=\$(du -sh "\$BACKUP_FILE" | cut -f1)
+echo "  ✅ Backup done: \$BACKUP_FILE (\$SIZE)"
+# Keep last 30 backups
+ls -1t \$BACKUP_DIR/growth_pre_deploy_*.sql.gz 2>/dev/null | tail -n +31 | xargs -r rm -f
+echo "  Backups retained (max 30)."
+"@
+Write-Ok "Database backed up on server."
+
 # ── STEP 3: Run DB migrations (SAFE — never resets data) ─────────────────────
 Write-Step "Step 3/7: Running database migrations..."
 

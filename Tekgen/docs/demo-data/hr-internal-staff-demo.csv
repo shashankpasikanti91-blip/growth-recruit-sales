@@ -1,0 +1,6 @@
+firstName,lastName,email,role,department,designation,employmentType,staffType,nationality,workCountry,workState,visaStatus,phone,managerEmail,joinDate,tempPassword
+Arun,Kumar,arun.kumar@tekgen.com,EMPLOYEE_VIEWER,HR Operations,HR Executive,INTERNAL,INTERNAL,MY,MY,Selangor,CITIZEN,+601122334455,hrops.manager@tekgen.com,2026-01-10,Arun@2026
+Nurul,Aminah,nurul.aminah@tekgen.com,EMPLOYEE_VIEWER,Payroll,Payroll Executive,INTERNAL,INTERNAL,MY,MY,KL,CITIZEN,+601133445566,payroll@tekgen.com,2026-01-12,Nurul@2026
+Ravi,Singh,ravi.singh@tekgen.com,EMPLOYEE_VIEWER,Finance,Accounts Analyst,INTERNAL,INTERNAL,IN,MY,Johor,EP_PASS,+601144556677,finance.manager@tekgen.com,2026-02-01,Ravi@2026
+Li,Wei,li.wei@tekgen.com,EMPLOYEE_VIEWER,Operations,Operations Associate,INTERNAL,INTERNAL,CN,MY,Penang,WORK_PERMIT,+601155667788,assistant.manager@tekgen.com,2026-02-05,LiWei@2026
+Aisyah,Rahman,aisyah.rahman@tekgen.com,EMPLOYEE_VIEWER,Recruitment,Recruitment Coordinator,INTERNAL,INTERNAL,MY,MY,Selangor,CITIZEN,+601166778899,recruitment.manager@tekgen.com,2026-02-10,Aisyah@2026

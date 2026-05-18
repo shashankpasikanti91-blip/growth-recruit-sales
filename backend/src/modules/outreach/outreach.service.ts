@@ -196,9 +196,13 @@ export class OutreachService {
       html: msg.body,
     });
 
-    const updated = await this.prisma.outreachMessage.update({
-      where: { id: messageId },
+    await this.prisma.outreachMessage.updateMany({
+      where: { id: messageId, tenantId },
       data: { status: 'SENT', sentAt: new Date() },
+    });
+
+    const updated = await this.prisma.outreachMessage.findFirst({
+      where: { id: messageId, tenantId },
     });
 
     return { ...updated, recipientEmail };
@@ -240,7 +244,11 @@ export class OutreachService {
   async updateMessageStatus(tenantId: string, id: string, status: string) {
     const msg = await this.prisma.outreachMessage.findFirst({ where: { id, tenantId } });
     if (!msg) throw new NotFoundException('Message not found');
-    return this.prisma.outreachMessage.update({ where: { id }, data: { status: status as any, sentAt: status === 'SENT' ? new Date() : undefined } });
+    await this.prisma.outreachMessage.updateMany({
+      where: { id, tenantId },
+      data: { status: status as any, sentAt: status === 'SENT' ? new Date() : undefined },
+    });
+    return this.prisma.outreachMessage.findFirst({ where: { id, tenantId } });
   }
 
   async checkSuppression(tenantId: string, email: string): Promise<boolean> {

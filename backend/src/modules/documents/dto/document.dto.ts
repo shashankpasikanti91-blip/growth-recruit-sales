@@ -31,6 +31,11 @@ export class UploadDocumentDto {
   @IsOptional()
   @IsUUID()
   jobId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }
 
 export class LinkDocumentDto {
@@ -58,6 +63,11 @@ export class LinkDocumentDto {
   @IsOptional()
   @IsUUID()
   jobId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }
 
 export class ReparseDocumentDto {

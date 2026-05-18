@@ -2,21 +2,21 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOpportunityDto, UpdateOpportunityDto } from './dto/opportunity.dto';
 import { OpportunityStage } from '@prisma/client';
+import { BusinessIdService } from '../billing/business-id.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class OpportunitiesService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private businessId(tenantId: string): string {
-    return `OPP-${tenantId.slice(0, 6).toUpperCase()}-${Date.now()}`;
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+  ) {}
 
   async create(tenantId: string, dto: CreateOpportunityDto) {
     return this.prisma.opportunity.create({
       data: {
         id: uuidv4(),
-        businessId: this.businessId(tenantId),
+        businessId: await this.businessIdService.generate('opportunity'),
         tenantId,
         ...dto,
         expectedCloseDate: dto.expectedCloseDate ? new Date(dto.expectedCloseDate) : undefined,

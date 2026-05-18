@@ -92,6 +92,7 @@ export class DocumentsService {
         companyId: dto.companyId,
         contactId: dto.contactId,
         jobId: dto.jobId,
+        clientId: dto.clientId,
         uploadedByUserId: userId,
       },
     });
@@ -99,14 +100,14 @@ export class DocumentsService {
     // 7. Upload to S3
     try {
       await this.storage.upload(storageKey, file.buffer, file.mimetype);
-      await this.prisma.document.update({
-        where: { id: doc.id },
+      await this.prisma.document.updateMany({
+        where: { id: doc.id, tenantId },
         data: { status: UploadStatus.COMPLETED },
       });
     } catch (err) {
       this.logger.error(`S3 upload failed for ${docBusinessId}: ${(err as Error).message}`);
-      await this.prisma.document.update({
-        where: { id: doc.id },
+      await this.prisma.document.updateMany({
+        where: { id: doc.id, tenantId },
         data: { status: UploadStatus.FAILED },
       });
       throw new BadRequestException('File upload to storage failed. Please retry.');
@@ -127,6 +128,7 @@ export class DocumentsService {
       companyId?: string;
       contactId?: string;
       jobId?: string;
+      clientId?: string;
       search?: string;
       page?: number;
       limit?: number;
@@ -143,6 +145,7 @@ export class DocumentsService {
     if (filters.companyId) where.companyId = filters.companyId;
     if (filters.contactId) where.contactId = filters.contactId;
     if (filters.jobId) where.jobId = filters.jobId;
+    if (filters.clientId) where.clientId = filters.clientId;
     if (filters.search) {
       where.OR = [
         { originalName: { contains: filters.search, mode: 'insensitive' } },
@@ -214,16 +217,18 @@ export class DocumentsService {
     const doc = await this.prisma.document.findFirst({ where: { id, tenantId } });
     if (!doc) throw new NotFoundException('Document not found');
 
-    return this.prisma.document.update({
-      where: { id },
+    await this.prisma.document.updateMany({
+      where: { id, tenantId },
       data: {
         candidateId: dto.candidateId ?? doc.candidateId,
         leadId: dto.leadId ?? doc.leadId,
         companyId: dto.companyId ?? doc.companyId,
         contactId: dto.contactId ?? doc.contactId,
         jobId: dto.jobId ?? doc.jobId,
+        clientId: dto.clientId ?? doc.clientId,
       },
     });
+    return this.findOne(tenantId, id);
   }
 
   /**
@@ -269,10 +274,11 @@ export class DocumentsService {
       this.logger.warn(`Parse failed for ${doc.businessId}: ${(err as Error).message}`);
     }
 
-    return this.prisma.document.update({
-      where: { id },
+    await this.prisma.document.updateMany({
+      where: { id, tenantId },
       data: { rawText: rawText || null },
     });
+    return this.findOne(tenantId, id);
   }
 
   /**
@@ -288,7 +294,7 @@ export class DocumentsService {
       this.logger.warn(`S3 delete failed: ${(err as Error).message}`);
     }
 
-    await this.prisma.document.delete({ where: { id } });
+    await this.prisma.document.deleteMany({ where: { id, tenantId } });
     return { deleted: true };
   }
 }

@@ -71,6 +71,7 @@ export class ContactsService {
 
   async update(tenantId: string, id: string, dto: Partial<CreateContactDto>) {
     await this.findOne(tenantId, id);
-    return this.prisma.contact.update({ where: { id }, data: dto });
+    await this.prisma.contact.updateMany({ where: { id, tenantId }, data: dto });
+    return this.findOne(tenantId, id);
   }
 }

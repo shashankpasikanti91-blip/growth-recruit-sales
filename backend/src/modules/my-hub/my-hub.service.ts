@@ -8,7 +8,7 @@ export class MyHubService {
   // ── Profile ────────────────────────────────────────────────────────────────
 
   async getProfile(userId: string) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findFirst({
       where: { id: userId },
       select: {
         id: true, businessId: true, firstName: true, lastName: true,
@@ -29,7 +29,14 @@ export class MyHubService {
     if (dto.lastName  !== undefined) { data.lastName  = dto.lastName;  data.fullName = `${dto.firstName ?? ''} ${dto.lastName}`; }
     if (dto.settings  !== undefined) data.settings    = dto.settings;
 
-    return this.prisma.user.update({ where: { id: userId }, data, select: { id: true, firstName: true, lastName: true, fullName: true, email: true, role: true, settings: true } });
+    await this.prisma.user.updateMany({
+      where: { id: userId, tenantId },
+      data,
+    });
+    return this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+      select: { id: true, firstName: true, lastName: true, fullName: true, email: true, role: true, settings: true },
+    });
   }
 
   // ── Role-aware Dashboard ───────────────────────────────────────────────────

@@ -7,7 +7,7 @@ export const candidatesApi = {
   get: (id: string) => api.get(`/candidates/${id}`).then(r => r.data),
   create: (data: any) => api.post('/candidates', data).then(r => r.data),
   update: (id: string, data: any) => api.put(`/candidates/${id}`, data).then(r => r.data),
-  archive: (id: string) => api.patch(`/candidates/${id}/archive`).then(r => r.data),
+  archive: (id: string) => api.delete(`/candidates/${id}`).then(r => r.data),
   addNote: (id: string, note: string) => api.post(`/candidates/${id}/notes`, { note }).then(r => r.data),
   uploadResume: (id: string, file: File) => {
     const form = new FormData();
@@ -285,7 +285,7 @@ export const aiApi = {
 export const documentsApi = {
   list: (params?: Record<string, any>) => api.get('/documents', { params }).then(r => r.data),
   get: (id: string) => api.get(`/documents/${id}`).then(r => r.data),
-  upload: (file: File, type: string, linkedEntity?: { candidateId?: string; leadId?: string; companyId?: string; contactId?: string; jobId?: string }) => {
+  upload: (file: File, type: string, linkedEntity?: { candidateId?: string; leadId?: string; companyId?: string; contactId?: string; jobId?: string; clientId?: string }) => {
     const form = new FormData();
     form.append('file', file);
     form.append('type', type);
@@ -294,11 +294,12 @@ export const documentsApi = {
     if (linkedEntity?.companyId) form.append('companyId', linkedEntity.companyId);
     if (linkedEntity?.contactId) form.append('contactId', linkedEntity.contactId);
     if (linkedEntity?.jobId) form.append('jobId', linkedEntity.jobId);
+    if (linkedEntity?.clientId) form.append('clientId', linkedEntity.clientId);
     return api.post('/documents/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
   },
   getDownloadUrl: (id: string) => api.get(`/documents/${id}/download-url`).then(r => r.data),
   download: (id: string) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
-  link: (id: string, data: { candidateId?: string; leadId?: string; companyId?: string; contactId?: string; jobId?: string }) =>
+  link: (id: string, data: { candidateId?: string; leadId?: string; companyId?: string; contactId?: string; jobId?: string; clientId?: string }) =>
     api.patch(`/documents/${id}/link`, data).then(r => r.data),
   reparse: (id: string) => api.post(`/documents/${id}/reparse`).then(r => r.data),
   delete: (id: string) => api.delete(`/documents/${id}`).then(r => r.data),

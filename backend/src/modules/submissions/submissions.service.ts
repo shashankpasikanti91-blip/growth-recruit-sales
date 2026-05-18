@@ -14,10 +14,6 @@ export class SubmissionsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  private legacyBusinessId(tenantId: string): string {
-    return `SUB-${tenantId.slice(0, 6).toUpperCase()}-${Date.now()}`;
-  }
-
   async create(tenantId: string, dto: CreateSubmissionDto, createdById?: string) {
     // QA Gate: candidate must have at least one CV/resume before submission
     const resumeCount = await this.prisma.resume.count({
@@ -48,7 +44,7 @@ export class SubmissionsService {
     const submission = await this.prisma.submission.create({
       data: {
         id:         uuidv4(),
-        businessId: this.legacyBusinessId(tenantId),
+        businessId: await this.businessIdService.generate('submission'),
         tenantId,
         ...dto,
         submittedAt: dto.stage === 'SUBMITTED_TO_CLIENT' ? new Date() : undefined,

@@ -2,24 +2,22 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateClientDto, UpdateClientDto, ConvertToClientDto } from './dto/client.dto';
 import { ClientStatus } from '@prisma/client';
+import { BusinessIdService } from '../billing/business-id.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ClientsService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  // ── Generate tenant-scoped business ID ───────────────────────────────────────
-  private businessId(tenantId: string): string {
-    const short = tenantId.slice(0, 6).toUpperCase();
-    return `CLT-${short}-${Date.now()}`;
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+  ) {}
 
   // ── Create ────────────────────────────────────────────────────────────────────
   async create(tenantId: string, dto: CreateClientDto) {
     return this.prisma.client.create({
       data: {
         id:         uuidv4(),
-        businessId: this.businessId(tenantId),
+        businessId: await this.businessIdService.generate('client'),
         tenantId,
         ...dto,
         requiredDocuments: dto.requiredDocuments ?? [],
@@ -84,7 +82,7 @@ export class ClientsService {
           take: 10,
           select: {
             id: true, businessId: true, title: true, location: true,
-            priority: true, openings: true, isActive: true,
+            priority: true, openings: true, isActive: true, assignedRecruiterId: true,
             targetSubmissionDate: true, createdAt: true,
             _count: { select: { applications: true, submissions: true } },
           },
@@ -181,7 +179,7 @@ export class ClientsService {
     }
 
     const clientId = uuidv4();
-    const businessId = this.businessId(tenantId);
+    const businessId = await this.businessIdService.generate('client');
     const now = new Date();
 
     // Create client + backlink lead/company in a transaction

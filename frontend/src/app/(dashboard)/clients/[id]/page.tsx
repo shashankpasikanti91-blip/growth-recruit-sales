@@ -108,7 +108,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
 
           <div className="flex items-center gap-2">
             <Link
-              href={`/clients/${id}/edit`}
+              href={`/clients/new?editId=${id}`}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
             >
               <Edit2 className="w-3.5 h-3.5" /> Edit
@@ -238,7 +238,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  {['Job Title', 'Location', 'Priority', 'Openings', 'Applications', 'Target Date', ''].map(h => (
+                  {['Job Title', 'Location', 'Priority', 'Recruiter', 'Openings', 'Applications', 'Submissions', 'Target Date', ''].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
@@ -255,8 +255,10 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                         'bg-gray-100 text-gray-600'
                       }`}>{j.priority}</span>
                     </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs font-mono">{j.assignedRecruiterId ?? '—'}</td>
                     <td className="px-4 py-3 text-center text-gray-700">{j.openings}</td>
                     <td className="px-4 py-3 text-center text-gray-700">{j._count?.applications ?? 0}</td>
+                    <td className="px-4 py-3 text-center text-gray-700">{j._count?.submissions ?? 0}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{fmtShort(j.targetSubmissionDate)}</td>
                     <td className="px-4 py-3">
                       <Link href={`/jobs/${j.id}`} className="text-xs text-blue-600 hover:text-blue-700">View</Link>
@@ -310,7 +312,11 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{fmtShort(s.submittedAt ?? s.createdAt)}</td>
                     <td className="px-4 py-3">
-                      <Link href={`/submissions/${s.id}`} className="text-xs text-blue-600 hover:text-blue-700">View</Link>
+                      {s.candidate?.id ? (
+                        <Link href={`/candidates/${s.candidate.id}`} className="text-xs text-blue-600 hover:text-blue-700">View Candidate</Link>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -437,11 +443,8 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{fmtShort(doc.createdAt)}</td>
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/documents/${doc.id}`}
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-                      >
-                        <Download className="w-3 h-3" /> Download
+                      <Link href="/documents" className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700">
+                        <Download className="w-3 h-3" /> Open Documents
                       </Link>
                     </td>
                   </tr>

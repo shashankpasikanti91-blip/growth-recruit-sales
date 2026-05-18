@@ -1,0 +1,521 @@
+/* Payroll Module Styles */
+
+.container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboardContainer {
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.header h1 {
+  font-size: 28px;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.createBtn {
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.createBtn:hover {
+  background-color: #1565c0;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.error {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border-left: 4px solid #c62828;
+}
+
+/* KPI Cards */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.kpiCard {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.3s;
+}
+
+.kpiCard:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.kpiCard h3 {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.kpiValue {
+  font-size: 32px;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: #999;
+  display: block;
+  margin-top: 5px;
+}
+
+/* Sections */
+.section {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 25px;
+}
+
+.section h2 {
+  font-size: 18px;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin: 0 0 20px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+/* Summary Table */
+.summaryTable {
+  display: flex;
+  flex-direction: column;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.summaryRow:last-child {
+  border-bottom: none;
+}
+
+.summaryRow span:first-child {
+  color: #666;
+  font-weight: 500;
+}
+
+.amount {
+  font-weight: bold;
+  color: #1976d2;
+}
+
+/* Run Card */
+.runCard {
+  background-color: #f5f5f5;
+  border-left: 4px solid #1976d2;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.runHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.runHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #1a1a1a;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge.draft {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.badge.validating {
+  background-color: #cfe2ff;
+  color: #084298;
+}
+
+.badge.exceptions {
+  background-color: #f8d7da;
+  color: #842029;
+}
+
+.badge.ready {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.badge.review {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.badge.under_review {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.badge.finance_review {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge.approved {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge.generated {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge.published {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge.closed {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
+.badge.paid {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.runDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.runDetails > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.runDetails span:first-child {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.runDetails strong {
+  font-size: 16px;
+  color: #1a1a1a;
+}
+
+.actionBtn {
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.3s;
+  margin-right: 8px;
+}
+
+.actionBtn:hover {
+  background-color: #1565c0;
+}
+
+.approveBtn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.3s;
+}
+
+.approveBtn:hover {
+  background-color: #45a049;
+}
+
+.linkBtn {
+  background: none;
+  color: #1976d2;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 13px;
+  padding: 0;
+  margin-right: 10px;
+}
+
+.linkBtn:hover {
+  color: #1565c0;
+}
+
+/* Approvals List */
+.approvalsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.approvalItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  border-left: 3px solid #1976d2;
+}
+
+/* Tables */
+.table {
+  overflow-x: auto;
+}
+
+.table table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.table thead {
+  background-color: #f5f5f5;
+}
+
+.table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 2px solid #e0e0e0;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #1a1a1a;
+}
+
+.table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+/* Action Grid */
+.actionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.actionCard {
+  background-color: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  border: none;
+  font-size: 14px;
+}
+
+.actionCard:hover {
+  border-color: #1976d2;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15);
+  transform: translateY(-2px);
+}
+
+.actionCard h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #1a1a1a;
+}
+
+.actionCard p {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+}
+
+/* Forms */
+.formContainer {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 25px;
+}
+
+.formContainer h2 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  color: #1a1a1a;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup label {
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.formGroup input,
+.formGroup select,
+.formGroup textarea {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.formGroup input:focus,
+.formGroup select:focus,
+.formGroup textarea:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+.formActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.submitBtn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s;
+}
+
+.submitBtn:hover {
+  background-color: #45a049;
+}
+
+.cancelBtn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s;
+}
+
+.cancelBtn:hover {
+  background-color: #da190b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .kpiGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .runDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header h1 {
+    margin-bottom: 15px;
+  }
+
+  .table {
+    font-size: 12px;
+  }
+
+  .table th,
+  .table td {
+    padding: 10px;
+  }
+}

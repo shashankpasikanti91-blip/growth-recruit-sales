@@ -1,0 +1,10 @@
+version: "2"
+# 1) Sign up at https://ngrok.com and copy your authtoken from https://dashboard.ngrok.com/get-started/your-authtoken
+# 2) Replace REPLACE_WITH_NGROK_AUTHTOKEN below, OR run once: ngrok config add-authtoken <token>
+# 3) Do not commit real tokens to public repos.
+authtoken: REPLACE_WITH_NGROK_AUTHTOKEN
+web_addr: 127.0.0.1:4060
+tunnels:
+  tekgen:
+    proto: http
+    addr: 5000

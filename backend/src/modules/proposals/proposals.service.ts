@@ -2,23 +2,22 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProposalDto, UpdateProposalDto } from './dto/proposal.dto';
 import { ProposalStatus } from '@prisma/client';
+import { BusinessIdService } from '../billing/business-id.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ProposalsService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private businessId(tenantId: string): string {
-    const short = tenantId.slice(0, 6).toUpperCase();
-    return `PRP-${short}-${Date.now()}`;
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+  ) {}
 
   async create(tenantId: string, dto: CreateProposalDto) {
     const { documentUrl, ...rest } = dto as any;
     return this.prisma.proposal.create({
       data: {
         id:         uuidv4(),
-        businessId: this.businessId(tenantId),
+        businessId: await this.businessIdService.generate('proposal'),
         tenantId,
         ...rest,
         fileUrl: documentUrl, // map DTO field to schema field
@@ -66,16 +65,17 @@ export class ProposalsService {
     const extra: any = {};
     if (dto.status === ProposalStatus.ACCEPTED) extra.acceptedAt = new Date();
     if (dto.status === ProposalStatus.REJECTED)  extra.rejectedAt  = new Date();
-    return this.prisma.proposal.update({
-      where: { id },
+    await this.prisma.proposal.updateMany({
+      where: { id, tenantId },
       data: { ...rest, fileUrl: documentUrl, ...extra, updatedAt: new Date() },
-      include: { client: true, lead: true },
     });
+    return this.findOne(tenantId, id);
   }
 
   async remove(tenantId: string, id: string) {
     await this.findOne(tenantId, id);
-    return this.prisma.proposal.delete({ where: { id } });
+    await this.prisma.proposal.deleteMany({ where: { id, tenantId } });
+    return { deleted: true };
   }
 
   async getStats(tenantId: string) {

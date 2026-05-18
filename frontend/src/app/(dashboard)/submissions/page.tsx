@@ -160,7 +160,7 @@ export default function SubmissionsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                {['Candidate', 'Client', 'Job', 'Stage', 'AI Score', 'Submitted', 'Actions'].map(h => (
+                {['Candidate', 'Client', 'Job', 'Stage', 'Client Feedback', 'AI Score', 'Submitted', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -168,20 +168,20 @@ export default function SubmissionsPage() {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={i}>{Array.from({ length: 7 }).map((_, j) => (
+                  <tr key={i}>{Array.from({ length: 8 }).map((_, j) => (
                     <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>
                   ))}</tr>
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-gray-400">
+                  <td colSpan={8} className="px-4 py-16 text-center text-gray-400">
                     <SendHorizonal className="w-10 h-10 mx-auto mb-3 opacity-30" />
                     <div>No submissions found</div>
                   </td>
                 </tr>
               ) : (
                 items.map((s: any) => {
-                  const score: number | null = s.aiMatchScore ?? null;
+                  const score: number | null = s.aiScore ?? null;
                   return (
                     <tr key={s.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
@@ -193,6 +193,13 @@ export default function SubmissionsPage() {
                       <td className="px-4 py-3 text-gray-600">{s.client?.name ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate">{s.job?.title ?? '—'}</td>
                       <td className="px-4 py-3"><StageBadge stage={s.stage} /></td>
+                      <td className="px-4 py-3 max-w-[200px]">
+                        {s.clientFeedback ? (
+                          <span className="text-xs text-gray-700 line-clamp-2" title={s.clientFeedback}>{s.clientFeedback}</span>
+                        ) : (
+                          <span className="text-xs text-gray-300 italic">Awaiting</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         {score != null ? (
                           <div className="flex items-center gap-2">
@@ -208,9 +215,13 @@ export default function SubmissionsPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500">{fmt(s.submittedAt ?? s.createdAt)}</td>
                       <td className="px-4 py-3">
-                        <Link href={`/submissions/${s.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
-                          View <ExternalLink className="w-3 h-3" />
-                        </Link>
+                        {s.candidate?.id ? (
+                          <Link href={`/candidates/${s.candidate.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
+                            Candidate <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -268,22 +279,33 @@ export default function SubmissionsPage() {
                             )}
                             <div className="text-xs text-gray-500 mt-1 truncate">{sub.job?.title ?? '—'}</div>
                             <div className="text-xs text-gray-400 truncate">{sub.client?.name ?? '—'}</div>
-                            {sub.aiMatchScore != null && (
+                            {sub.clientFeedback && (
+                              <div className="mt-1 text-xs text-violet-600 italic line-clamp-2" title={sub.clientFeedback}>
+                                💬 {sub.clientFeedback}
+                              </div>
+                            )}
+                            {sub.aiScore != null && (
                               <div className="flex items-center gap-1.5 mt-1.5">
                                 <div className="flex-1 bg-gray-100 rounded-full h-1">
                                   <div
-                                    className={`h-1 rounded-full ${sub.aiMatchScore >= 80 ? 'bg-emerald-500' : sub.aiMatchScore >= 60 ? 'bg-amber-500' : 'bg-red-400'}`}
-                                    style={{ width: `${sub.aiMatchScore}%` }}
+                                    className={`h-1 rounded-full ${sub.aiScore >= 80 ? 'bg-emerald-500' : sub.aiScore >= 60 ? 'bg-amber-500' : 'bg-red-400'}`}
+                                    style={{ width: `${sub.aiScore}%` }}
                                   />
                                 </div>
-                                <span className="text-xs text-gray-500">{sub.aiMatchScore}%</span>
+                                <span className="text-xs text-gray-500">{sub.aiScore}%</span>
                               </div>
                             )}
                             <div className="mt-2 flex items-center justify-between">
                               <span className="text-xs text-gray-400">{fmt(sub.submittedAt ?? sub.createdAt)}</span>
-                              <Link href={`/submissions/${sub.id}`} className="text-gray-400 hover:text-blue-600">
-                                <ExternalLink className="w-3 h-3" />
-                              </Link>
+                              {sub.candidate?.id ? (
+                                <Link href={`/candidates/${sub.candidate.id}`} className="text-gray-400 hover:text-blue-600">
+                                  <ExternalLink className="w-3 h-3" />
+                                </Link>
+                              ) : (
+                                <span className="text-gray-300">
+                                  <ExternalLink className="w-3 h-3" />
+                                </span>
+                              )}
                             </div>
                             <select
                               className="mt-2 w-full text-xs border border-gray-100 rounded-lg px-1.5 py-1 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"

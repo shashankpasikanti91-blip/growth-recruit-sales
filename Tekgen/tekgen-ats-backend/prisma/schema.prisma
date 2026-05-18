@@ -1,0 +1,2170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Phase 2: Client entity ───────────────────────────────────────────────────
+
+model Client {
+  id                  String       @id @default(cuid())
+  displayId           String?      @unique
+  clientName          String
+  businessUnit        String?
+  industry            String?
+  website             String?
+  country             String?
+  state               String?
+  city                String?
+  address             String?      @db.Text
+  primaryContact      String?      // legacy free-text
+  primaryContactEmail String?
+  primaryContactPhone String?
+  billingContact      String?
+  clientOwner         String?      // userId of the owner (denormalized label)
+  recruitmentManager  String?      // userId
+  defaultRecruiters   String[]     @default([])
+  paymentTerms        String?
+  submissionFormat    String?      @db.Text
+  requiredDocuments   String?      @db.Text
+  status              ClientStatus @default(ACTIVE)
+  notes               String?      @db.Text
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  ownerId             String?
+  owner               User?        @relation("ClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  jobs                Job[]
+  applications        Application[]
+  screenings          Screening[]
+  contacts            ClientContact[]
+  documents           ClientDocument[]
+  commercials         ClientCommercial[]
+  submissions         Submission[]
+  agreements          Agreement[]
+  invoices            Invoice[]
+  
+  // Payroll - Deployed Staff Relations
+  paymentAgreements   PaymentAgreement[] @relation("ClientPaymentAgreements")
+  timesheets          Timesheet[] @relation("ClientTimesheets")
+  deployedInvoices    DeployedStaffInvoice[] @relation("ClientDeployedInvoices")
+
+  @@map("clients")
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+  ON_HOLD
+}
+
+// ─── Phase 2: Client Contacts ─────────────────────────────────────────────────
+
+model ClientContact {
+  id          String   @id @default(cuid())
+  displayId   String?  @unique
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contactName String
+  designation String?
+  department  String?
+  email       String?
+  phone       String?
+  linkedinUrl String?
+  contactType String?  @default("OTHER") // HR | HIRING_MANAGER | FINANCE | PROCUREMENT | OTHER
+  status      String   @default("ACTIVE") // ACTIVE | INACTIVE
+  notes       String?  @db.Text
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId])
+  @@map("client_contacts")
+}
+
+// ─── Phase 2: Client Documents ────────────────────────────────────────────────
+
+model ClientDocument {
+  id           String   @id @default(cuid())
+  displayId    String?  @unique
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  documentType String?  // MSA | NDA | LOA | MOU | CONTRACT | SOW | RATE_CARD | SUBMISSION_FORMAT | OTHER
+  title        String
+  fileUrl      String?
+  fileName     String?
+  fileSize     Int?
+  uploadedById String?
+  expiryDate   DateTime?
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([clientId])
+  @@map("client_documents")
+}
+
+// ─── Phase 2: Client Commercials ──────────────────────────────────────────────
+
+model ClientCommercial {
+  id              String   @id @default(cuid())
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  jobId           String?  // optionally linked to a specific JD
+  billRate        Float?
+  payRate         Float?
+  currency        String?  @default("MYR")
+  rateType        String?  @default("MONTHLY") // MONTHLY | HOURLY | DAILY | FULL_TIME
+  markupType      String?  // FLAT | PERCENTAGE
+  markupValue     Float?
+  paymentTerms    String?
+  replacementPeriod String?
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([clientId])
+  @@map("client_commercials")
+}
+
+// ─── Phase 2: Submissions ─────────────────────────────────────────────────────
+
+model Submission {
+  id              String           @id @default(cuid())
+  displayId       String?          @unique
+  clientId        String?
+  client          Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  jobId           String
+  job             Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidateId     String
+  candidate       Candidate        @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  recruiterId     String?
+  recruiter       User?            @relation("SubmissionRecruiter", fields: [recruiterId], references: [id], onDelete: SetNull)
+  salesOwnerId    String?
+  salesOwner      User?            @relation("SubmissionSalesOwner", fields: [salesOwnerId], references: [id], onDelete: SetNull)
+  submittedDate   DateTime?
+  stage           SubmissionStage  @default(DRAFT)
+  aiMatchScore    Int?
+  resumeLink      String?
+  clientFeedback  String?          @db.Text
+  interviewDate   DateTime?
+  offerStatus     String?
+  rejectionReason String?          @db.Text
+  lastUpdated     DateTime         @updatedAt
+  createdAt       DateTime         @default(now())
+
+  @@unique([candidateId, jobId])
+  @@index([clientId])
+  @@index([jobId])
+  @@index([recruiterId])
+  @@map("submissions")
+}
+
+enum SubmissionStage {
+  DRAFT
+  SUBMITTED_TO_SALES
+  SUBMITTED_TO_CLIENT
+  CLIENT_REVIEW
+  INTERVIEW
+  OFFER
+  JOINED
+  REJECTED
+}
+
+// ─── Phase 4: Screening Session ───────────────────────────────────────────────
+
+model ScreeningSession {
+  id              String    @id @default(cuid())
+  screeningType   String    @default("single")  // single | bulk | direct_file
+  jobId           String?
+  clientId        String?
+  status          String    @default("COMPLETED") // RUNNING | COMPLETED | FAILED
+  totalCandidates Int       @default(0)
+  completedCount  Int       @default(0)
+  failedCount     Int       @default(0)
+  tokenUsageTotal Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  createdById     String
+  createdBy       User      @relation("SessionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  screenings      Screening[]
+
+  @@index([createdById])
+  @@index([createdAt])
+  @@map("screening_sessions")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          UserRole   @default(RECRUITER)
+  avatar        String?
+  phone         String?
+  department    String?
+  lastLoginAt   DateTime?
+  loginAttempts Int        @default(0)
+  isAccountLocked Boolean  @default(false)
+  isActive      Boolean    @default(true)
+  canDeleteCandidates Boolean @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  candidates    Candidate[]
+  jobs          Job[]
+  assignedJobs  Job[]       @relation("JobAssignee")
+  screenings    Screening[]
+  applications  Application[]
+  emailLogs     EmailLog[]
+  integrationSettings IntegrationSetting[]
+  followups     FollowUp[]
+  activityLogs  ActivityLog[]
+  notifications Notification[]
+  jdRecruiters  JdRecruiter[]
+  statusChanges StatusHistory[] @relation("StatusHistoryChanger")
+  ownedClients  Client[]    @relation("ClientOwner")
+  submissionsAsRecruiter   Submission[] @relation("SubmissionRecruiter")
+  submissionsAsSalesOwner  Submission[] @relation("SubmissionSalesOwner")
+  screeningSessions ScreeningSession[] @relation("SessionCreator")
+  employeeProfile   EmployeeProfile?
+  visaCasesOwned    VisaCase[] @relation("VisaCaseOwner")
+  visaCasesCreated  VisaCase[] @relation("VisaCaseCreatedBy")
+  visaCasesUpdated  VisaCase[] @relation("VisaCaseUpdatedBy")
+  visaComplianceRules VisaComplianceRule[] @relation("VisaComplianceConfiguredBy")
+  clientLeaveApproverAgreements PaymentAgreement[] @relation("ClientLeaveApprover")
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  RECRUITER
+  SALES_MANAGER
+  SALES_EXEC
+  RECRUITMENT_MANAGER
+  FINANCE
+  FINANCE_HEAD
+  FINANCE_MANAGER
+  CFO
+  PAYROLL_ADMIN
+  HR_ADMIN
+  HR_MANAGER
+  MANAGER
+  DEPT_MANAGER
+  DEPARTMENT_MANAGER
+  HEAD
+  DEPT_HEAD
+  DEPARTMENT_HEAD
+  COMPANY_HEAD
+  MD
+  MANAGING_DIRECTOR
+  EXECUTIVE
+  EMPLOYEE
+  VISA_ADMIN
+  CLIENT_APPROVER
+}
+
+model Job {
+  id              String      @id @default(cuid())
+  displayId       String?     @unique
+  title           String
+  description     String      @db.Text
+  requiredSkills  String[]    // JSON array stored as text
+  preferredSkills String[]    @default([])
+  mandatorySkills String[]    @default([])
+  minExperience   Int         // in years
+  maxExperience   Int?
+  department      String
+  location        String
+  country         String?
+  salaryMin       Int?
+  salaryMax       Int?
+  salaryCurrency  String?     @default("MYR")
+  salaryFrequency String?     @default("monthly") // monthly | yearly | daily | hourly
+  workAuthorization String?
+  status          JobStatus   @default(OPEN)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  closedAt        DateTime?
+
+  // Parsed JD fields
+  parsedJobDescription String? @db.Text
+  booleanSearchString  String? @db.Text
+  jobDescriptionRaw    String? @db.Text
+
+  // Phase 1 RBAC enhancements
+  clientName      String?     // Client/company this JD is for (free text fallback)
+  contractType    String?     // PERMANENT | CONTRACT | FREELANCE | INTERNSHIP
+  contractDuration String?    // e.g. "6 months", "12 months"
+  headcount       Int         @default(1)
+  /// Target number of CV / profiles to submit to client (sales + delivery tracker)
+  targetCvSubmissions Int?
+  /// Whether the JD may be shared externally with the client
+  shareJdWithClient Boolean   @default(false)
+  slaTargetDays   Int         @default(30)
+  assignedTo      String?     // userId of primary assigned recruiter
+  assignee        User?       @relation("JobAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+
+  // Phase 2: Client link
+  clientId        String?
+  client          Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  // Phase 2: Sales / Commercial fields (visible to Sales, Finance, Admin only)
+  billingRate     Float?      // client bill rate
+  payRate         Float?      // candidate pay rate
+  priority        String?     @default("MEDIUM") // HIGH | MEDIUM | LOW
+  salesOwnerId    String?     // userId of sales owner
+  targetSubmissionDate DateTime?
+  jobReceivedDate DateTime?
+
+  /// Client hiring sheet reference (e.g. CIMB JR No) — not our Tekgen displayId
+  clientJrNumber       String?
+  /// Client portal hiring request UUID
+  clientRequestUuid    String?
+  /// One Excel upload: all jobs share this id for RM/MD monitoring
+  bulkImportBatchId    String?
+  bulkImportLabel      String?
+
+  // ── Job preference & recruiter assignment ────────────────────────────────
+  candidateType   String?     // LOCAL | EXPAT | FOREIGNER_RELOCATE | ANY
+  assignedRecruiters String[] // list of user IDs assigned to this JD
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  applications    Application[]
+  screenings      Screening[]
+  followups       FollowUp[]
+  jdRecruiters    JdRecruiter[]
+  submissions     Submission[]
+  
+  // HR: Onboarding from candidate
+  onboarding      CandidateOnboarding[] @relation("CandidateOnboarding")
+
+  @@index([bulkImportBatchId])
+  @@index([clientId, clientJrNumber])
+  @@map("jobs")
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+  ON_HOLD
+  FILLED
+}
+
+model Candidate {
+  id              String      @id @default(cuid())
+  displayId       String?     @unique
+  firstName       String
+  lastName        String
+  email           String      @unique
+  phone           String?
+  location        String?
+  address         String?   @db.Text  // full street address (entered by recruiter)
+  country         String?
+  currentRole     String?
+  currentCompany  String?
+  experience      Int?        // in years
+  skills          String[]    // JSON array
+  education       String?
+  resumeUrl       String?
+  resumeText      String?     @db.Text
+  resumeHash      String?     // SHA256 of resume file for duplicate detection
+  linkedinUrl     String?
+  portfolio       String?
+  sourceChannel   String?     // e.g. "AI_SCREENING", "MANUAL_UPLOAD", "JOB_PORTAL"
+  status          CandidateStatus @default(NEW)
+
+  // Parsing metadata (Phase 3)
+  parserConfidence  Float?    // 0.0 - 1.0
+  parsingStatus     String?   @default("COMPLETE") // COMPLETE | NEEDS_REVIEW | FAILED
+  manuallyOverridden Boolean  @default(false) // do not reparse if true
+  parsedAt          DateTime?
+
+  // Soft-delete / Trash
+  isTrashed         Boolean   @default(false)  // moved to trash — hidden from main list
+  trashedAt         DateTime? // when it was trashed
+  trashedReason     String?   // POOR_PARSE | DUPLICATE | JUNK | OTHER
+
+  // Identity & personal details
+  nationality     String?
+  icNumber        String?     @unique  // Malaysian IC: 123456-78-9012
+  passportNumber  String?     @unique  // Expatriate passport number
+  dob             DateTime?   // Date of birth
+  gender          String?     // MALE | FEMALE | OTHER
+  maritalStatus   String?     // SINGLE | MARRIED | DIVORCED | WIDOWED
+
+  // ── Submission & Profiling (filled by recruiter after call) ──────────────
+  relevantExperience  Int?        // role-specific experience in years
+  visaType            String?     // CITIZEN | PR | EMPLOYMENT_PASS | WORK_PERMIT | STUDENT | DEPENDENT | NOT_APPLICABLE
+  visaValidity        String?     // e.g. "Dec 2026" or "Indefinite"
+  currentEmployer     String?     // current / most-recent company
+  preferredLocation   String?
+  currentSalary       Int?        // gross monthly in MYR
+  expectedSalary      Int?        // gross monthly in MYR
+  noticePeriod        String?     // Immediate | 1 Week | 2 Weeks | 1 Month | 2 Months | 3 Months | >3 Months
+  interviewMode       String?     // VIDEO | PHONE | IN_PERSON | ANY
+  offersInHand        String?     @db.Text
+  recruiterNotes      String?     @db.Text
+  callStatus          String?     // NOT_CALLED | REACHED | NOT_ANSWERED | WHATSAPP_SENT | EMAIL_SENT | NOT_INTERESTED | INTERESTED | CALLBACK_REQUESTED
+  submissionDate      DateTime?
+
+  // Latest screened job info (denormalized for list view)
+  latestScreenedJobId     String?
+  latestScreenedJobTitle  String?
+  latestAiScore           Int?
+  latestClientId          String?
+  latestClientName        String?
+
+  // Applying-for details (filled by recruiter or auto from AI screening JD)
+  applyingForRole         String?   // Title of the role they are applying for
+  hireType                String?   // PERMANENT | CONTRACT | FREELANCE | INTERNSHIP
+  applyingClientName      String?   // Client name for this application (manual or auto)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  applications    Application[]
+  screenings      Screening[]
+  emailLogs       EmailLog[]
+  submissions     Submission[]
+  
+  // HR: Onboarding to Employee
+  onboarding      CandidateOnboarding[] @relation("CandidateOnboarding")
+  visaCases       VisaCase[] @relation("VisaCaseCandidate")
+
+  @@map("candidates")
+}
+
+enum CandidateStatus {
+  NEW
+  APPLIED
+  SCREENED
+  INTERVIEW
+  REJECTED
+  HIRED
+  ON_HOLD
+}
+
+model Application {
+  id              String      @id @default(cuid())
+  submissionCode  String?     @unique  // human-readable e.g. SUB-0042
+  appliedAt       DateTime    @default(now())
+  status          ApplicationStatus @default(APPLIED)
+  notes           String?     @db.Text
+  aiMatchScore    Int?        // latest AI score for this application
+  screeningId     String?     // latest screening result reference
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  submittedAt     DateTime?   // when formally submitted to client
+  
+  candidateId     String
+  candidate       Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  jobId           String
+  job             Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  // Phase 2: Client link
+  clientId        String?
+  client          Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+
+  followups       FollowUp[]
+  statusHistory   StatusHistory[]
+
+  @@unique([candidateId, jobId])
+  @@map("applications")
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SCREENED
+  SHORTLISTED
+  REJECTED
+  INTERVIEWED
+  OFFERED
+  REJECTED_AFTER_INTERVIEW
+}
+
+model Screening {
+  id              String      @id @default(cuid())
+  score           Int         // 0-100
+  reasoning       String      @db.Text
+  extractedSkills String[]    // JSON array
+  matchedSkills   String[]    // JSON array
+  missingSkills   String[]    @default([])
+  gap             String?     @db.Text
+  recommendation  ScreeningRecommendation
+  fullResult      Json?       // Full AI response stored as JSON
+  aiSummary       String?     @db.Text
+  redFlags        String[]    @default([])
+  skillMatchPct   Int?        // 0-100 skill match percentage
+  expMatchPct     Int?        // 0-100 experience match percentage
+  salaryFit       String?     // YES | NO | PARTIAL
+  locationFit     String?     // YES | NO | REMOTE
+  modelUsed       String?
+  tokenUsage      Int?
+  screenedAt      DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  candidateId     String
+  candidate       Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  jobId           String
+  job             Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  // Phase 2: Client link
+  clientId        String?
+  client          Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  // Phase 4: Session link
+  sessionId       String?
+  session         ScreeningSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+
+  @@map("screenings")
+}
+
+enum ScreeningRecommendation {
+  STRONG_MATCH
+  GOOD_MATCH
+  MODERATE_MATCH
+  WEAK_MATCH
+  NOT_SUITABLE
+}
+
+model EmailLog {
+  id              String      @id @default(cuid())
+  templateType    EmailTemplate
+  recipientEmail  String
+  subject         String
+  body            String      @db.Text
+  status          EmailStatus @default(PENDING)
+  sentAt          DateTime?
+  failureReason   String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  candidateId     String?
+  candidate       Candidate?  @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+
+  @@map("email_logs")
+}
+
+enum EmailTemplate {
+  APPLICATION_RECEIVED
+  SHORTLISTED
+  REJECTED
+  INTERVIEW_SCHEDULED
+  OFFER_LETTER
+  FOLLOW_UP
+  REJECTION_INTERVIEW
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  BOUNCED
+}
+
+model InterviewSchedule {
+  id              String      @id @default(cuid())
+  candidateEmail  String
+  candidateName   String
+  interviewDate   DateTime
+  interviewTime   String
+  interviewerName String?
+  type            String      // phone, video, in-person
+  zoomLink        String?
+  meetLink        String?
+  location        String?
+  jobTitle        String?
+  candidateId     String?
+  scheduledById   String?
+  durationMinutes Int         @default(60)
+  calendarUid     String?     @unique
+  icsSentAt       DateTime?
+  teamsNotifiedAt DateTime?
+  whatsappNotifiedAt DateTime?
+  notes           String?     @db.Text
+  status          String      @default("scheduled")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("interview_schedules")
+}
+
+model IntegrationSetting {
+  id              String      @id @default(cuid())
+  platform        String      // monster, naukri, jobstreet, indeed, futurejob, whatsapp, telegram, outlook, teams, gmail
+  apiKey          String?
+  apiSecret       String?
+  webhookUrl      String?
+  isEnabled       Boolean     @default(false)
+  config          String?     @db.Text  // JSON string for extra config
+
+  // OAuth fields (Phase 6)
+  oauthAccessToken  String?   @db.Text  // encrypted
+  oauthRefreshToken String?   @db.Text  // encrypted
+  oauthTokenExpiry  DateTime?
+  oauthScope        String?
+  oauthAccountEmail String?   // connected account email
+  oauthStatus       String?   @default("DISCONNECTED") // DISCONNECTED | PENDING_APPROVAL | APPROVED | CONNECTED | ERROR
+  approvedByAdmin   Boolean   @default(false)
+  approvedAt        DateTime?
+  requestedAt       DateTime?
+
+  isGlobal        Boolean     @default(false) // Admin-set: auto-available to ALL users when true
+
+  lastSyncAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
+  @@map("integration_settings")
+}
+
+// ─── Phase 1 RBAC: FollowUp ──────────────────────────────────────────────────
+
+model FollowUp {
+  id            String        @id @default(cuid())
+  note          String        @db.Text
+  dueDate       DateTime
+  status        FollowUpStatus @default(PENDING)
+  followUpType  String?       @default("RECRUITMENT") // RECRUITMENT | SALES | CLIENT
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  assignedTo    String
+  assignee      User          @relation(fields: [assignedTo], references: [id], onDelete: Cascade)
+
+  jobId         String?
+  job           Job?          @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  applicationId String?
+  application   Application?  @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  clientId      String?       // Phase 2: sales follow-up linked to client
+  contactId     String?       // Phase 2: sales follow-up linked to contact
+
+  @@map("followups")
+}
+
+enum FollowUpStatus {
+  PENDING
+  DONE
+  OVERDUE
+  CANCELLED
+}
+
+// ─── Phase 1 RBAC: JD ↔ Multi-Recruiter assignment ──────────────────────────
+
+model JdRecruiter {
+  id          String    @id @default(cuid())
+  jobId       String
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt  DateTime  @default(now())
+  isLead      Boolean   @default(false)  // primary recruiter flag
+
+  @@unique([jobId, userId])
+  @@map("jd_recruiters")
+}
+
+// ─── Phase 1 RBAC: Status history (audit trail) ──────────────────────────────
+
+model StatusHistory {
+  id            String      @id @default(cuid())
+  oldStatus     String
+  newStatus     String
+  changedAt     DateTime    @default(now())
+  note          String?
+
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  changedBy     String      // userId
+  changer       User        @relation("StatusHistoryChanger", fields: [changedBy], references: [id], onDelete: Restrict)
+
+  @@map("status_history")
+}
+
+// ─── Phase 1 RBAC: Activity Log ──────────────────────────────────────────────
+
+model ActivityLog {
+  id          String    @id @default(cuid())
+  action      String    // e.g. "CREATE_JOB", "UPDATE_STATUS", "ADD_CANDIDATE"
+  entityType  String    // "JOB" | "CANDIDATE" | "APPLICATION" | "USER"
+  entityId    String?
+  details     Json?     // extra context
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ─── Phase 1 RBAC: Notifications ─────────────────────────────────────────────
+
+model Notification {
+  id        String            @id @default(cuid())
+  message   String
+  type      NotificationType  @default(INFO)
+  isRead    Boolean           @default(false)
+  link      String?           // optional deep link
+  createdAt DateTime          @default(now())
+
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ALERT
+}
+
+// ─── Phase 01: My Workspace / ESS ────────────────────────────────────────────
+
+model EmployeeProfile {
+  id              String    @id @default(cuid())
+  employeeId      String    @unique  // TKG-EMP-XXXX (display ID)
+  userId          String    @unique  // one-to-one with User
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Personal
+  nricPassport    String?
+  nationality     String?
+  dob             DateTime?
+  gender          String?   // MALE | FEMALE | OTHER
+  personalEmail   String?
+  phone           String?
+  address         String?   @db.Text
+
+  // Emergency contact
+  emergencyName   String?
+  emergencyPhone  String?
+  emergencyRelation String?
+
+  // Employment
+  department      String?
+  designation     String?
+  employmentType  String?   @default("INTERNAL") // INTERNAL | CONTRACTOR | DEPLOYED
+  workLocation    String?
+  workState       String?   // Malaysia state for holiday calendar
+  workCountry     String?   @default("MY")
+  joinDate        DateTime?
+  status          String?   @default("ACTIVE") // ACTIVE | ON_LEAVE | RESIGNED | TERMINATED
+
+  // Sensitive — masked in API display
+  bankName        String?
+  bankAccountNo   String?
+  taxNumber       String?
+  epfNumber       String?
+  socsoNumber     String?
+  eisNumber       String?
+
+  managerId       String?   // FK to another EmployeeProfile.id (soft reference)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  leaveBalances   LeaveBalance[]
+  leaveRequests   LeaveRequest[]
+  claims          Claim[]
+  attendance      Attendance[]
+  salaryStructures SalaryStructure[]
+  payslips        Payslip[]
+  
+  // HR Enhancements - Documents & Approvals
+  overtimeClaims  OvertimeClaim[] @relation("OvertimeClaims")
+  documents       EmployeeDocument[] @relation("EmployeeDocuments")
+  statutoryForms  StatutoryForm[] @relation("StatutoryForms")
+  onboarding      CandidateOnboarding? @relation("OnboardingRecord")
+  
+  // Payroll System - Staff Type & Payment
+  staffTypeRulesId String?
+  staffTypeRules  StaffTypeRules? @relation("StaffTypeRulesRelation", fields: [staffTypeRulesId], references: [id], onDelete: SetNull)
+  
+  paymentAgreements PaymentAgreement[] @relation("PaymentAgreements")
+  holidaySwaps    HolidaySwap[] @relation("HolidaySwaps")
+  
+  // Deployed staff specific
+  timesheets      Timesheet[] @relation("Timesheets")
+  deployedInvoices DeployedStaffInvoice[] @relation("DeployedInvoices")
+  deployedPayments DeployedStaffPayment[] @relation("DeployedPayments")
+  
+  // Staff type & tracking
+  staffType       String    @default("INTERNAL")  // INTERNAL | DEPLOYED | CONTRACTOR
+  visaStatus      String?   // CITIZEN | PR | EP_PASS | WORK_PERMIT | STUDENT | OTHER | NOT_APPLICABLE
+  visaExpiryDate  DateTime?
+  passportExpiryDate DateTime?
+  permitType      String?   // EP | PVP | DP | LTVP | STUDENT | OTHER — work / visit pass category
+  visaCaseType    String?   // NEW | RENEWAL | TRANSFER | NOT_APPLICABLE
+  visaDependents  Json?     // [{ "name", "relationship", "passType", "expiryDate", "passportNo" }]
+
+  leaveEligibleFrom DateTime? // Date when leave eligibility starts
+  contractEndDate  DateTime? // Important for deployed/contract staff
+  
+  maxOvertimeHoursPerMonth Float? // Max OT hours allowed per month
+
+  visaCases       VisaCase[] @relation("VisaCaseEmployee")
+
+  @@map("employee_profiles")
+}
+
+model LeaveBalance {
+  id              String    @id @default(cuid())
+  employeeId      String
+  employee        EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType       String    // ANNUAL | MEDICAL | HOSPITALIZATION | NO_PAY | REPLACEMENT | COMPASSIONATE | COMPANY_OFF
+  year            Int
+  entitlement     Float     @default(0)
+  carryForward    Float     @default(0)
+  taken           Float     @default(0)
+  pendingApproval Float     @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([employeeId, leaveType, year])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-LV-XXXX
+  employeeId      String
+  employee        EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType       String    // ANNUAL | MEDICAL | HOSPITALIZATION | COMPASSIONATE | REPLACEMENT | NO_PAY | COMPANY_OFF
+  startDate       DateTime
+  endDate         DateTime
+  session         String    @default("FULL_DAY") // FULL_DAY | MORNING | AFTERNOON
+  daysCount       Float     @default(1)
+  reason          String?   @db.Text
+  status          String    @default("SUBMITTED") // DRAFT | SUBMITTED | PENDING_APPROVAL | APPROVED | REJECTED | CANCELLED
+  
+  // Approval workflow
+  currentApprovalLevel Int?  // 1 = Department Manager, 2 = Department Head, 3 = Company Head/MD
+  approvedBy      String?   // userId of final approver
+  approvedAt      DateTime?
+  rejectionReason String?
+  
+  // Leave classification
+  isPaid          Boolean   @default(true) // true = Paid, false = Unpaid (No Pay)
+  departmentId    String?   // For department-specific approvals
+  
+  // Payroll integration
+  payrollMapped   Boolean   @default(false) // Mapped to payroll after final approval
+  payslipId       String?   // Link to generated payslip
+  
+  // Timestamps
+  appliedAt       DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Notifications
+  notificationSentAt DateTime? // Track 1-week before notification
+  
+  // Attachments
+  attachments     Attachment[] @relation("LeaveAttachments")
+  
+  // Multi-level approvals
+  approvals       LeaveApproval[] @relation("LeaveApprovals")
+
+  @@index([employeeId])
+  @@index([departmentId])
+  @@index([status])
+  @@map("leave_requests")
+}
+
+model Claim {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-CLM-XXXX
+  employeeId      String
+  employee        EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  claimType       String    // MEDICAL | TRANSPORT | MEAL | ACCOMMODATION | PHONE | OTHER
+  amount          Float
+  currency        String    @default("MYR")
+  claimDate       DateTime
+  description     String?   @db.Text
+  receiptUrl      String?
+  status          String    @default("SUBMITTED") // SUBMITTED | PENDING_APPROVAL | UNDER_REVIEW | APPROVED | REJECTED | PAID
+  
+  // Approval workflow
+  currentApprovalLevel Int?  // 1 = HR Manager, 2 = Finance/Department Head
+  reviewedBy      String?   // userId of final approver
+  reviewedAt      DateTime?
+  rejectionReason String?
+  
+  // Payroll integration
+  payrollMapped   Boolean   @default(false) // Mapped to payroll after final approval
+  invoiceId       String?   // Link to invoice
+  paidAt          DateTime?
+  departmentId    String?   // For department-specific approvals
+  
+  // Timestamps
+  submittedAt     DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Notifications
+  notificationSentAt DateTime? // Track notification sent
+  
+  // Attachments
+  attachments     Attachment[] @relation("ClaimAttachments")
+  
+  // Multi-level approvals
+  approvals       ClaimApproval[] @relation("ClaimApprovals")
+
+  @@index([employeeId])
+  @@index([departmentId])
+  @@index([status])
+  @@map("claims")
+}
+
+// ─── Phase 06: Payroll ───────────────────────────────────────────────────────
+
+// Attendance record for payroll calculations
+model Attendance {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-ATT-XXXX
+  employeeId      String
+  employee        EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date            DateTime
+  status          String    @default("PRESENT") // PRESENT | ABSENT | HALF_DAY | LEAVE | ON_DUTY | SICK | WEEKEND | HOLIDAY | UNPAID_LEAVE
+  checkInTime     DateTime?
+  checkOutTime    DateTime?
+  overtimeHours   Float?    @default(0)
+  reason          String?
+  
+  // Link to leave request if status is LEAVE
+  leaveRequestId  String?   // References LeaveRequest.id
+  
+  // Approval workflow
+  approvalStatus  String    @default("AUTO") // AUTO | PENDING_APPROVAL | APPROVED
+  approvedBy      String?   // userId
+  approvedAt      DateTime?
+  
+  // Notifications
+  notificationSentAt DateTime? // Track leave notification sent to employee
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([status])
+  @@map("attendance")
+}
+
+// Payroll settings: configurable statutory rates, tax rules, etc.
+model PayrollSettings {
+  id              String    @id @default(cuid())
+  country         String    @default("MY")
+  workerCategory  String    // INTERNAL_STAFF | DEPLOYED_STAFF | CONTRACTOR
+  effectiveDate   DateTime
+  taxYear         Int?
+  residencyStatus String?   // CITIZEN | PR | TEMPORARY_RESIDENT | NON_RESIDENT
+  
+  // Statutory rates (configurable, NOT hardcoded)
+  epfEmployeeRate Float     @default(8.0)   // Employee contribution %
+  epfEmployerRate Float     @default(12.0)  // Employer contribution %
+  socsoEmployeeRate Float   @default(0.5)   // Employee contribution %
+  socsoEmployerRate Float   @default(1.75)  // Employer contribution %
+  eisEmployeeRate Float     @default(0.4)   // Employee contribution %
+  eisEmployerRate Float     @default(0.8)   // Employer contribution %
+  hrdfRate        Float?    @default(0.5)   // HRDF rate %
+  
+  // Tax settings
+  pcbTaxTable     Json?     // tax brackets and rates
+  taxableIncome   Float?    // threshold for tax calculation
+  
+  // Other settings
+  paymentCycle    String?   @default("MONTHLY") // MONTHLY | WEEKLY | BI_WEEKLY
+  currency        String    @default("MYR")
+  
+  createdBy       String?   // userId of creator
+  approvedBy      String?   // userId of approver (Super Admin)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([country, workerCategory, effectiveDate])
+  @@map("payroll_settings")
+}
+
+// Salary structure: employee salary components
+model SalaryStructure {
+  id              String    @id @default(cuid())
+  employeeId      String
+  employee        EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Salary components (amounts in MYR — Malaysia)
+  basicSalary     Float
+  payFrequency    String    @default("MONTHLY") // MONTHLY = basicSalary is monthly RM | DAILY = basicSalary is RM per working day
+  allowances      Json?     // { transportAllowance: 200, housingAllowance: 500, ... }
+  deductions      Json?     // { loan: 100, advance: 200, ... }
+  overtimeRate    Float?    // per hour or per day
+  
+  effectiveFrom   DateTime
+  effectiveUntil  DateTime?
+  
+  // Approval tracking
+  approvedBy      String?   // userId
+  approvedAt      DateTime?
+  status          String    @default("DRAFT") // DRAFT | APPROVED | SUPERSEDED
+  
+  createdBy       String?   // userId
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([employeeId])
+  @@map("salary_structures")
+}
+
+// Payroll run: monthly payroll batch processing
+model PayrollRun {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-PR-XXXX
+  
+  month           Int       // 1-12
+  year            Int       // e.g. 2026
+  runType         String    @default("MONTHLY") // MONTHLY | BONUS | ADJUSTMENT | FINAL_SETTLEMENT
+  workerCategory  String?   // INTERNAL_STAFF | DEPLOYED_STAFF | BOTH
+  
+  status          String    @default("DRAFT") // DRAFT | VALIDATING | EXCEPTIONS | REVIEW | FINANCE_REVIEW | APPROVED | GENERATED | PUBLISHED | CLOSED
+  
+  // Data aggregation
+  totalEmployees  Int       @default(0)
+  grossPayroll    Float     @default(0)
+  totalDeductions Float     @default(0)
+  employerContributions Float @default(0)
+  netPayout       Float     @default(0)
+  
+  // Exception tracking
+  exceptions      Json?     // [{ employeeId, type, message }, ...]
+  
+  // Approvals
+  createdBy       String?   // userId of Payroll Admin
+  reviewedBy      String?   // userId of Payroll Admin
+  financeReviewedBy String? // userId of Finance Head
+  approvedBy      String?   // userId of Super Admin
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  publishedAt     DateTime?
+  closedAt        DateTime?
+
+  payslips        Payslip[]
+  approvals       PayrollApproval[]
+  auditLogs       PayrollAuditLog[]
+
+  @@index([month, year])
+  @@index([status])
+  @@map("payroll_runs")
+}
+
+// Payslip: per-employee, per-run
+model Payslip {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-PS-XXXX
+  
+  payrollRunId    String
+  payrollRun      PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  
+  employeeId      String
+  employee        EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  month           Int
+  year            Int
+  
+  // Earnings
+  basicSalary     Float
+  allowances      Json?     // itemized
+  overtimePay     Float     @default(0)
+  bonus           Float     @default(0)
+  approvedLeaves  Float     @default(0)  // Leave entitlements payable
+  approvedClaims  Float     @default(0)  // Approved expense claims
+  grossSalary     Float
+  
+  // Deductions
+  epfEmployee     Float     @default(0)
+  socsoEmployee   Float     @default(0)
+  eisEmployee     Float     @default(0)
+  incomeTax       Float     @default(0)
+  otherDeductions Float     @default(0)
+  unpaidLeaveDeduction Float @default(0)  // Unpaid leaves deducted from salary
+  totalDeductions Float
+  
+  // Employer contributions (info only, not paid to employee)
+  epfEmployer     Float     @default(0)
+  socsoEmployer   Float     @default(0)
+  eisEmployer     Float     @default(0)
+  hrdf            Float     @default(0)
+  
+  netSalary       Float
+  
+  // Mappings to approved records
+  approvedLeaveIds String[] @default([])  // Array of LeaveRequest IDs included
+  approvedClaimIds String[] @default([])  // Array of Claim IDs included
+  approvedOvertimeIds String[] @default([]) // Array of OvertimeClaim IDs included
+  
+  // Status & Delivery
+  status          String    @default("DRAFT") // DRAFT | GENERATED | PUBLISHED | PAID | CANCELLED
+  pdfUrl          String?   // signed URL to PDF storage
+  
+  // Tracking
+  generatedAt     DateTime?
+  publishedAt     DateTime?
+  paidAt          DateTime?
+  
+  createdBy       String?   // userId of Payroll Admin
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([payrollRunId, employeeId])
+  @@index([employeeId])
+  @@index([status])
+  @@map("payslips")
+}
+
+// Payroll approval queue (multi-step)
+model PayrollApproval {
+  id              String    @id @default(cuid())
+  payrollRunId    String
+  payrollRun      PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  
+  step            Int       // 1=Payroll Review, 2=Finance Review, 3=Final Approval
+  stepName        String    // e.g., "Payroll Admin Review", "Finance Head Review", "Super Admin Approval"
+  requiredRole    String    // PAYROLL_ADMIN | FINANCE | ADMIN
+  
+  status          String    @default("PENDING") // PENDING | APPROVED | REJECTED | SKIPPED
+  
+  submittedBy     String?   // userId
+  submittedAt     DateTime?
+  
+  approvedBy      String?   // userId
+  approvedAt      DateTime?
+  
+  rejectionReason String?
+  notes           String?   @db.Text
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([payrollRunId, step])
+  @@index([payrollRunId])
+  @@map("payroll_approvals")
+}
+
+// Payroll audit log: track all changes
+model PayrollAuditLog {
+  id              String    @id @default(cuid())
+  payrollRunId    String
+  payrollRun      PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  
+  entityType      String    // SALARY_STRUCTURE | PAYSLIP | PAYROLL_RUN
+  entityId        String    // ID of the entity being changed
+  action          String    // CREATE | UPDATE | DELETE | PUBLISH | APPROVE
+  
+  oldValue        Json?     // previous value
+  newValue        Json?     // new value
+  
+  reason          String?   // audit reason / change reason
+  changedBy       String?   // userId of who made the change
+  
+  createdAt       DateTime  @default(now())
+
+  @@index([payrollRunId])
+  @@index([entityType, entityId])
+  @@index([changedBy])
+  @@map("payroll_audit_logs")
+}
+
+// ─── Phase 07: Finance & Invoices ───────────────────────────────────────────
+
+// Commercial Agreements: MSA, SOW, Rate Cards
+model Agreement {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-AGR-XXXX
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  agreementType   String    @default("MSA") // MSA | SOW | NDA | LOA | RATE_CARD | SERVICE_AGREEMENT
+  title           String?
+  description     String?   @db.Text
+  
+  startDate       DateTime
+  endDate         DateTime?
+  
+  // Rate information
+  rateType        String    // MONTHLY | HOURLY | DAILY | PLACEMENT_FEE | MILESTONE | PROJECT
+  billRate        Float?    // Billing rate (client charges)
+  payRate         Float?    // Payment rate (employee cost)
+  markup          Float?    // Markup percentage
+  currency        String    @default("MYR")
+  
+  // Terms
+  paymentTerms    String?   // e.g., "Net 30", "Net 60"
+  minimumBilling  Float?    // Minimum billable hours/units
+  
+  // Document
+  documentUrl     String?   // Signed agreement PDF from Document Vault
+  documentId      String?   // Link to Document Vault ID
+  
+  status          String    @default("ACTIVE") // ACTIVE | EXPIRED | PENDING_RENEWAL | ARCHIVED
+  expiryAlertDays Int?      @default(30)       // Alert X days before expiry
+  
+  // Tracking
+  createdBy       String?   // userId
+  approvedBy      String?   // userId of Finance Head
+  approvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  invoices        Invoice[]
+  billingRules    BillingRule[]
+
+  @@index([clientId])
+  @@index([status])
+  @@map("agreements")
+}
+
+// Billing Rules: Define how to calculate invoices (from timesheet, attendance, etc.)
+model BillingRule {
+  id              String    @id @default(cuid())
+  agreementId     String
+  agreement       Agreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  
+  ruleName        String    // e.g., "Monthly Assignment", "Hourly Timesheet"
+  ruleType        String    // ASSIGNMENT_MONTHLY | TIMESHEET_HOURLY | ATTENDANCE_DAILY | PLACEMENT_FEE | MILESTONE
+  
+  description     String?   @db.Text
+  
+  // Rule condition
+  applicableFrom  DateTime
+  applicableTo    DateTime?
+  
+  // Rule logic (stored as JSON for flexibility)
+  ruleLogic       Json?     // { "unitRate": 5000, "billingCycle": "monthly", "overtimeMultiplier": 1.5 }
+  
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([agreementId])
+  @@map("billing_rules")
+}
+
+// Invoices: TKG-INV-XXXX
+model Invoice {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-INV-XXXX
+  
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  agreementId     String?
+  agreement       Agreement? @relation(fields: [agreementId], references: [id], onDelete: SetNull)
+  
+  // Linked entities
+  jdId            String?   // Job Description ID if for placement
+  assignmentId    String?   // Assignment ID if for deployed staff
+  
+  // Invoice metadata
+  invoiceDate     DateTime
+  dueDate         DateTime
+  invoicePeriod   String?   // e.g., "May 2026" or "May 1-31, 2026"
+  
+  // Billing contact
+  billingContact  String?   // Contact name or email
+  billingEmail    String?
+  
+  // Amounts
+  subtotal        Float
+  taxAmount       Float     @default(0)
+  taxType         String?   // GST | SST | VAT | NONE
+  discount        Float     @default(0)
+  adjustments     Float     @default(0)
+  grandTotal      Float
+  
+  // Payment tracking
+  amountPaid      Float     @default(0)
+  balanceDue      Float
+  
+  // Status
+  status          String    @default("DRAFT") // DRAFT | SUBMITTED | APPROVED | SENT | PARTIALLY_PAID | PAID | OVERDUE | CANCELLED
+  
+  // Document tracking
+  pdfUrl          String?   // Invoice PDF storage URL
+  pdfGeneratedAt  DateTime?
+  sentDate        DateTime?
+  
+  // Approval chain
+  createdBy       String?   // userId Finance User
+  createdAt       DateTime  @default(now())
+  submittedBy     String?   // userId
+  submittedAt     DateTime?
+  approvedBy      String?   // userId Finance Head
+  approvedAt      DateTime?
+  
+  updatedAt       DateTime  @updatedAt
+
+  lines           InvoiceLine[]
+  payments        Payment[]
+  collectionFollowUps CollectionFollowUp[]
+  documents       InvoiceDocument[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([invoiceDate])
+  @@map("invoices")
+}
+
+// Invoice line items
+model InvoiceLine {
+  id              String    @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  description     String
+  workerName      String?   // If for deployed staff / candidate
+  workerId        String?   // TKG-DEP-XXXX or TKG-CAN-XXXX
+  
+  quantity        Float     // Units (days, hours, items)
+  unit            String    // DAYS | HOURS | UNITS | ITEMS
+  rate            Float     // Rate per unit
+  
+  taxPercent      Float     @default(0)
+  discount        Float     @default(0)
+  
+  lineTotal       Float     // quantity * rate - discount + tax
+  
+  // Reference
+  timesheetId     String?   // Link to timesheet if applicable
+  assignmentId    String?   // Link to assignment if applicable
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([invoiceId])
+  @@map("invoice_lines")
+}
+
+// Payments & Collections
+model Payment {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique
+  
+  invoiceId       String
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  paymentDate     DateTime
+  amount          Float
+  paymentMethod   String    // BANK_TRANSFER | CHEQUE | ONLINE | CASH | OTHER
+  referenceNo     String?   // Transaction reference from bank
+  
+  receiptUrl      String?   // Receipt document from Document Vault
+  receiptId       String?   // Document Vault ID
+  
+  notes           String?   @db.Text
+  
+  // Status tracking
+  status          String    @default("RECORDED") // RECORDED | VERIFIED | CLEARED
+  recordedBy      String?   // userId Finance User
+  recordedAt      DateTime  @default(now())
+  
+  verifiedBy      String?   // userId Finance Head
+  verifiedAt      DateTime?
+  
+  updatedAt       DateTime  @updatedAt
+
+  @@index([invoiceId])
+  @@index([paymentDate])
+  @@map("payments")
+}
+
+// Collection follow-ups for overdue invoices
+model CollectionFollowUp {
+  id              String    @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  followUpDate    DateTime
+  owner           String?   // userId (Finance or Sales) responsible
+  contactMethod   String?   // EMAIL | PHONE | SMS | MEETING
+  remarks         String?   @db.Text
+  
+  status          String    @default("PENDING") // PENDING | COMPLETED | NO_RESPONSE
+  nextActionDate  DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([invoiceId])
+  @@index([followUpDate])
+  @@map("collection_followups")
+}
+
+// Supporting documents for invoices
+model InvoiceDocument {
+  id              String    @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  documentType    String    // AGREEMENT | TIMESHEET | PO | RECEIPT | PROOF_OF_DELIVERY | CREDIT_NOTE | OTHER
+  documentName    String
+  documentUrl     String?   // URL to document
+  documentId      String?   // Document Vault ID
+  
+  uploadedBy      String?   // userId
+  uploadedAt      DateTime  @default(now())
+
+  @@index([invoiceId])
+  @@map("invoice_documents")
+}
+
+// Update Client relations for Finance
+
+// ─── HR Enhancement: Document Uploads ─────────────────────────────────────────
+
+// Generic document upload model (used by Leave, Claims, Employee Info, etc.)
+model DocumentUpload {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-DOC-XXXX
+  
+  // Polymorphic relationship
+  entityType      String    // LEAVE_REQUEST | CLAIM | EMPLOYEE_INFO | STATUTORY_FORM | OTHER
+  entityId        String    // ID of the related entity (leave ID, claim ID, etc.)
+  
+  documentType    String    // RECEIPT | INVOICE | ID_COPY | CERTIFICATE | FORM | MEDICAL_REPORT | OTHER
+  documentName    String
+  fileName        String
+  fileSize        Int?      // in bytes
+  fileUrl         String?   // S3 or file storage URL
+  mimeType        String?   // application/pdf, image/jpeg, etc.
+  
+  uploadedBy      String?   // userId
+  uploadedAt      DateTime  @default(now())
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([entityType, entityId])
+  @@index([uploadedBy])
+  @@index([uploadedAt])
+  @@map("document_uploads")
+}
+
+// ─── HR Enhancement: Approval Workflows ────────────────────────────────────────
+
+// Leave Request Approval (multi-level: HR → Manager)
+model LeaveApproval {
+  id              String    @id @default(cuid())
+  leaveRequestId  String
+  leaveRequest    LeaveRequest @relation("LeaveApprovals", fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  
+  approvalLevel   Int       // 1=HR Manager, 2=Reporting Manager/Head
+  approverRole    String    // HR_MANAGER | MANAGER | HEAD
+  
+  status          String    @default("PENDING") // PENDING | APPROVED | REJECTED | REASSIGNED
+  
+  assignedTo      String?   // userId of current approver
+  comments        String?   @db.Text
+  
+  approvedBy      String?   // userId who approved/rejected
+  approvedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([leaveRequestId, approvalLevel])
+  @@index([leaveRequestId])
+  @@index([assignedTo])
+  @@map("leave_approvals")
+}
+
+// Claim Approval (multi-level: HR → Finance/Manager)
+model ClaimApproval {
+  id              String    @id @default(cuid())
+  claimId         String
+  claim           Claim     @relation("ClaimApprovals", fields: [claimId], references: [id], onDelete: Cascade)
+  
+  approvalLevel   Int       // 1=HR Manager, 2=Finance/Department Head
+  approverRole    String    // HR_MANAGER | FINANCE | MANAGER
+  
+  status          String    @default("PENDING") // PENDING | APPROVED | REJECTED | HELD
+  
+  assignedTo      String?   // userId of current approver
+  comments        String?   @db.Text
+  
+  approvedBy      String?   // userId who approved/rejected
+  approvedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([claimId, approvalLevel])
+  @@index([claimId])
+  @@index([assignedTo])
+  @@map("claim_approvals")
+}
+
+// ─── HR Enhancement: Overtime & Additional Tracking ──────────────────────────────
+
+// Overtime Claims (for payroll calculation)
+model OvertimeClaim {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-OT-XXXX
+  
+  employeeId      String
+  employee        EmployeeProfile @relation("OvertimeClaims", fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  claimDate       DateTime  // Date of overtime
+  hoursWorked     Float     // Number of hours
+  overtimeType    String    @default("STANDARD") // STANDARD | DOUBLE_TIME | WEEKEND | HOLIDAY
+  rateMultiplier  Float     @default(1.5)
+  calculatedAmount Float?    // Pre-calculated amount
+  
+  description     String?   @db.Text
+  reason          String?   @db.Text
+  
+  // Approval workflow (similar to leaves)
+  status          String    @default("SUBMITTED") // SUBMITTED | PENDING_APPROVAL | APPROVED | REJECTED | PAID
+  currentApprovalLevel Int?  // 1 = Manager, 2 = Head
+  approvedBy      String?   // userId
+  approvedAt      DateTime?
+  
+  // Payroll mapping
+  payrollMapped   Boolean   @default(false)
+  payslipId       String?   // Link to payslip
+  paidAmount      Float?
+  paidAt          DateTime?
+  
+  departmentId    String?   // For routing approvals
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([employeeId])
+  @@index([claimDate])
+  @@index([status])
+  @@index([departmentId])
+  @@map("overtime_claims")
+}
+
+// Employee Documents (ID, certificates, etc.)
+model EmployeeDocument {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-EDOC-XXXX
+  
+  employeeId      String
+  employee        EmployeeProfile @relation("EmployeeDocuments", fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  documentType    String    // NRIC | PASSPORT | EDUCATION | CERTIFICATION | LICENSE | CONTRACT | OFFER_LETTER | MEDICAL_CHECK | INSURANCE | OTHER
+  documentName    String
+  fileName        String
+  fileUrl         String?
+  fileSize        Int?
+  
+  expiryDate      DateTime? // For documents with expiry (passport, medical check, etc.)
+  issueDate       DateTime?
+  
+  uploadedBy      String?   // userId (HR or employee)
+  uploadedAt      DateTime  @default(now())
+  verifiedBy      String?   // userId (HR verification)
+  verifiedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([employeeId])
+  @@index([documentType])
+  @@index([expiryDate])
+  @@map("employee_documents")
+}
+
+// Statutory Forms (EA, CP38, etc.)
+model StatutoryForm {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TKG-FORM-XXXX
+  
+  employeeId      String?
+  employee        EmployeeProfile? @relation("StatutoryForms", fields: [employeeId], references: [id], onDelete: SetNull)
+  
+  formType        String    // EA | CP38 | FORM_LHDN | FORM_SOCSO | OTHER
+  formName        String
+  financialYear   Int?
+  
+  submissionDate  DateTime?
+  dueDate         DateTime
+  
+  fileUrl         String?
+  fileName        String?
+  
+  status          String    @default("DRAFT") // DRAFT | COMPLETED | SUBMITTED | FILED | APPROVED
+  submittedBy     String?   // userId
+  submittedAt     DateTime?
+  
+  approvedBy      String?   // userId (HR/Admin)
+  approvedAt      DateTime?
+  
+  notes           String?   @db.Text
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([employeeId])
+  @@index([formType])
+  @@index([dueDate])
+  @@map("statutory_forms")
+}
+
+// ─── HR Enhancement: Recruitment to Payroll Integration ─────────────────────────
+
+// Track candidate onboarding to employee
+model CandidateOnboarding {
+  id              String    @id @default(cuid())
+  candidateId     String
+  candidate       Candidate @relation("CandidateOnboarding", fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  employeeId      String?   @unique  // one-to-one: each employee has one onboarding record
+  employee        EmployeeProfile? @relation("OnboardingRecord", fields: [employeeId], references: [id], onDelete: SetNull)
+  
+  jobId           String?
+  job             Job?      @relation("CandidateOnboarding", fields: [jobId], references: [id], onDelete: SetNull)
+  
+  // Onboarding details
+  offerStatus     String    @default("PENDING") // PENDING | ACCEPTED | REJECTED | WITHDRAWN
+  joiningDate     DateTime?
+  
+  // Transfer data from recruitment to payroll
+  designation     String?
+  department      String?
+  employmentType  String?   @default("INTERNAL") // INTERNAL | CONTRACTOR | DEPLOYED
+  workLocation    String?
+  
+  salary          Float?
+  currency        String    @default("MYR")
+  
+  // Approval
+  approvedBy      String?   // userId (HR)
+  approvedAt      DateTime?
+  
+  status          String    @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED | CANCELLED
+  completedAt     DateTime?
+  
+  notes           String?   @db.Text
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([candidateId, jobId])
+  @@index([candidateId])
+  @@index([employeeId])
+  @@map("candidate_onboarding")
+}
+
+// ─── Payroll System: Staff Type Rules ────────────────────────────────────────────
+
+// Define eligibility rules for different staff types (INTERNAL vs DEPLOYED)
+model StaffTypeRules {
+  id              String    @id @default(cuid())
+  staffType       String    @unique  // INTERNAL | DEPLOYED | CONTRACTOR
+  
+  // Leave Entitlements (per year)
+  annualLeaveCitizenDays Float @default(11)    // Malaysian citizen
+  annualLeavePRDays      Float @default(8)     // PR
+  annualLeaveExpatDays   Float @default(6)     // Expatriate (EP, work permit)
+  medicalLeaveDays       Float @default(14)
+  hospitalizationDays    Float @default(60)
+  noPayLeaveDays         Float @default(0)
+  replacementLeaveDays   Float @default(0)
+  compassionateLeaveDays Float @default(3)
+  
+  // Benefits & Allowances
+  canApplyOvertime       Boolean @default(false)
+  overtimeRateMultiplier Float @default(1.5)
+  canSwapHolidays        Boolean @default(false)
+  
+  // Eligibility
+  leaveEligibleAfterDays Int     @default(90)  // Days from joining before can apply leave
+  mustHaveContractUntilEOD Boolean @default(false) // For deployed: contract must extend to EOD
+  
+  // Payment
+  paymentType            String  // MONTHLY_SALARY | DAILY_RATE | HOURLY_RATE
+  
+  notes                  String? @db.Text
+  isActive               Boolean @default(true)
+  
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  
+  employees              EmployeeProfile[] @relation("StaffTypeRulesRelation")
+  
+  @@map("staff_type_rules")
+}
+
+// ─── Payroll System: Payment Agreements ──────────────────────────────────────────
+
+// Links employee to their payment terms (salary for internal, rates for deployed)
+model PaymentAgreement {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // AGR-XXXX
+  
+  employeeId      String?
+  employee        EmployeeProfile? @relation("PaymentAgreements", fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // For deployed staff - link to client
+  clientId        String?
+  client          Client?   @relation("ClientPaymentAgreements", fields: [clientId], references: [id], onDelete: Cascade)
+
+  clientLeaveApproverUserId String?   @map("client_leave_approver_user_id")
+  clientLeaveApprover       User?     @relation("ClientLeaveApprover", fields: [clientLeaveApproverUserId], references: [id], onDelete: SetNull)
+  
+  staffType       String    // INTERNAL | DEPLOYED | CONTRACTOR
+  
+  // Payment terms
+  paymentType     String    // MONTHLY_SALARY | DAILY_RATE | HOURLY_RATE | HYBRID
+  monthlyRate     Float?    // For salary
+  dailyRate       Float?    // For daily workers
+  hourlyRate      Float?    // For hourly workers
+  
+  // Billing to client (for deployed staff)
+  billingType     String?   // TIMESHEET | DAILY_BILLABLE | FIXED_RATE | HYBRID
+  billingRate     Float?    // What client is billed
+  
+  // Overtime
+  allowOvertime   Boolean   @default(false)
+  maxOTHoursPerMonth Float? // Limit on OT hours per month
+  otRateMultiplier Float    @default(1.5)
+  
+  // Leave eligibility (override defaults if different)
+  leavesPerYear   Int?      // If different from staff type defaults
+  
+  // Duration
+  startDate       DateTime
+  endDate         DateTime?
+  
+  currency        String    @default("MYR")
+  status          String    @default("ACTIVE")  // ACTIVE | EXPIRED | SUSPENDED
+  
+  approvedBy      String?   // userId
+  approvedAt      DateTime?
+  
+  notes           String?   @db.Text
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  invoices        DeployedStaffInvoice[]
+  
+  @@index([employeeId])
+  @@index([clientId])
+  @@index([clientLeaveApproverUserId])
+  @@index([status])
+  @@map("payment_agreements")
+}
+
+// ─── Payroll System: Public Holidays ─────────────────────────────────────────────
+
+// National and state-level public holidays for Malaysia
+model PublicHoliday {
+  id              String    @id @default(cuid())
+  
+  holidayName     String    // "Hari Raya Aidilfitri", "Thaipusam", etc.
+  holidayDate     DateTime
+  
+  state           String?   // "KL" | "JHR" | "SGR" | "PRK" | etc. | null for national
+  isNational      Boolean   @default(false)  // True for national holidays
+  
+  // If holiday falls on weekend/gazetted, replacement date
+  replacementDate DateTime?
+  
+  year            Int       // Which year this applies to
+  
+  notes           String?   @db.Text
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([holidayDate, state, year])
+  @@index([year])
+  @@index([state])
+  @@map("public_holidays")
+}
+
+// ─── Attachments for Claims & Leave ──────────────────────────────────────────────
+
+// Store file uploads (receipts, medical docs, etc.)
+model Attachment {
+  id              String    @id @default(cuid())
+  
+  // One attachment belongs to either a Claim or LeaveRequest
+  claimId         String?
+  claim           Claim?    @relation("ClaimAttachments", fields: [claimId], references: [id], onDelete: Cascade)
+  
+  leaveRequestId  String?
+  leaveRequest    LeaveRequest? @relation("LeaveAttachments", fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  
+  // File info
+  fileName        String
+  mimeType        String    // image/jpeg, application/pdf, etc.
+  fileSize        Int       // bytes
+  filePath        String    // s3://bucket/path or /uploads/path
+  fileUrl         String?   // Public URL to download
+  
+  // Metadata
+  uploadedBy      String    // userId
+  uploadedAt      DateTime  @default(now())
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([claimId])
+  @@index([leaveRequestId])
+  @@map("attachments")
+}
+
+// ─── Payroll System: Holiday Swaps ──────────────────────────────────────────────
+
+// Track when employees swap working holidays with working days
+model HolidaySwap {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // HS-XXXX
+  
+  employeeId      String
+  employee        EmployeeProfile @relation("HolidaySwaps", fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  originalHolidayDate DateTime  // The public holiday to be swapped
+  swappedWorkingDate DateTime  // Working day that becomes a holiday
+  
+  reason          String?   @db.Text
+  
+  requestedAt     DateTime  @default(now())
+  approvedBy      String?   // userId (manager/HR)
+  approvedAt      DateTime?
+  
+  status          String    @default("PENDING") // PENDING | APPROVED | REJECTED | WITHDRAWN
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([employeeId, originalHolidayDate])
+  @@index([employeeId])
+  @@index([status])
+  @@map("holiday_swaps")
+}
+
+// ─── Payroll System: Deployed Staff Timesheets ───────────────────────────────────
+
+// Track hours for deployed staff (for billing and payroll)
+model Timesheet {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // TS-XXXX
+  
+  employeeId      String
+  employee        EmployeeProfile @relation("Timesheets", fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  clientId        String?
+  client          Client?   @relation("ClientTimesheets", fields: [clientId], references: [id], onDelete: SetNull)
+  
+  weekStartDate   DateTime
+  weekEndDate     DateTime
+  
+  // Daily hours
+  mon_hours       Float     @default(0)
+  tue_hours       Float     @default(0)
+  wed_hours       Float     @default(0)
+  thu_hours       Float     @default(0)
+  fri_hours       Float     @default(0)
+  sat_hours       Float     @default(0)
+  sun_hours       Float     @default(0)
+  
+  totalHours      Float // Calculated total
+  
+  notes           String?   @db.Text
+  
+  status          String    @default("DRAFT") // DRAFT | SUBMITTED | APPROVED | INVOICED
+  submittedBy     String?   // userId (employee)
+  submittedAt     DateTime?
+  
+  approvedBy      String?   // userId (manager/finance)
+  approvedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([employeeId])
+  @@index([clientId])
+  @@index([weekStartDate])
+  @@map("timesheets")
+}
+
+// ─── Payroll System: Deployed Staff Invoicing ───────────────────────────────────
+
+// Track invoices for deployed staff (generated from timesheets or agreement)
+model DeployedStaffInvoice {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // DSI-XXXX
+  
+  employeeId      String
+  employee        EmployeeProfile @relation("DeployedInvoices", fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  clientId        String
+  client          Client    @relation("ClientDeployedInvoices", fields: [clientId], references: [id], onDelete: Cascade)
+  
+  agreement       PaymentAgreement? @relation(fields: [agreementId], references: [id], onDelete: SetNull)
+  agreementId     String?
+  
+  // Invoice period
+  month           Int       // Month (1-12)
+  year            Int       // Year
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  // Calculation
+  billingType     String    // TIMESHEET | DAILY_BILLABLE | FIXED_RATE
+  workingDays     Int?      // For daily billing
+  totalHours      Float?    // For hourly/timesheet billing
+  
+  overtimeHours   Float?    @default(0)
+  otRateMultiplier Float   @default(1.5)
+  
+  ratePerUnit     Float
+  subtotal        Float
+  tax             Float     @default(0)
+  total           Float
+  
+  // Status
+  status          String    @default("DRAFT") // DRAFT | GENERATED | SENT | PAID
+  generatedAt     DateTime?
+  sentAt          DateTime?
+  paidAt          DateTime?
+  paidAmount      Float?
+  
+  notes           String?   @db.Text
+  
+  payments        DeployedStaffPayment[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([employeeId, clientId, month, year])
+  @@index([employeeId])
+  @@index([clientId])
+  @@map("deployed_staff_invoices")
+}
+
+// ─── Payroll System: Staff Payments (for deployed workers) ──────────────────────
+
+// Track payments made to deployed staff (after client pays)
+model DeployedStaffPayment {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique  // DSP-XXXX
+  
+  employeeId      String
+  employee        EmployeeProfile @relation("DeployedPayments", fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  invoiceId       String
+  invoice         DeployedStaffInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  paymentDate     DateTime
+  amount          Float
+  currency        String    @default("MYR")
+  
+  paymentMethod   String?   // BANK_TRANSFER | CHEQUE | CASH | OTHER
+  referenceNo     String?   // Bank transaction reference
+  
+  status          String    @default("PAID") // PENDING | PAID | CLEARED
+  approvedBy      String?   // userId
+  approvedAt      DateTime?
+  
+  notes           String?   @db.Text
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([employeeId])
+  @@index([invoiceId])
+  @@map("deployed_staff_payments")
+}
+
+// ─── Phase 04: Visa & Permits ───────────────────────────────────────────────
+
+model VisaCase {
+  id                 String    @id @default(cuid())
+  displayId          String    @unique
+
+  workerType         String
+  employeeProfileId  String?
+  employeeProfile    EmployeeProfile? @relation("VisaCaseEmployee", fields: [employeeProfileId], references: [id], onDelete: SetNull)
+  candidateId        String?
+  candidate          Candidate? @relation("VisaCaseCandidate", fields: [candidateId], references: [id], onDelete: SetNull)
+
+  workerDisplayId    String?
+  workerName         String
+  nationality        String?
+  workerCategory     String
+
+  permitType         String
+  permitStatus       String    @default("APPLICATION")
+
+  applicationDate    DateTime?
+  approvalDate       DateTime?
+  expiryDate         DateTime?
+  renewalDueDate     DateTime?
+
+  caseOwnerId        String?
+  caseOwner          User?     @relation("VisaCaseOwner", fields: [caseOwnerId], references: [id], onDelete: SetNull)
+
+  notes              String?   @db.Text
+
+  createdById        String?
+  createdBy          User?     @relation("VisaCaseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById        String?
+  updatedBy          User?     @relation("VisaCaseUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  documents          VisaDocument[]
+  onboardingItems    VisaOnboardingItem[]
+  expiryAlerts       VisaExpiryAlert[]
+  dependents         VisaDependent[]
+
+  @@index([employeeProfileId])
+  @@index([candidateId])
+  @@index([permitStatus])
+  @@index([expiryDate])
+  @@map("visa_cases")
+}
+
+model VisaDocument {
+  id              String    @id @default(cuid())
+  displayId       String?   @unique
+  visaCaseId      String
+  visaCase        VisaCase  @relation(fields: [visaCaseId], references: [id], onDelete: Cascade)
+
+  documentType    String
+  fileName        String
+  fileUrl         String?
+  verifiedStatus  String    @default("PENDING")
+
+  uploadedById    String?
+  notes           String?   @db.Text
+  uploadedAt      DateTime  @default(now())
+
+  @@index([visaCaseId])
+  @@map("visa_documents")
+}
+
+model VisaOnboardingItem {
+  id               String    @id @default(cuid())
+  visaCaseId       String
+  visaCase         VisaCase  @relation(fields: [visaCaseId], references: [id], onDelete: Cascade)
+
+  itemName         String
+  itemPhase        String
+  status           String    @default("PENDING")
+  dueDate          DateTime?
+  linkedDocumentId String?
+  completedById    String?
+  completedAt      DateTime?
+  sortOrder        Int       @default(0)
+
+  @@index([visaCaseId])
+  @@map("visa_onboarding_items")
+}
+
+model VisaExpiryAlert {
+  id                 String    @id @default(cuid())
+  visaCaseId         String
+  visaCase           VisaCase  @relation(fields: [visaCaseId], references: [id], onDelete: Cascade)
+
+  alertType          String
+  expiryDate         DateTime
+  alertDays          Int
+  triggeredAt        DateTime?
+  acknowledgedById   String?
+  acknowledgedAt     DateTime?
+
+  @@index([visaCaseId])
+  @@map("visa_expiry_alerts")
+}
+
+model VisaComplianceRule {
+  id               String    @id @default(cuid())
+  country          String    @default("MY")
+  workerCategory   String?
+  year             Int?
+  ruleType         String
+  ruleValue        Json?
+  effectiveDate    DateTime
+
+  configuredById   String?
+  configuredBy     User?     @relation("VisaComplianceConfiguredBy", fields: [configuredById], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([country, workerCategory])
+  @@map("visa_compliance_rules")
+}
+
+model VisaDependent {
+  id            String    @id @default(cuid())
+  visaCaseId    String
+  visaCase      VisaCase  @relation(fields: [visaCaseId], references: [id], onDelete: Cascade)
+
+  name          String
+  relationship  String?
+  passportNo    String?
+  passStatus    String?
+  expiryDate    DateTime?
+  notes         String?   @db.Text
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([visaCaseId])
+  @@map("visa_dependents")
+}
+

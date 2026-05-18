@@ -10,7 +10,7 @@ import { TableWrapper } from '@/components/ui/table-wrapper';
 type Application = {
   id: string;
   businessId?: string;
-  status: string;
+  stage: string;   // backend returns 'stage' (CandidateStage enum)
   createdAt: string | null;
   updatedAt: string | null;
   matchScore?: number | null;
@@ -110,7 +110,7 @@ export default function ApplicationsPage() {
       const { data } = await api.get('/applications', { params: { limit: 1000 } });
       const items = Array.isArray(data) ? data : data?.data ?? [];
       const counts: Record<string, number> = { ALL: items.length };
-      PIPELINE_STAGES.forEach(s => { counts[s] = items.filter((a: Application) => normalise(a.status) === s).length; });
+      PIPELINE_STAGES.forEach(s => { counts[s] = items.filter((a: Application) => normalise(a.stage) === s).length; });
       return counts;
     },
     staleTime: 30000,
@@ -199,7 +199,7 @@ export default function ApplicationsPage() {
         <div className="overflow-x-auto pb-4">
           <div className="flex gap-4 min-w-max">
             {PIPELINE_STAGES.map(stage => {
-              const stageApps = applications.filter((a: Application) => normalise(a.status) === stage);
+              const stageApps = applications.filter((a: Application) => normalise(a.stage) === stage);
               const all = (allData as any);
               return (
                 <div key={stage} className="w-72 flex-shrink-0">
@@ -298,8 +298,8 @@ export default function ApplicationsPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[app.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {displayStage(app.status)}
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[app.stage] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {displayStage(app.stage)}
                     </span>
                   </td>
                   <td className="px-4 py-3">

@@ -1,0 +1,78 @@
+# Docker Ignore - Exclude files from Docker build context
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+*.tgz
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build/Dist
+dist
+build
+out
+.next
+.nuxt
+
+# OS
+Thumbs.db
+.DS_Store
+.AppleDouble
+
+# Tests
+coverage
+.nyc_output
+test-results
+
+# Logs
+logs
+*.log
+
+# Temp
+tmp
+temp
+*.tmp
+
+# Database
+*.sqlite
+*.db
+
+# Docker
+docker-compose.yml
+Dockerfile*
+.dockerignore
+
+# Documentation
+README.md
+CONTRIBUTING.md
+LICENSE
+docs/
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Other
+.eslintcache
+.prettierignore
+yarn.lock
+package-lock.json (for production builds use npm ci)

@@ -1,21 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateFollowUpDto, UpdateFollowUpDto } from './dto/follow-up.dto';
+import { BusinessIdService } from '../billing/business-id.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class FollowUpsService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private businessId(tenantId: string): string {
-    return `FU-${tenantId.slice(0, 6).toUpperCase()}-${Date.now()}`;
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businessIdService: BusinessIdService,
+  ) {}
 
   async create(tenantId: string, dto: CreateFollowUpDto) {
     return this.prisma.followUp.create({
       data: {
         id: uuidv4(),
-        businessId: this.businessId(tenantId),
+        businessId: await this.businessIdService.generate('followUp'),
         tenantId,
         ...dto,
         scheduledAt: new Date(dto.scheduledAt),
@@ -71,8 +71,8 @@ export class FollowUpsService {
 
   async update(tenantId: string, id: string, dto: UpdateFollowUpDto) {
     await this.findOne(tenantId, id);
-    return this.prisma.followUp.update({
-      where: { id },
+    await this.prisma.followUp.updateMany({
+      where: { id, tenantId },
       data: {
         ...dto,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
@@ -81,19 +81,22 @@ export class FollowUpsService {
         updatedAt: new Date(),
       },
     });
+    return this.findOne(tenantId, id);
   }
 
   async markDone(tenantId: string, id: string) {
     await this.findOne(tenantId, id);
-    return this.prisma.followUp.update({
-      where: { id },
+    await this.prisma.followUp.updateMany({
+      where: { id, tenantId },
       data: { status: 'DONE', completedAt: new Date(), updatedAt: new Date() },
     });
+    return this.findOne(tenantId, id);
   }
 
   async remove(tenantId: string, id: string) {
     await this.findOne(tenantId, id);
-    return this.prisma.followUp.delete({ where: { id } });
+    await this.prisma.followUp.deleteMany({ where: { id, tenantId } });
+    return { deleted: true };
   }
 
   async getUpcomingToday(tenantId: string) {

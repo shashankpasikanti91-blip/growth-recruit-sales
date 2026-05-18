@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { clientsApi } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -18,18 +18,45 @@ const STATUS_OPTIONS = [
 
 export default function NewClientPage() {
   const router = useRouter();
+  const [editId, setEditId] = useState<string | null>(null);
   const qc = useQueryClient();
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = new URLSearchParams(window.location.search).get('editId');
+    setEditId(id);
+  }, []);
+
   const [form, setForm] = useState({
     name: '', industry: '', website: '', countryCode: '', city: '',
     status: 'PROSPECT', paymentTerms: '', notes: '',
   });
 
+  const { data: editClient, isLoading: isLoadingClient } = useQuery({
+    queryKey: ['client-edit', editId],
+    queryFn: () => clientsApi.get(editId as string),
+    enabled: !!editId,
+  });
+
+  useEffect(() => {
+    if (!editClient) return;
+    setForm({
+      name: editClient.name ?? '',
+      industry: editClient.industry ?? '',
+      website: editClient.website ?? '',
+      countryCode: editClient.countryCode ?? '',
+      city: editClient.city ?? '',
+      status: editClient.status ?? 'PROSPECT',
+      paymentTerms: editClient.paymentTerms ?? '',
+      notes: editClient.notes ?? '',
+    });
+  }, [editClient]);
+
   const { mutate, isPending } = useMutation({
-    mutationFn: () => clientsApi.create(form),
+    mutationFn: () => editId ? clientsApi.update(editId, form) : clientsApi.create(form),
     onSuccess: (data) => {
-      toast.success('Client created');
+      toast.success(editId ? 'Client updated' : 'Client created');
       qc.invalidateQueries({ queryKey: ['clients'] });
-      router.push(`/clients/${data.id}`);
+      router.push(`/clients/${editId ?? data.id}`);
     },
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to create client'),
   });
@@ -50,10 +77,11 @@ export default function NewClientPage() {
             <Handshake className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Add New Client</h1>
-            <p className="text-sm text-gray-500">Create a new client record</p>
+            <h1 className="text-xl font-bold text-gray-900">{editId ? 'Edit Client' : 'Add New Client'}</h1>
+            <p className="text-sm text-gray-500">{editId ? 'Update client profile and requirements' : 'Create a new client record'}</p>
           </div>
         </div>
+        {isLoadingClient && <div className="text-sm text-gray-500 mb-3">Loading client data...</div>}
 
         <div className="space-y-4">
           {/* Name */}
@@ -144,7 +172,7 @@ export default function NewClientPage() {
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Save className="w-4 h-4" />
-            {isPending ? 'Saving...' : 'Create Client'}
+            {isPending ? 'Saving...' : (editId ? 'Update Client' : 'Create Client')}
           </button>
           <Link href="/clients" className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             Cancel

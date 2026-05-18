@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Backend API Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: tekgen-backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 5000
+      DATABASE_URL: postgresql://${DB_USER:-tekgen}:${DB_PASSWORD:-tekgen_pass_2024}@tekgen-postgres:5432/${DB_NAME:-tekgen_ats}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-min-32-characters}
+      JWT_EXPIRY: ${JWT_EXPIRY:-7d}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@tekgen.com.my}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:5000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./tekgen-ats-backend/uploads:/app/uploads
+      - ./tekgen-ats-backend/src:/app/src
+    networks:
+      - tekgen-network
+    command: sh -c "node src/index.js"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Frontend Application
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: tekgen-frontend
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:5000}
+    ports:
+      - "3000:3000"
+    networks:
+      - tekgen-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Redis Cache (Optional - for performance optimization)
+  redis:
+    image: redis:7-alpine
+    container_name: tekgen-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - tekgen-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  tekgen-network:
+    external: true
+    name: tekgenrecruitment_tekgen-network

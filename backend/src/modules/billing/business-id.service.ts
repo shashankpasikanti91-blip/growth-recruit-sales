@@ -43,6 +43,13 @@ const ENTITY_MAP: Record<string, EntityConfig> = {
   outreachMessage: { prefix: 'OUT', table: 'outreach_messages', column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
   document:        { prefix: 'DOC', table: 'documents',          column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
   sourceImport:    { prefix: 'IMP', table: 'source_imports',    column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
+  client:          { prefix: 'CLT', table: 'clients',           column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
+  opportunity:     { prefix: 'OPP', table: 'opportunities',     column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
+  followUp:        { prefix: 'FUP', table: 'follow_ups',        column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
+  proposal:        { prefix: 'PRP', table: 'proposals',         column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
+  submission:      { prefix: 'SUB', table: 'submissions',       column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
+  interview:       { prefix: 'INT', table: 'interviews',        column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
+  offer:           { prefix: 'OFR', table: 'offers',            column: 'businessId', padLength: 6, dateFormat: 'YYYYMM' },
 };
 
 // Whitelist of valid table/column identifiers used in raw SQL to prevent injection

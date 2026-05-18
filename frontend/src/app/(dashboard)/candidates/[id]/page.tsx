@@ -1272,7 +1272,7 @@ export default function CandidateDetailPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Link href={`/submissions/${sub.id}`} className="font-medium text-gray-900 hover:text-brand-600 text-sm">
+                          <Link href={`/jobs/${sub.jobId}`} className="font-medium text-gray-900 hover:text-brand-600 text-sm">
                             {sub.businessId}
                           </Link>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stageColors[sub.stage] ?? 'bg-gray-100 text-gray-600'}`}>

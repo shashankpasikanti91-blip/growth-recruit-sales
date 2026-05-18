@@ -1,0 +1,8 @@
+# Copy to ngrok-tekgen.local.yml (gitignored) for your real token.
+version: "2"
+authtoken: YOUR_AUTHTOKEN_FROM_NGROK_DASHBOARD
+web_addr: 127.0.0.1:4060
+tunnels:
+  tekgen:
+    proto: http
+    addr: 5000

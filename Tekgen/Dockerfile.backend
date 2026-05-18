@@ -1,0 +1,52 @@
+# Backend Dockerfile for Tekgen ATS
+# Multi-stage build for optimized Node.js application
+
+# Stage 1: Build stage
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY tekgen-ats-backend/package*.json ./
+
+# Install ALL dependencies (need prisma CLI in builder)
+RUN npm ci
+
+# Stage 2: Runtime stage
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Copy from builder
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy application code
+COPY tekgen-ats-backend/src ./src
+COPY tekgen-ats-backend/prisma ./prisma
+COPY tekgen-ats-backend/package*.json ./
+COPY tekgen-ats-backend/.env.example ./.env.example
+
+# Generate Prisma client inside the container
+RUN node node_modules/prisma/build/index.js generate
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Change ownership
+RUN chown -R nodejs:nodejs /app
+
+USER nodejs
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=5 \
+    CMD node -e "require('http').get('http://localhost:5000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+CMD ["node", "src/index.js"]

@@ -76,6 +76,8 @@ export default function CandidatesPage() {
   const [copiedId, setCopiedId]       = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkScreen, setShowBulkScreen] = useState(false);
+  const [editingCandidate, setEditingCandidate] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
 
   // Boolean search state
   const [searchMode, setSearchMode] = useState<'simple' | 'boolean'>('simple');
@@ -88,9 +90,28 @@ export default function CandidatesPage() {
   const [saveSearchName, setSaveSearchName] = useState('');
   const queryClient = useQueryClient();
 
+  const updateCandidateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) => candidatesApi.update(id, payload),
+    onSuccess: () => {
+      toast.success('Candidate updated');
+      setEditingCandidate(null);
+      setEditForm({});
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Failed to update candidate'),
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ['candidates', search, stageFilter, visaFilter, expFilter, sourceFilter, skillsFilter, page],
-    queryFn: () => candidatesApi.list({ search: search || undefined, skills: skillsFilter || undefined, page, limit: 25 }),
+    queryFn: () => candidatesApi.list({
+      search: search || undefined,
+      skills: skillsFilter || undefined,
+      stage: stageFilter || undefined,
+      visaStatus: visaFilter || undefined,
+      sourceName: sourceFilter || undefined,
+      page,
+      limit: 25,
+    }),
     placeholderData: (prev: any) => prev,
     enabled: searchMode === 'simple',
   });
@@ -148,9 +169,6 @@ export default function CandidatesPage() {
   const candidates: any[] = (() => {
     const list = data?.data ?? [];
     return list.filter((c: any) => {
-      if (stageFilter && c.stage !== stageFilter) return false;
-      if (visaFilter && c.visaStatus !== visaFilter) return false;
-      if (sourceFilter && (c.sourceName ?? c.source ?? '').toUpperCase() !== sourceFilter) return false;
       if (expFilter && expFilter !== 'Any') {
         const y = c.yearsExperience ?? 0;
         if (expFilter === '0-2 yrs' && y > 2) return false;
@@ -171,6 +189,36 @@ export default function CandidatesPage() {
     <div className="space-y-5">
       {showBulkScreen && (
         <BulkScreenModal selectedCandidates={candidates.filter((c:any)=>selectedIds.has(c.id))} onClose={()=>{setShowBulkScreen(false);setSelectedIds(new Set());}} />
+      )}
+      {editingCandidate && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Quick Edit Candidate</h3>
+              <button onClick={() => setEditingCandidate(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input className="input text-sm" placeholder="First Name" value={editForm.firstName ?? ''} onChange={(e)=>setEditForm((f:any)=>({...f, firstName:e.target.value}))} />
+              <input className="input text-sm" placeholder="Last Name" value={editForm.lastName ?? ''} onChange={(e)=>setEditForm((f:any)=>({...f, lastName:e.target.value}))} />
+              <input className="input text-sm" placeholder="Email" value={editForm.email ?? ''} onChange={(e)=>setEditForm((f:any)=>({...f, email:e.target.value}))} />
+              <input className="input text-sm" placeholder="Phone" value={editForm.phone ?? ''} onChange={(e)=>setEditForm((f:any)=>({...f, phone:e.target.value}))} />
+              <input className="input text-sm" placeholder="Current Title" value={editForm.currentTitle ?? ''} onChange={(e)=>setEditForm((f:any)=>({...f, currentTitle:e.target.value}))} />
+              <input className="input text-sm" placeholder="Current Company" value={editForm.currentCompany ?? ''} onChange={(e)=>setEditForm((f:any)=>({...f, currentCompany:e.target.value}))} />
+              <input className="input text-sm" placeholder="Location" value={editForm.location ?? ''} onChange={(e)=>setEditForm((f:any)=>({...f, location:e.target.value}))} />
+              <input className="input text-sm" placeholder="Years Experience" type="number" value={editForm.yearsExperience ?? ''} onChange={(e)=>setEditForm((f:any)=>({...f, yearsExperience:e.target.value === '' ? undefined : Number(e.target.value)}))} />
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setEditingCandidate(null)} className="btn-secondary text-sm">Cancel</button>
+              <button
+                onClick={() => updateCandidateMutation.mutate({ id: editingCandidate.id, payload: editForm })}
+                disabled={updateCandidateMutation.isPending}
+                className="btn-primary text-sm"
+              >
+                {updateCandidateMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -509,6 +557,24 @@ export default function CandidatesPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 justify-end">
+                        <button
+                          onClick={() => {
+                            setEditingCandidate(c);
+                            setEditForm({
+                              firstName: c.firstName ?? '',
+                              lastName: c.lastName ?? '',
+                              email: c.email ?? '',
+                              phone: c.phone ?? '',
+                              currentTitle: c.currentTitle ?? '',
+                              currentCompany: c.currentCompany ?? '',
+                              location: c.location ?? '',
+                              yearsExperience: c.yearsExperience ?? undefined,
+                            });
+                          }}
+                          className="inline-flex items-center gap-1 text-xs text-gray-700 font-medium px-2 py-1 rounded-lg hover:bg-gray-100"
+                        >
+                          Edit
+                        </button>
                         <Link href={'/candidates/'+c.id} className="inline-flex items-center gap-1 text-xs text-brand-600 font-medium px-2 py-1 rounded-lg hover:bg-brand-50">View<ChevronRight className="w-3 h-3"/></Link>
                       </div>
                     </td>

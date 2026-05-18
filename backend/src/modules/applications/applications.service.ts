@@ -33,7 +33,7 @@ export class ApplicationsService {
     if (!job.isActive) throw new BadRequestException('Job is closed');
 
     const existing = await this.prisma.application.findFirst({
-      where: { candidateId: dto.candidateId, jobId: dto.jobId },
+      where: { tenantId, candidateId: dto.candidateId, jobId: dto.jobId },
     });
     if (existing) throw new ConflictException('Candidate already applied for this job');
 
@@ -137,7 +137,7 @@ export class ApplicationsService {
     if (!application) throw new NotFoundException('Application not found');
 
     const updated = await this.prisma.application.update({
-      where: { id },
+      where: { id, tenantId },
       data: { stage: dto.stage as CandidateStage },
     });
 

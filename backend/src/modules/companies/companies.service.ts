@@ -77,6 +77,7 @@ export class CompaniesService {
 
   async update(tenantId: string, id: string, dto: Partial<CreateCompanyDto>) {
     await this.findOne(tenantId, id);
-    return this.prisma.company.update({ where: { id }, data: dto });
+    await this.prisma.company.updateMany({ where: { id, tenantId }, data: dto });
+    return this.findOne(tenantId, id);
   }
 }

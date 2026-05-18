@@ -74,7 +74,7 @@ export class TalentPoolsService {
   async deletePool(tenantId: string, id: string) {
     const pool = await this.prisma.talentPool.findFirst({ where: { id, tenantId } });
     if (!pool) throw new NotFoundException('Talent pool not found');
-    await this.prisma.talentPool.delete({ where: { id } });
+    await this.prisma.talentPool.deleteMany({ where: { id, tenantId } });
     return { deleted: true };
   }
 
@@ -146,7 +146,7 @@ export class TalentPoolsService {
   async deleteSavedSearch(tenantId: string, id: string) {
     const search = await this.prisma.savedSearch.findFirst({ where: { id, tenantId } });
     if (!search) throw new NotFoundException('Saved search not found');
-    await this.prisma.savedSearch.delete({ where: { id } });
+    await this.prisma.savedSearch.deleteMany({ where: { id, tenantId } });
     return { deleted: true };
   }
 }
